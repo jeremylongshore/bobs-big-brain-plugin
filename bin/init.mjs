@@ -48,7 +48,8 @@ const log = (...a) => console.log(...a);
 const die = (msg) => { console.error(C.red(`✗ ${msg}`)); process.exit(1); };
 
 function parseArgs(argv) {
-  const a = { _: [], indexOnly: false, yes: false, clean: false, base: join(homedir(), '.teamkb'), tenant: 'local' };
+  const a = { _: [], indexOnly: false, yes: false, clean: false, register: true, scope: 'user',
+    base: join(homedir(), '.teamkb'), tenant: 'local' };
   for (let i = 0; i < argv.length; i++) {
     const t = argv[i];
     if (t === '--index-only') a.indexOnly = true;
@@ -56,6 +57,8 @@ function parseArgs(argv) {
     else if (t === '--clean') a.clean = true;
     else if (t === '--base') a.base = resolve(argv[++i]);
     else if (t === '--tenant') a.tenant = argv[++i];
+    else if (t === '--scope') a.scope = argv[++i];
+    else if (t === '--no-register') a.register = false;
     else if (t === '--resume') {/* additive is the default; no-op */}
     else a._.push(t);
   }
@@ -164,19 +167,44 @@ async function buildBrain(folder, files, args) {
   return { captured, gov, status: st };
 }
 
-function printNextSteps(args, qmdOk) {
+function hasClaude() {
+  try { execFileSync('claude', ['--version'], { stdio: 'ignore' }); return true; } catch { return false; }
+}
+
+// Register the bundled server with Claude Code via the official CLI. Idempotent:
+// drop any prior registration at this scope, then add fresh with absolute paths
+// (so the server resolves its vendored native dep + the brain we just built).
+function registerMcp(args) {
+  try { execFileSync('claude', ['mcp', 'remove', 'governed-brain', '-s', args.scope], { stdio: 'ignore' }); } catch {}
+  try {
+    execFileSync('claude', [
+      'mcp', 'add', 'governed-brain', '-s', args.scope,
+      '-e', `TEAMKB_TENANT_ID=${args.tenant}`,
+      '-e', `TEAMKB_BASE_PATH=${args.base}`,
+      '--', 'node', RUNTIME,
+    ], { stdio: 'ignore' });
+    return true;
+  } catch { return false; }
+}
+
+function printNextSteps(args, qmdOk, registered) {
   log('');
   log('  ' + C.green('✓ Brain built.') + ` ${C.dim(args.base)}`);
   log('  ' + C.dim('─'.repeat(58)));
-  log(C.bold('  Wire it into Claude Code'));
-  log('  Add the plugin marketplace, then enable it:');
-  log(C.cyan('    /plugin marketplace add jeremylongshore/governed-second-brain-plugin'));
-  log(C.cyan('    /plugin install governed-second-brain'));
-  log('');
-  log('  …or register the local MCP server directly (project .mcp.json):');
-  log(C.dim(JSON.stringify({ mcpServers: { 'governed-brain': {
-    command: 'node', args: [RUNTIME], env: { TEAMKB_TENANT_ID: args.tenant, TEAMKB_BASE_PATH: args.base },
-  } } }, null, 2).split('\n').map((l) => '    ' + l).join('\n')));
+  if (registered) {
+    log('  ' + C.green(`✓ MCP server 'governed-brain' registered with Claude Code`) + C.dim(` (scope: ${args.scope})`));
+    log('  ' + C.dim('Start a new Claude Code session to load it.'));
+    log('');
+    log('  For the /brain and /brain-save skills too, install the full plugin:');
+    log(C.cyan('    claude plugin marketplace add jeremylongshore/governed-second-brain-plugin'));
+    log(C.cyan('    claude plugin install governed-second-brain'));
+  } else {
+    log('  ' + C.yellow('Register the MCP server with Claude Code:'));
+    log(C.cyan(`    claude mcp add governed-brain -s ${args.scope} \\`));
+    log(C.cyan(`      -e TEAMKB_TENANT_ID=${args.tenant} -e TEAMKB_BASE_PATH=${args.base} \\`));
+    log(C.cyan(`      -- node ${RUNTIME}`));
+    log('  …or, for the skills too: ' + C.cyan('claude plugin marketplace add jeremylongshore/governed-second-brain-plugin'));
+  }
   log('');
   log(C.bold('  Then try'));
   log(`    /brain ${C.dim('"<a few keywords from your notes>"')}        ${C.dim('→ a qmd://-cited answer')}`);
@@ -222,7 +250,10 @@ async function main() {
       `${gov.rejected ?? 0} rejected, ${gov.duplicates ?? 0} duplicate` +
       (gov.indexUpdated ? '' : C.yellow('  (index not refreshed — qmd?)')));
   log(`  brain now holds ${C.bold(status.total ?? 0)} governed memor${(status.total ?? 0) === 1 ? 'y' : 'ies'}`);
-  printNextSteps(args, qmdOk);
+
+  let registered = false;
+  if (args.register && hasClaude()) registered = registerMcp(args);
+  printNextSteps(args, qmdOk, registered);
 }
 
 main().catch((e) => die(e?.stack || String(e)));

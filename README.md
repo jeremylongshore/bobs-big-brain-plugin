@@ -64,7 +64,7 @@ external chain-head anchor (on the roadmap). It is **not** a blockchain and **no
 
 The **`init --index-only` flow works today** — it builds a governed, `qmd://`-cited, hash-chained-audited
 brain from a folder with **zero LLM egress** (capture → govern → index, fully local), vendors the native
-dep, and prints how to wire the MCP server into Claude Code:
+dep, and **auto-registers the MCP server with Claude Code** (via `claude mcp add`):
 
 ```bash
 # one-time build (needs the sibling ../qmd-team-intent-kb checkout, built; qmd 2.x on PATH)
@@ -78,9 +78,11 @@ node bin/init.mjs init <your-folder> --index-only
 The plugin registers a local stdio MCP server (`governed-brain`) over `~/.teamkb`; search runs in-process
 against your local qmd index, and govern degrades gracefully if qmd isn't on PATH.
 
+After it finishes, start a new Claude Code session — the `governed-brain` tools are live. For the
+`/brain` and `/brain-save` skills too, `claude plugin install governed-second-brain`.
+
 **Coming:** the `npx governed-second-brain init <folder>` one-liner (npm publish + provenance), full
-ICO-compile mode (opt-in egress for richer derived knowledge), and automatic Claude Code / Cowork
-MCP registration.
+ICO-compile mode (opt-in egress for richer derived knowledge), and automatic Cowork MCP registration.
 
 ## License
 
