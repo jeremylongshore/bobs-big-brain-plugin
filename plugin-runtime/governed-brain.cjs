@@ -38794,7 +38794,7 @@ async function runGovern(config2) {
 }
 
 // src/local-server.ts
-var VERSION = "0.1.4";
+var VERSION = "0.1.5";
 var config = resolveConfig();
 var CATEGORIES = [
   "decision",
@@ -38808,6 +38808,13 @@ var CATEGORIES = [
 function jsonResult(obj) {
   return { content: [{ type: "text", text: JSON.stringify(obj, null, 2) }] };
 }
+function isMissingNativeDep(e) {
+  const msg = e instanceof Error ? e.message : String(e);
+  return /better[_-]sqlite3|MODULE_NOT_FOUND|Cannot find module|did not self-register|NODE_MODULE_VERSION|invalid ELF/i.test(
+    msg
+  );
+}
+var NATIVE_DEP_HINT = "The brain's local store (better-sqlite3) isn't built for this machine. Run `npx governed-second-brain init <folder>` once \u2014 it builds the native module and registers the MCP \u2014 then retry. (Capture still works without it; only the governed store does not.)";
 var server = new McpServer({ name: "governed-brain", version: VERSION });
 server.tool(
   "brain_search",
@@ -38848,7 +38855,8 @@ server.tool(
     let db;
     try {
       db = createDatabase({ path: config.dbPath, readonly: true });
-    } catch {
+    } catch (e) {
+      if (isMissingNativeDep(e)) return jsonResult({ total: 0, note: NATIVE_DEP_HINT });
       return jsonResult({
         total: 0,
         byLifecycle: {},
@@ -38875,7 +38883,8 @@ server.tool(
     let db;
     try {
       db = createDatabase({ path: config.dbPath, readonly: true });
-    } catch {
+    } catch (e) {
+      if (isMissingNativeDep(e)) return jsonResult({ ok: false, totalEvents: 0, note: NATIVE_DEP_HINT });
       return jsonResult({ ok: true, totalEvents: 0, note: "Brain is empty \u2014 no audit chain yet." });
     }
     try {
@@ -38934,7 +38943,13 @@ server.tool(
   "brain_govern",
   "Run the deterministic govern pipeline once, in-process: drain the spool \u2192 dedupe \u2192 policy/secret-detection \u2192 promote, append a SHA-256 hash-chained audit event per decision, then refresh the search index. This is the deterministic system DISPOSING of the model's proposals.",
   async () => {
-    const s = await runGovern(config);
+    let s;
+    try {
+      s = await runGovern(config);
+    } catch (e) {
+      if (isMissingNativeDep(e)) return jsonResult({ ok: false, error: "native-store-unavailable", message: NATIVE_DEP_HINT });
+      throw e;
+    }
     const parts = [
       `${s.promoted} promoted`,
       `${s.rejected} rejected`,
@@ -38959,7 +38974,13 @@ server.tool(
     supersededBy: import_zod16.z.string().uuid().optional().describe('Required UUID when transitioning to "superseded"')
   },
   async (params) => {
-    const db = createDatabase({ path: config.dbPath });
+    let db;
+    try {
+      db = createDatabase({ path: config.dbPath });
+    } catch (e) {
+      if (isMissingNativeDep(e)) return jsonResult({ ok: false, error: "native-store-unavailable", message: NATIVE_DEP_HINT });
+      throw e;
+    }
     try {
       const memoryRepo = new MemoryRepository(db);
       const auditRepo = new AuditRepository(db);

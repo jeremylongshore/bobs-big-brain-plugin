@@ -30,7 +30,7 @@ import type { MemoryCandidate } from '@qmd-team-intent-kb/schema';
 import { resolveConfig } from './config.js';
 import { runGovern } from './govern.js';
 
-const VERSION = '0.1.4';
+const VERSION = '0.1.5';
 const config = resolveConfig();
 
 const CATEGORIES = [
@@ -46,6 +46,24 @@ const CATEGORIES = [
 function jsonResult(obj: unknown) {
   return { content: [{ type: 'text' as const, text: JSON.stringify(obj, null, 2) }] };
 }
+
+/**
+ * The local store (better-sqlite3) is a per-machine native module the plugin
+ * keeps EXTERNAL to the bundle — the `npx governed-second-brain init` installer
+ * builds it (ensureNativeDep). A file-copy install (e.g. `/plugin install` from a
+ * marketplace) ships the bundle without that native build, so any DB-touching
+ * tool fails until the installer is run. Detect that case and answer with a
+ * clear, actionable message instead of a raw module/ABI error.
+ */
+function isMissingNativeDep(e: unknown): boolean {
+  const msg = e instanceof Error ? e.message : String(e);
+  return /better[_-]sqlite3|MODULE_NOT_FOUND|Cannot find module|did not self-register|NODE_MODULE_VERSION|invalid ELF/i.test(
+    msg,
+  );
+}
+
+const NATIVE_DEP_HINT =
+  "The brain's local store (better-sqlite3) isn't built for this machine. Run `npx governed-second-brain init <folder>` once — it builds the native module and registers the MCP — then retry. (Capture still works without it; only the governed store does not.)";
 
 const server = new McpServer({ name: 'governed-brain', version: VERSION });
 
@@ -100,7 +118,8 @@ server.tool(
     let db;
     try {
       db = createDatabase({ path: config.dbPath, readonly: true });
-    } catch {
+    } catch (e) {
+      if (isMissingNativeDep(e)) return jsonResult({ total: 0, note: NATIVE_DEP_HINT });
       return jsonResult({
         total: 0,
         byLifecycle: {},
@@ -128,7 +147,8 @@ server.tool(
     let db;
     try {
       db = createDatabase({ path: config.dbPath, readonly: true });
-    } catch {
+    } catch (e) {
+      if (isMissingNativeDep(e)) return jsonResult({ ok: false, totalEvents: 0, note: NATIVE_DEP_HINT });
       return jsonResult({ ok: true, totalEvents: 0, note: 'Brain is empty — no audit chain yet.' });
     }
     try {
@@ -193,7 +213,13 @@ server.tool(
   'brain_govern',
   'Run the deterministic govern pipeline once, in-process: drain the spool → dedupe → policy/secret-detection → promote, append a SHA-256 hash-chained audit event per decision, then refresh the search index. This is the deterministic system DISPOSING of the model\'s proposals.',
   async () => {
-    const s = await runGovern(config);
+    let s;
+    try {
+      s = await runGovern(config);
+    } catch (e) {
+      if (isMissingNativeDep(e)) return jsonResult({ ok: false, error: 'native-store-unavailable', message: NATIVE_DEP_HINT });
+      throw e;
+    }
     const parts = [
       `${s.promoted} promoted`,
       `${s.rejected} rejected`,
@@ -221,7 +247,13 @@ server.tool(
     supersededBy: z.string().uuid().optional().describe('Required UUID when transitioning to "superseded"'),
   },
   async (params) => {
-    const db = createDatabase({ path: config.dbPath });
+    let db;
+    try {
+      db = createDatabase({ path: config.dbPath });
+    } catch (e) {
+      if (isMissingNativeDep(e)) return jsonResult({ ok: false, error: 'native-store-unavailable', message: NATIVE_DEP_HINT });
+      throw e;
+    }
     try {
       const memoryRepo = new MemoryRepository(db);
       const auditRepo = new AuditRepository(db);
