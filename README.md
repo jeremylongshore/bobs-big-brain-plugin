@@ -62,29 +62,34 @@ external chain-head anchor (on the roadmap). It is **not** a blockchain and **no
 
 ## Install
 
-Build the runtime once, then `init` over a folder — in either of two modes:
+One command, two modes:
 
 ```bash
-# one-time build (needs the sibling ../qmd-team-intent-kb checkout, built; qmd 2.x on PATH)
-pnpm -C ../qmd-team-intent-kb build   # the bundle inlines INTKB's compiled packages
-pnpm install && pnpm build            # esbuild → plugin-runtime/governed-brain.cjs
+# A) zero-egress (default for regulated/client data) — nothing leaves the machine
+npx governed-second-brain init <your-folder> --index-only
 
-# A) zero-egress (default for regulated/client data): capture → govern → index, nothing leaves the machine
-node bin/init.mjs init <your-folder> --index-only
-
-# B) full compile: ICO derives knowledge (6 passes) before governing — richer brain, opt-in egress to DeepSeek
-DEEPSEEK_API_KEY=… node bin/init.mjs init <your-folder>
+# B) full compile — ICO derives knowledge (6 passes) before governing; opt-in egress to DeepSeek
+DEEPSEEK_API_KEY=… npx governed-second-brain init <your-folder>
 ```
 
-Both vendor the native dep, build a governed, `qmd://`-cited, hash-chained-audited brain under `~/.teamkb`,
-and **auto-register the MCP server with Claude Code** (`claude mcp add`; `--no-register` to skip). Full
-mode runs a loud pre-flight consent (your file text goes to DeepSeek; `--yes` to skip the prompt). Search
-runs in-process against your local qmd index; govern degrades gracefully if qmd isn't on PATH.
+It builds a governed, `qmd://`-cited, hash-chained-audited brain under `~/.teamkb`, installs the native
+dep per-platform, and **auto-registers the MCP server with Claude Code** (`claude mcp add`; `--no-register`
+to skip). Full mode runs a loud pre-flight consent (your file text goes to DeepSeek; `--yes` to skip the
+prompt). Requires Node 20+, a C/C++ toolchain (for `better-sqlite3`), and `qmd` 2.x on PATH for retrieval.
 
 After it finishes, start a new Claude Code session — the `governed-brain` tools are live. For the
 `/brain` and `/brain-save` skills too, `claude plugin install governed-second-brain`.
 
-**Coming:** the `npx governed-second-brain init <folder>` one-liner (npm publish + provenance) and
+<details><summary><strong>Build from source</strong> (to hack on the runtime)</summary>
+
+```bash
+pnpm -C ../qmd-team-intent-kb build   # the bundle inlines INTKB's compiled packages (sibling checkout, built)
+pnpm install && pnpm build            # esbuild → plugin-runtime/governed-brain.cjs
+node bin/init.mjs init <your-folder> --index-only
+```
+</details>
+
+**Coming:** npm provenance + checksums (the `gsb.lock.json` reproducible pin) and
 automatic Cowork MCP registration.
 
 ## License
