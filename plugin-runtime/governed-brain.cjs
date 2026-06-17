@@ -29478,7 +29478,7 @@ var require_zod = __commonJS({
 });
 
 // src/local-server.ts
-var import_node_crypto6 = require("node:crypto");
+var import_node_crypto7 = require("node:crypto");
 
 // node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_zod@4.4.3/node_modules/@modelcontextprotocol/sdk/dist/esm/server/zod-compat.js
 var z3rt = __toESM(require_v3(), 1);
@@ -35123,6 +35123,7 @@ var StdioServerTransport = class {
 
 // src/local-server.ts
 var import_zod16 = __toESM(require_zod(), 1);
+var import_node_path13 = require("node:path");
 
 // ../qmd-team-intent-kb/packages/store/dist/database.js
 var import_node_fs = require("node:fs");
@@ -36565,6 +36566,169 @@ var AuditRepository = class {
   }
 };
 
+// ../qmd-team-intent-kb/packages/store/dist/audit-verify.js
+function verifyAuditChain(repo) {
+  const rows = repo.findAllChronological();
+  const breaks = [];
+  let unverifiedRows = 0;
+  let cleanRows = 0;
+  let expectedPrev = null;
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    if (row.entry_hash === null && row.prev_entry_hash === null) {
+      unverifiedRows++;
+      continue;
+    }
+    const expectedHash = computeEntryHash({
+      id: row.id,
+      action: row.action,
+      memory_id: row.memory_id,
+      tenant_id: row.tenant_id,
+      actor_json: row.actor_json,
+      reason: row.reason,
+      details_json: row.details_json,
+      timestamp: row.timestamp,
+      prev_entry_hash: row.prev_entry_hash
+    });
+    const prevMatches = row.prev_entry_hash === expectedPrev;
+    const entryMatches = row.entry_hash === expectedHash;
+    if (prevMatches && entryMatches) {
+      cleanRows++;
+      expectedPrev = row.entry_hash;
+      continue;
+    }
+    let reason;
+    if (!prevMatches && !entryMatches) {
+      reason = "PREV_LINK_AND_ENTRY_HASH_MISMATCH";
+    } else if (!prevMatches) {
+      reason = "PREV_LINK_MISMATCH";
+    } else {
+      reason = "ENTRY_HASH_MISMATCH";
+    }
+    breaks.push({
+      index: i,
+      id: row.id,
+      action: row.action,
+      timestamp: row.timestamp,
+      tenantId: row.tenant_id,
+      expectedEntryHash: expectedHash,
+      actualEntryHash: row.entry_hash,
+      expectedPrevEntryHash: expectedPrev,
+      actualPrevEntryHash: row.prev_entry_hash,
+      reason
+    });
+    expectedPrev = row.entry_hash;
+  }
+  return {
+    totalRows: rows.length,
+    unverifiedRows,
+    cleanRows,
+    breaks
+  };
+}
+
+// ../qmd-team-intent-kb/packages/store/dist/audit-anchor.js
+var import_node_crypto2 = require("node:crypto");
+var import_node_fs2 = require("node:fs");
+function anchorBodyJson(b) {
+  return JSON.stringify({
+    schemaVersion: b.schemaVersion,
+    anchoredAt: b.anchoredAt,
+    tenantId: b.tenantId,
+    chainedRows: b.chainedRows,
+    chainHead: b.chainHead,
+    prevAnchorHash: b.prevAnchorHash
+  });
+}
+function computeAnchorHash(body) {
+  return (0, import_node_crypto2.createHash)("sha256").update(anchorBodyJson(body), "utf8").digest("hex");
+}
+function chainedRowsOf(repo) {
+  return repo.findAllChronological().filter((r) => r.entry_hash !== null);
+}
+function readAnchors(anchorPath) {
+  if (!(0, import_node_fs2.existsSync)(anchorPath))
+    return [];
+  return (0, import_node_fs2.readFileSync)(anchorPath, "utf8").split("\n").filter((l) => l.trim().length > 0).map((l) => JSON.parse(l));
+}
+function appendAnchor(repo, anchorPath, opts) {
+  const now = opts.nowFn ?? (() => (/* @__PURE__ */ new Date()).toISOString());
+  const rows = chainedRowsOf(repo);
+  const head = rows.length > 0 ? rows[rows.length - 1].entry_hash ?? "" : "";
+  const existing = readAnchors(anchorPath);
+  const prevAnchorHash = existing.length > 0 ? existing[existing.length - 1].anchorHash : null;
+  const body = {
+    schemaVersion: 1,
+    anchoredAt: now(),
+    tenantId: opts.tenantId,
+    chainedRows: rows.length,
+    chainHead: head,
+    prevAnchorHash
+  };
+  const record2 = { ...body, anchorHash: computeAnchorHash(body) };
+  (0, import_node_fs2.appendFileSync)(anchorPath, JSON.stringify(record2) + "\n", { mode: 384 });
+  return record2;
+}
+function verifyAnchors(repo, anchorPath) {
+  const chain = verifyAuditChain(repo);
+  const anchors = readAnchors(anchorPath);
+  const rows = chainedRowsOf(repo);
+  const anchorBreaks = [];
+  let expectedPrev = null;
+  for (let i = 0; i < anchors.length; i++) {
+    const a = anchors[i];
+    const recomputed = computeAnchorHash({
+      schemaVersion: a.schemaVersion,
+      anchoredAt: a.anchoredAt,
+      tenantId: a.tenantId,
+      chainedRows: a.chainedRows,
+      chainHead: a.chainHead,
+      prevAnchorHash: a.prevAnchorHash
+    });
+    if (recomputed !== a.anchorHash) {
+      anchorBreaks.push({
+        index: i,
+        anchoredAt: a.anchoredAt,
+        reason: "ANCHOR_HASH_MISMATCH",
+        detail: "anchor record content does not match its anchorHash"
+      });
+    }
+    if (a.prevAnchorHash !== expectedPrev) {
+      anchorBreaks.push({
+        index: i,
+        anchoredAt: a.anchoredAt,
+        reason: "ANCHOR_LINK_MISMATCH",
+        detail: `prevAnchorHash ${a.prevAnchorHash ?? "null"} != expected ${expectedPrev ?? "null"}`
+      });
+    }
+    expectedPrev = a.anchorHash;
+    if (rows.length < a.chainedRows) {
+      anchorBreaks.push({
+        index: i,
+        anchoredAt: a.anchoredAt,
+        reason: "HISTORY_TRUNCATED",
+        detail: `anchored ${a.chainedRows} chained rows; chain now has ${rows.length}`
+      });
+    } else if (a.chainedRows > 0) {
+      const actualHead = rows[a.chainedRows - 1].entry_hash;
+      if (actualHead !== a.chainHead) {
+        anchorBreaks.push({
+          index: i,
+          anchoredAt: a.anchoredAt,
+          reason: "HISTORY_REWRITTEN",
+          detail: `row ${a.chainedRows} head ${actualHead ?? "null"} != anchored ${a.chainHead}`
+        });
+      }
+    }
+  }
+  return {
+    chain,
+    anchorCount: anchors.length,
+    anchorBreaks,
+    ok: chain.breaks.length === 0 && anchorBreaks.length === 0
+  };
+}
+
 // ../qmd-team-intent-kb/packages/store/dist/repositories/export-state-repository.js
 var import_zod14 = __toESM(require_zod(), 1);
 var ExportStateRowSchema = import_zod14.z.object({
@@ -36621,9 +36785,9 @@ var ExportStateRepository = class {
 var import_node_path3 = require("node:path");
 
 // ../qmd-team-intent-kb/packages/common/dist/hash.js
-var import_node_crypto2 = require("node:crypto");
+var import_node_crypto3 = require("node:crypto");
 function computeContentHash(content) {
-  return (0, import_node_crypto2.createHash)("sha256").update(content, "utf8").digest("hex");
+  return (0, import_node_crypto3.createHash)("sha256").update(content, "utf8").digest("hex");
 }
 
 // ../qmd-team-intent-kb/packages/common/dist/paths.js
@@ -37038,7 +37202,7 @@ async function checkHealth(executor) {
 }
 
 // ../qmd-team-intent-kb/packages/qmd-adapter/dist/adapter.js
-var import_node_fs2 = require("node:fs");
+var import_node_fs3 = require("node:fs");
 var import_node_path5 = require("node:path");
 var QmdAdapter = class {
   executor;
@@ -37078,7 +37242,7 @@ var QmdAdapter = class {
    */
   async ensureCollections() {
     for (const def of getExportableCollections()) {
-      (0, import_node_fs2.mkdirSync)((0, import_node_path5.join)(this.exportDir, def.sourceSubdir), { recursive: true });
+      (0, import_node_fs3.mkdirSync)((0, import_node_path5.join)(this.exportDir, def.sourceSubdir), { recursive: true });
     }
     return this.collections.ensureCollections(this.exportDir);
   }
@@ -37403,7 +37567,7 @@ async function writeToSpool(candidate, spoolDir, agentId) {
 }
 
 // ../qmd-team-intent-kb/packages/claude-runtime/dist/spool/spool-reader.js
-var import_node_crypto3 = require("node:crypto");
+var import_node_crypto4 = require("node:crypto");
 var import_promises2 = require("node:fs/promises");
 var import_node_path7 = require("node:path");
 async function verifySpoolManifest(spoolFilePath) {
@@ -37435,7 +37599,7 @@ async function verifySpoolManifest(spoolFilePath) {
     const msg = e instanceof Error ? e.message : String(e);
     return { ok: false, error: `Failed to read spool file for verification: ${msg}` };
   }
-  const actual = (0, import_node_crypto3.createHash)("sha256").update(content, "utf8").digest("hex");
+  const actual = (0, import_node_crypto4.createHash)("sha256").update(content, "utf8").digest("hex");
   return {
     ok: true,
     value: { status: actual === expected ? "verified" : "tampered", expected, actual }
@@ -37887,7 +38051,7 @@ function tokenize(text) {
 }
 
 // ../qmd-team-intent-kb/apps/curator/dist/promotion/promoter.js
-var import_node_crypto4 = require("node:crypto");
+var import_node_crypto5 = require("node:crypto");
 
 // ../qmd-team-intent-kb/apps/curator/dist/import/wikilink-parser.js
 var WIKILINK_RE = /\[\[([^\[\]|][^\[\]|]*?)(?:\|([^\[\]]*))?\]\]/g;
@@ -37943,9 +38107,9 @@ function isInsideCodeRange(start, end, ranges) {
 // ../qmd-team-intent-kb/apps/curator/dist/promotion/promoter.js
 function promote(input, memoryRepo, auditRepo, dryRun = false, linksRepo, evalCallback) {
   const now = (/* @__PURE__ */ new Date()).toISOString();
-  const memoryId = (0, import_node_crypto4.randomUUID)();
+  const memoryId = (0, import_node_crypto5.randomUUID)();
   const policyEvaluations = input.pipelineResult.evaluations.map((ev) => ({
-    policyId: (0, import_node_crypto4.randomUUID)(),
+    policyId: (0, import_node_crypto5.randomUUID)(),
     ruleId: ev.ruleId,
     result: ev.outcome,
     reason: ev.reason,
@@ -37988,7 +38152,7 @@ function promote(input, memoryRepo, auditRepo, dryRun = false, linksRepo, evalCa
         memoryRepo.update(updatedOld);
       }
       auditRepo.insert(AuditEvent.parse({
-        id: (0, import_node_crypto4.randomUUID)(),
+        id: (0, import_node_crypto5.randomUUID)(),
         action: "superseded",
         memoryId: input.supersession.supersededMemoryId,
         tenantId: input.candidate.tenantId,
@@ -38004,7 +38168,7 @@ function promote(input, memoryRepo, auditRepo, dryRun = false, linksRepo, evalCa
     memoryRepo.insert(memory);
     if (input.supersession !== void 0 && linksRepo) {
       linksRepo.insert({
-        id: (0, import_node_crypto4.randomUUID)(),
+        id: (0, import_node_crypto5.randomUUID)(),
         sourceMemoryId: memoryId,
         targetMemoryId: input.supersession.supersededMemoryId,
         linkType: "supersedes",
@@ -38023,7 +38187,7 @@ function promote(input, memoryRepo, auditRepo, dryRun = false, linksRepo, evalCa
         if (match) {
           try {
             linksRepo.insert({
-              id: (0, import_node_crypto4.randomUUID)(),
+              id: (0, import_node_crypto5.randomUUID)(),
               sourceMemoryId: memoryId,
               targetMemoryId: match.id,
               linkType: "relates_to",
@@ -38039,7 +38203,7 @@ function promote(input, memoryRepo, auditRepo, dryRun = false, linksRepo, evalCa
       }
     }
     auditRepo.insert(AuditEvent.parse({
-      id: (0, import_node_crypto4.randomUUID)(),
+      id: (0, import_node_crypto5.randomUUID)(),
       action: "promoted",
       memoryId,
       tenantId: input.candidate.tenantId,
@@ -38052,7 +38216,7 @@ function promote(input, memoryRepo, auditRepo, dryRun = false, linksRepo, evalCa
       try {
         for (const verdict of evalCallback(memory, input.pipelineResult)) {
           auditRepo.insert(AuditEvent.parse({
-            id: (0, import_node_crypto4.randomUUID)(),
+            id: (0, import_node_crypto5.randomUUID)(),
             action: "eval-result",
             memoryId,
             tenantId: input.candidate.tenantId,
@@ -38076,12 +38240,12 @@ function promote(input, memoryRepo, auditRepo, dryRun = false, linksRepo, evalCa
 }
 
 // ../qmd-team-intent-kb/apps/curator/dist/rejection/rejector.js
-var import_node_crypto5 = require("node:crypto");
+var import_node_crypto6 = require("node:crypto");
 function reject(candidate, pipelineResult, auditRepo, dryRun = false) {
   const reason = pipelineResult.rejectedBy !== void 0 ? `Rejected by rule: ${pipelineResult.rejectedBy}` : `Flagged by rules: ${pipelineResult.flaggedBy?.join(", ") ?? "unknown"}`;
   if (!dryRun) {
     auditRepo.insert(AuditEvent.parse({
-      id: (0, import_node_crypto5.randomUUID)(),
+      id: (0, import_node_crypto6.randomUUID)(),
       action: "deleted",
       memoryId: candidate.id,
       tenantId: candidate.tenantId,
@@ -38421,7 +38585,7 @@ function detectChanges(memoryRepo, exportStateRepo, config2) {
 }
 
 // ../qmd-team-intent-kb/apps/git-exporter/dist/writer/file-writer.js
-var import_node_fs3 = require("node:fs");
+var import_node_fs4 = require("node:fs");
 var import_node_path11 = require("node:path");
 function assertPathSafe(filePath, allowedRoot) {
   if (filePath.includes("\0")) {
@@ -38441,33 +38605,33 @@ function assertPathSafe(filePath, allowedRoot) {
 }
 function writeFile2(filePath, content, exportRoot) {
   assertPathSafe(filePath, exportRoot);
-  (0, import_node_fs3.mkdirSync)((0, import_node_path11.dirname)(filePath), { recursive: true });
-  (0, import_node_fs3.writeFileSync)(filePath, content, "utf8");
+  (0, import_node_fs4.mkdirSync)((0, import_node_path11.dirname)(filePath), { recursive: true });
+  (0, import_node_fs4.writeFileSync)(filePath, content, "utf8");
 }
 function archiveFile(fromPath, toPath, content, exportRoot) {
   assertPathSafe(toPath, exportRoot);
   if (exportRoot !== void 0) {
     assertPathSafe(fromPath, exportRoot);
   }
-  (0, import_node_fs3.mkdirSync)((0, import_node_path11.dirname)(toPath), { recursive: true });
-  if ((0, import_node_fs3.existsSync)(fromPath)) {
-    (0, import_node_fs3.unlinkSync)(fromPath);
+  (0, import_node_fs4.mkdirSync)((0, import_node_path11.dirname)(toPath), { recursive: true });
+  if ((0, import_node_fs4.existsSync)(fromPath)) {
+    (0, import_node_fs4.unlinkSync)(fromPath);
   }
-  (0, import_node_fs3.writeFileSync)(toPath, content, "utf8");
+  (0, import_node_fs4.writeFileSync)(toPath, content, "utf8");
 }
 function removeFile(filePath, exportRoot) {
   if (exportRoot !== void 0) {
     assertPathSafe(filePath, exportRoot);
   }
-  if ((0, import_node_fs3.existsSync)(filePath)) {
-    (0, import_node_fs3.unlinkSync)(filePath);
+  if ((0, import_node_fs4.existsSync)(filePath)) {
+    (0, import_node_fs4.unlinkSync)(filePath);
     return true;
   }
   return false;
 }
 
 // ../qmd-team-intent-kb/apps/git-exporter/dist/exporter.js
-var import_node_fs4 = require("node:fs");
+var import_node_fs5 = require("node:fs");
 var CONFIDENTIAL_INDEX = Sensitivity.options.indexOf("confidential");
 function isSensitivityRestricted(level) {
   const idx = Sensitivity.options.indexOf(level);
@@ -38486,8 +38650,8 @@ function runExport(memoryRepo, exportStateRepo, config2, nowFn = () => (/* @__PU
       continue;
     }
     const content = formatMemoryAsMarkdown(item.memory);
-    if ((0, import_node_fs4.existsSync)(item.filePath)) {
-      const existing = (0, import_node_fs4.readFileSync)(item.filePath, "utf8");
+    if ((0, import_node_fs5.existsSync)(item.filePath)) {
+      const existing = (0, import_node_fs5.readFileSync)(item.filePath, "utf8");
       if (existing === content) {
         unchanged++;
         continue;
@@ -38522,6 +38686,32 @@ function runExport(memoryRepo, exportStateRepo, config2, nowFn = () => (/* @__PU
 }
 
 // src/govern.ts
+var import_node_child_process3 = require("node:child_process");
+var import_node_fs6 = require("node:fs");
+var import_node_path12 = require("node:path");
+function commitAnchor(auditDir) {
+  const env = {
+    ...process.env,
+    GIT_AUTHOR_NAME: "governed-brain",
+    GIT_AUTHOR_EMAIL: "anchor@localhost",
+    GIT_COMMITTER_NAME: "governed-brain",
+    GIT_COMMITTER_EMAIL: "anchor@localhost"
+  };
+  const git = (args) => (0, import_node_child_process3.execFileSync)("git", args, { cwd: auditDir, stdio: "ignore", env });
+  try {
+    if (!(0, import_node_fs6.existsSync)((0, import_node_path12.join)(auditDir, ".git"))) git(["init", "-q"]);
+    git(["add", "anchors.jsonl"]);
+    git(["commit", "-q", "-m", `anchor ${(/* @__PURE__ */ new Date()).toISOString()}`]);
+    try {
+      (0, import_node_child_process3.execFileSync)("git", ["remote", "get-url", "origin"], { cwd: auditDir, stdio: "ignore" });
+      git(["push", "-q", "origin", "HEAD"]);
+    } catch {
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
 async function runGovern(config2) {
   const db = createDatabase({ path: config2.dbPath });
   try {
@@ -38570,6 +38760,22 @@ async function runGovern(config2) {
     } catch (e) {
       indexError = e instanceof Error ? e.message : String(e);
     }
+    let anchored;
+    try {
+      const auditDir = (0, import_node_path12.join)(config2.basePath, "audit");
+      (0, import_node_fs6.mkdirSync)(auditDir, { recursive: true });
+      const rec = appendAnchor(auditRepo, (0, import_node_path12.join)(auditDir, "anchors.jsonl"), {
+        tenantId: config2.tenantId
+      });
+      anchored = {
+        chainHead: rec.chainHead,
+        chainedRows: rec.chainedRows,
+        committed: commitAnchor(auditDir)
+      };
+    } catch (e) {
+      process.stderr.write(`[govern] anchor failed: ${e instanceof Error ? e.message : String(e)}
+`);
+    }
     return {
       ingested: candidates.length,
       processed: curation.processed,
@@ -38579,7 +38785,8 @@ async function runGovern(config2) {
       duplicates: curation.duplicates,
       exported,
       indexUpdated,
-      indexError
+      indexError,
+      anchored
     };
   } finally {
     db.close();
@@ -38662,6 +38869,33 @@ server.tool(
   }
 );
 server.tool(
+  "brain_audit_verify",
+  "Verify the integrity of your brain's audit trail \u2014 the SHA-256 hash chain AND the external anchor log. Reports any tamper: a broken hash link, or a silent rewrite of history the chain alone would miss (caught by cross-checking the anchored snapshots). Read-only.",
+  async () => {
+    let db;
+    try {
+      db = createDatabase({ path: config.dbPath, readonly: true });
+    } catch {
+      return jsonResult({ ok: true, totalEvents: 0, note: "Brain is empty \u2014 no audit chain yet." });
+    }
+    try {
+      const auditRepo = new AuditRepository(db);
+      const result = verifyAnchors(auditRepo, (0, import_node_path13.join)(config.basePath, "audit", "anchors.jsonl"));
+      return jsonResult({
+        ok: result.ok,
+        totalEvents: result.chain.totalRows,
+        cleanRows: result.chain.cleanRows,
+        chainBreaks: result.chain.breaks,
+        anchorCount: result.anchorCount,
+        anchorBreaks: result.anchorBreaks,
+        message: result.ok ? `Audit chain intact (${result.chain.totalRows} events), consistent with ${result.anchorCount} external anchor(s).` : `\u26A0 TAMPER DETECTED \u2014 ${result.chain.breaks.length} chain break(s), ${result.anchorBreaks.length} anchor break(s).`
+      });
+    } finally {
+      db.close();
+    }
+  }
+);
+server.tool(
   "brain_capture",
   "Capture a single fact, decision, pattern, or convention as a governance candidate (the model's PROPOSAL). It is appended to the local spool; run brain_govern to put it through deterministic dedupe/policy/promotion with a hash-chained receipt.",
   {
@@ -38672,7 +38906,7 @@ server.tool(
   },
   async (params) => {
     const candidate = {
-      id: (0, import_node_crypto6.randomUUID)(),
+      id: (0, import_node_crypto7.randomUUID)(),
       status: "inbox",
       source: "mcp",
       content: params.content,
@@ -38747,7 +38981,7 @@ server.tool(
       db.transaction(() => {
         memoryRepo.updateLifecycle(params.memoryId, params.to, now);
         auditRepo.insert({
-          id: (0, import_node_crypto6.randomUUID)(),
+          id: (0, import_node_crypto7.randomUUID)(),
           action,
           memoryId: params.memoryId,
           tenantId: memory.tenantId,

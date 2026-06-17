@@ -16,10 +16,12 @@ import { randomUUID } from 'node:crypto';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
+import { join } from 'node:path';
 import {
   createDatabase,
   MemoryRepository,
   AuditRepository,
+  verifyAnchors,
 } from '@qmd-team-intent-kb/store';
 import { QmdAdapter } from '@qmd-team-intent-kb/qmd-adapter';
 import { writeToSpool } from '@qmd-team-intent-kb/claude-runtime';
@@ -112,6 +114,36 @@ server.tool(
         total: repo.count(),
         byLifecycle: repo.countByLifecycle(),
         byCategory: repo.countByCategory(),
+      });
+    } finally {
+      db.close();
+    }
+  },
+);
+
+server.tool(
+  'brain_audit_verify',
+  "Verify the integrity of your brain's audit trail — the SHA-256 hash chain AND the external anchor log. Reports any tamper: a broken hash link, or a silent rewrite of history the chain alone would miss (caught by cross-checking the anchored snapshots). Read-only.",
+  async () => {
+    let db;
+    try {
+      db = createDatabase({ path: config.dbPath, readonly: true });
+    } catch {
+      return jsonResult({ ok: true, totalEvents: 0, note: 'Brain is empty — no audit chain yet.' });
+    }
+    try {
+      const auditRepo = new AuditRepository(db);
+      const result = verifyAnchors(auditRepo, join(config.basePath, 'audit', 'anchors.jsonl'));
+      return jsonResult({
+        ok: result.ok,
+        totalEvents: result.chain.totalRows,
+        cleanRows: result.chain.cleanRows,
+        chainBreaks: result.chain.breaks,
+        anchorCount: result.anchorCount,
+        anchorBreaks: result.anchorBreaks,
+        message: result.ok
+          ? `Audit chain intact (${result.chain.totalRows} events), consistent with ${result.anchorCount} external anchor(s).`
+          : `⚠ TAMPER DETECTED — ${result.chain.breaks.length} chain break(s), ${result.anchorBreaks.length} anchor break(s).`,
       });
     } finally {
       db.close();

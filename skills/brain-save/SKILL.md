@@ -6,7 +6,7 @@ description: |
   corpus, so it never auto-fires — invoke it explicitly. Use when you want the brain to remember
   something specific going forward without a full recompile, or to mark an old memory outdated.
   Trigger with "/brain-save".
-allowed-tools: 'mcp__governed-brain__brain_capture, mcp__governed-brain__brain_govern, mcp__governed-brain__brain_transition, mcp__governed-brain__brain_status'
+allowed-tools: 'mcp__governed-brain__brain_capture, mcp__governed-brain__brain_govern, mcp__governed-brain__brain_transition, mcp__governed-brain__brain_status, mcp__governed-brain__brain_audit_verify'
 version: 1.0.0
 author: Jeremy Longshore <jeremy@intentsolutions.io>
 license: Apache-2.0
@@ -69,6 +69,13 @@ the brain, and the only gate on a write is that you asked for it.
 
 Call **`brain_status`** to see counts by lifecycle state and recent rejection feedback before or after
 a batch of saves.
+
+### Verify the receipts
+
+Call **`brain_audit_verify`** to check the audit trail's integrity — the SHA-256 hash chain *and* the
+external anchor log. It reports any tamper, including a silent rewrite of history that the chain alone
+would miss (caught by cross-checking the anchored snapshots that govern commits to git). Use it whenever
+you need to prove the record wasn't altered.
 
 ## Output
 
