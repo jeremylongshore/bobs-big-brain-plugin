@@ -27,7 +27,7 @@
     "retrieve": {
       "name": "qmd",
       "npmPackage": "@tobilu/qmd",
-      "version": "2.0.1",
+      "version": "2.5.3",
       "acceptedRange": ">=2.0.0 <3.0.0",
       "registry": "external-path",
       "role": "tobi's qmd — on-device hybrid search (BM25 + vector + LLM rerank). External PATH prerequisite; every hit is a qmd:// citation. Govern degrades gracefully if absent (capture/promote/audit still complete; only the post-promote index refresh waits)."

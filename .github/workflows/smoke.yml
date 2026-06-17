@@ -42,7 +42,7 @@ jobs:
 
       - name: Install pinned qmd (best-effort — enables the search assertion)
         continue-on-error: true
-        run: npm install -g @tobilu/qmd@2.0.1
+        run: npm install -g @tobilu/qmd@2.5.3
 
       - name: Smoke — capture -> govern -> audit-verify -> search
         run: node smoke/smoke.mjs
