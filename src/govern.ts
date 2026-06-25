@@ -14,6 +14,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import type { BrainConfig } from './config.js';
+import { seedDefaultPolicy } from './seed-policy.js';
 
 /**
  * Result of one in-process govern pass — what the deterministic pipeline did
@@ -89,6 +90,19 @@ export async function runGovern(config: BrainConfig): Promise<GovernSummary> {
     const policyRepo = new PolicyRepository(db);
     const auditRepo = new AuditRepository(db);
     const exportStateRepo = new ExportStateRepository(db);
+
+    // 0. Seed the local default governance policy once (idempotent). Without it
+    //    the Curator auto-approves every non-duplicate candidate; with it, local
+    //    mode gets receipted rejections for secrets + too-short content. Best-effort:
+    //    a seed failure (schema mismatch, read-only DB) must NOT crash the govern
+    //    pass — degrade to the prior no-policy behavior.
+    try {
+      seedDefaultPolicy(policyRepo, config.tenantId);
+    } catch (e) {
+      process.stderr.write(
+        `[governed-brain] default policy seed skipped: ${e instanceof Error ? e.message : String(e)}\n`,
+      );
+    }
 
     // 1. Ingest the spool → inbox candidates in SQLite.
     const ingestResult = await ingestFromSpool(candidateRepo, config.spoolPath);
