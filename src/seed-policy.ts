@@ -23,7 +23,9 @@ import type { PolicyRepository } from '@qmd-team-intent-kb/store';
  * @returns true if a policy was seeded, false if one already existed.
  */
 export function seedDefaultPolicy(policyRepo: PolicyRepository, tenantId: string): boolean {
-  if (policyRepo.findByTenant(tenantId).length > 0) return false;
+  // Defensive: treat a missing/empty result as "no policy yet".
+  const existing = policyRepo.findByTenant(tenantId);
+  if (Array.isArray(existing) && existing.length > 0) return false;
   const now = new Date().toISOString();
   const policy = GovernancePolicy.parse({
     id: randomUUID(),

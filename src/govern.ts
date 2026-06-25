@@ -93,8 +93,16 @@ export async function runGovern(config: BrainConfig): Promise<GovernSummary> {
 
     // 0. Seed the local default governance policy once (idempotent). Without it
     //    the Curator auto-approves every non-duplicate candidate; with it, local
-    //    mode gets receipted rejections for secrets + too-short content.
-    seedDefaultPolicy(policyRepo, config.tenantId);
+    //    mode gets receipted rejections for secrets + too-short content. Best-effort:
+    //    a seed failure (schema mismatch, read-only DB) must NOT crash the govern
+    //    pass — degrade to the prior no-policy behavior.
+    try {
+      seedDefaultPolicy(policyRepo, config.tenantId);
+    } catch (e) {
+      process.stderr.write(
+        `[governed-brain] default policy seed skipped: ${e instanceof Error ? e.message : String(e)}\n`,
+      );
+    }
 
     // 1. Ingest the spool → inbox candidates in SQLite.
     const ingestResult = await ingestFromSpool(candidateRepo, config.spoolPath);

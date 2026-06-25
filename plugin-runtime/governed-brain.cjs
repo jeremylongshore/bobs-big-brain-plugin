@@ -40670,7 +40670,8 @@ var init_dist9 = __esm({
 
 // src/seed-policy.ts
 function seedDefaultPolicy(policyRepo, tenantId) {
-  if (policyRepo.findByTenant(tenantId).length > 0) return false;
+  const existing = policyRepo.findByTenant(tenantId);
+  if (Array.isArray(existing) && existing.length > 0) return false;
   const now = (/* @__PURE__ */ new Date()).toISOString();
   const policy = GovernancePolicy.parse({
     id: (0, import_node_crypto8.randomUUID)(),
@@ -40747,7 +40748,14 @@ async function runGovern(config2) {
     const policyRepo = new PolicyRepository(db);
     const auditRepo = new AuditRepository(db);
     const exportStateRepo = new ExportStateRepository(db);
-    seedDefaultPolicy(policyRepo, config2.tenantId);
+    try {
+      seedDefaultPolicy(policyRepo, config2.tenantId);
+    } catch (e) {
+      process.stderr.write(
+        `[governed-brain] default policy seed skipped: ${e instanceof Error ? e.message : String(e)}
+`
+      );
+    }
     const ingestResult = await ingestFromSpool(candidateRepo, config2.spoolPath);
     const candidates = ingestResult.ok ? ingestResult.value : [];
     const curation = { processed: 0, promoted: 0, rejected: 0, flagged: 0, duplicates: 0 };
