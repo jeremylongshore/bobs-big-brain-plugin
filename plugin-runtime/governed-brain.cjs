@@ -40732,7 +40732,8 @@ function commitAnchor(auditDir) {
     git(["commit", "-q", "-m", `anchor ${(/* @__PURE__ */ new Date()).toISOString()}`]);
     try {
       (0, import_node_child_process3.execFileSync)("git", ["remote", "get-url", "origin"], { cwd: auditDir, stdio: "ignore" });
-      git(["push", "-q", "origin", "HEAD"]);
+      (0, import_node_child_process3.execFile)("git", ["push", "-q", "origin", "HEAD"], { cwd: auditDir, timeout: 15e3, env }, () => {
+      });
     } catch {
     }
     return true;

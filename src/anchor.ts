@@ -1,5 +1,5 @@
 import { appendAnchor, type AuditRepository } from '@qmd-team-intent-kb/store';
-import { execFileSync } from 'node:child_process';
+import { execFile, execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -24,6 +24,17 @@ export interface AnchorResult {
  * history. If the user has added a remote to that repo, push to it — that remote
  * is the true external tamper-evidence (an offline editor cannot quietly rewrite
  * a pushed history). Best-effort: never fails the caller's write path.
+ *
+ * The LOCAL steps (init/add/commit) stay synchronous — they are fast local-disk
+ * ops and the returned `committed` must reflect the local commit synchronously.
+ * The `git push` is the ONLY network I/O; on a hot path (brain_transition now
+ * anchors per write) a synchronous push would block the Node event loop / freeze
+ * the MCP server on network latency. So the push is fired non-blocking:
+ * `execFile` in fire-and-forget callback form with a bounded 15s timeout, errors
+ * swallowed. `committed` is the local-commit success — the push is a background
+ * bonus external witness; until it lands the standalone verifier reports the
+ * anchor as UNPUSHED_LOCAL_WITNESS, so `committed:true` is not claimed as
+ * external tamper-evidence.
  */
 function commitAnchor(auditDir: string): boolean {
   const env = {
@@ -40,7 +51,10 @@ function commitAnchor(auditDir: string): boolean {
     git(['commit', '-q', '-m', `anchor ${new Date().toISOString()}`]);
     try {
       execFileSync('git', ['remote', 'get-url', 'origin'], { cwd: auditDir, stdio: 'ignore' });
-      git(['push', '-q', 'origin', 'HEAD']);
+      // Fire-and-forget: never blocks the event loop, never rejects. The empty
+      // callback swallows any push error (offline, auth, timeout); the local
+      // commit above is already the witness until the push lands.
+      execFile('git', ['push', '-q', 'origin', 'HEAD'], { cwd: auditDir, timeout: 15_000, env }, () => {});
     } catch {
       /* no remote configured — local git history is the anchor until one is added */
     }
