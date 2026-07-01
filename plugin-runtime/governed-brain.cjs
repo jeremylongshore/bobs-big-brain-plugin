@@ -41032,8 +41032,11 @@ function loadExceptionManifest(basePath) {
   try {
     return readManifest(p);
   } catch (e) {
-    if (e instanceof ExceptionManifestError) return null;
-    throw e;
+    process.stderr.write(
+      `[audit-verify] exception manifest ignored (treated as absent): ${e instanceof Error ? e.message : String(e)}
+`
+    );
+    return null;
   }
 }
 function buildRowsById(auditRepo) {

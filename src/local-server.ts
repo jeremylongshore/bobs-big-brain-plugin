@@ -25,7 +25,6 @@ import {
   verifyAnchors,
   readManifest,
   classifyChainBreaks,
-  ExceptionManifestError,
   type ExceptionManifest,
   type StoredRowTuple,
 } from '@qmd-team-intent-kb/store';
@@ -91,8 +90,14 @@ function loadExceptionManifest(basePath: string): ExceptionManifest | null {
   try {
     return readManifest(p);
   } catch (e) {
-    if (e instanceof ExceptionManifestError) return null;
-    throw e;
+    // Fail-closed under ANY failure — an ExceptionManifestError (bad hash / count
+    // drift), a SyntaxError from corrupt JSON, or an fs error must all be treated
+    // as "no manifest" rather than trusted or crashing brain_audit_verify. Never
+    // launder; never let a malformed amnesty file take down verification. (Gemini review.)
+    process.stderr.write(
+      `[audit-verify] exception manifest ignored (treated as absent): ${e instanceof Error ? e.message : String(e)}\n`,
+    );
+    return null;
   }
 }
 
