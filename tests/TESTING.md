@@ -25,6 +25,7 @@ is validated locally + by the committed-bundle smoke.
 | L3 unit — anchor verifier | `pnpm verify-anchors:test` (zero-dep `node:test`) | CI `ci.yml` + local |
 | L3 unit — anchor-on-transition | `pnpm anchor-on-transition:test` (esbuilds `src/anchor.ts` → needs sibling) | local |
 | L5 system — full chain (zero egress) | `smoke/smoke.mjs`, `smoke/audit-verify-banner.test.mjs` (drive the committed bundle) | `smoke.yml` + local |
+| L5 system — B1 auto-govern inbox sweep | `smoke/b1-inbox-sweep.mjs` (seeds remote-shape candidates in a throwaway `candidates` table, drives the sweep: promote/quarantine/duplicate/keep-in-inbox + idempotency) | `smoke.yml` + local |
 | Policy pin | `audit-harness verify` (this file + any future `features/*.feature`) | CI `ci.yml` + local |
 
 ## Coverage floor

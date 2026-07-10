@@ -359,11 +359,13 @@ server.tool(
     }
     const parts = [
       `${s.promoted} promoted`,
+      `${s.quarantined} quarantined`,
       `${s.rejected} rejected`,
       `${s.duplicates} duplicate`,
       `${s.flagged} flagged`,
     ];
-    let message = `Governed ${s.ingested} candidate(s): ${parts.join(', ')}.`;
+    if (s.skipped > 0) parts.push(`${s.skipped} skipped`);
+    let message = `Governed ${s.processed} inbox candidate(s) (${s.ingested} newly ingested): ${parts.join(', ')}.`;
     if (!s.indexUpdated) {
       message += ' Search index not refreshed — install qmd 2.x on PATH and re-run brain_govern to make new memories searchable.';
     }

@@ -35751,10 +35751,10 @@ var init_remote_server = __esm({
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/store/dist/schema.js
+// ../qmd-team-intent-kb/packages/store/dist/schema.js
 var CANDIDATES_DDL, CURATED_MEMORIES_DDL, GOVERNANCE_POLICIES_DDL, AUDIT_EVENTS_DDL, EXPORT_STATE_DDL, SCHEMA_MIGRATIONS_DDL, TABLE_DDL, MIGRATIONS;
 var init_schema = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/store/dist/schema.js"() {
+  "../qmd-team-intent-kb/packages/store/dist/schema.js"() {
     "use strict";
     CANDIDATES_DDL = `
 CREATE TABLE IF NOT EXISTS candidates (
@@ -36031,12 +36031,28 @@ ALTER TABLE audit_events ADD COLUMN seq INTEGER;
 UPDATE audit_events SET seq = rowid WHERE seq IS NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_audit_seq ON audit_events(seq);
     `.trim()
+      },
+      {
+        // Index the auto-govern inbox sweep's hot lookup (B1, bead
+        // compile-then-govern-jfv.2.1). The nightly sweep calls
+        // `CandidateRepository.findByStatus('inbox', tenantId)` — a filter on
+        // (status, tenant_id) — to drain the remote-capture inbox. Purely additive:
+        // no column change (the `candidates.status` column is already TEXT with a
+        // DEFAULT of 'inbox'; the B1 enum widening is enforced in Zod, not by a DB
+        // CHECK), just a compound index so the sweep does not table-scan `candidates`
+        // as the inbox grows. `IF NOT EXISTS` keeps it replay-safe on fresh and
+        // pre-existing databases alike.
+        version: 8,
+        name: "add_candidates_status_tenant_index",
+        sql: `
+CREATE INDEX IF NOT EXISTS idx_candidates_status_tenant ON candidates(status, tenant_id);
+    `.trim()
       }
     ];
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/store/dist/database.js
+// ../qmd-team-intent-kb/packages/store/dist/database.js
 function ensureSecureDirectory(dbPath) {
   if (dbPath === ":memory:")
     return;
@@ -36086,7 +36102,7 @@ function runMigrations(db) {
 }
 var import_node_fs, import_node_path, import_better_sqlite3;
 var init_database = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/store/dist/database.js"() {
+  "../qmd-team-intent-kb/packages/store/dist/database.js"() {
     "use strict";
     import_node_fs = require("node:fs");
     import_node_path = require("node:path");
@@ -36095,10 +36111,10 @@ var init_database = __esm({
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/schema/dist/enums.js
-var import_zod3, MemorySource, TrustLevel, MemoryCategory, MemoryLifecycleState, CandidateStatus, SearchScope, PolicyRuleType, PolicyRuleAction, AuditAction, Confidence, Sensitivity, AuthorType, LinkType, LinkSource, ImportBatchStatus;
+// ../qmd-team-intent-kb/packages/schema/dist/enums.js
+var import_zod3, MemorySource, TrustLevel, MemoryCategory, MemoryLifecycleState, CandidateStatus, SearchScope, PolicyRuleType, PolicyRuleAction, AuditAction, ProposerRole, Confidence, Sensitivity, AuthorType, LinkType, LinkSource, ImportBatchStatus;
 var init_enums = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/schema/dist/enums.js"() {
+  "../qmd-team-intent-kb/packages/schema/dist/enums.js"() {
     "use strict";
     import_zod3 = __toESM(require_zod(), 1);
     MemorySource = import_zod3.z.enum(["claude_session", "manual", "import", "mcp"]);
@@ -36113,7 +36129,14 @@ var init_enums = __esm({
       "reference"
     ]);
     MemoryLifecycleState = import_zod3.z.enum(["active", "deprecated", "superseded", "archived"]);
-    CandidateStatus = import_zod3.z.literal("inbox");
+    CandidateStatus = import_zod3.z.enum([
+      "inbox",
+      "promoted",
+      "rejected",
+      "flagged",
+      "duplicate",
+      "quarantined"
+    ]);
     SearchScope = import_zod3.z.enum(["curated", "all", "inbox", "archived"]).default("curated");
     PolicyRuleType = import_zod3.z.enum([
       "secret_detection",
@@ -36136,8 +36159,22 @@ var init_enums = __esm({
       "exported",
       // Evidence Bundle emission on a curation/promotion cycle (IEP unification
       // thesis, DR-010 Q3). Added for the eval-surface emit path (bead tr08.15/.17/.19).
-      "eval-result"
+      "eval-result",
+      // Candidate-intake receipt — a proposal enters the pre-governance inbox (R8,
+      // bead compile-then-govern-jfv.6.7). Written at intake so every candidate has a
+      // provenance receipt (actor + contentHash + tenant) from byte one, before any
+      // promotion. `memoryId` on this row is the candidate's UUID.
+      "proposed",
+      // Batch-level receipt for one auto-govern inbox SWEEP (B1, bead
+      // compile-then-govern-jfv.2.1). ONE event per sweep that changed durable state,
+      // recording the per-candidate outcomes (candidate ids + outcome, NEVER content)
+      // so the drain of the remote-capture inbox is on the append-only chain. Replaces
+      // the per-candidate reject receipts the sweep would otherwise emit (which would
+      // re-fire every night for a candidate left in the inbox → unbounded chain bloat).
+      // `memoryId` is a fixed sweep sentinel UUID (the sweep is not tied to one memory).
+      "governed"
     ]);
+    ProposerRole = import_zod3.z.enum(["admin", "member"]);
     Confidence = import_zod3.z.enum(["high", "medium", "low"]);
     Sensitivity = import_zod3.z.enum(["public", "internal", "confidential", "restricted"]);
     AuthorType = import_zod3.z.enum(["human", "ai", "system"]);
@@ -36153,10 +36190,10 @@ var init_enums = __esm({
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/schema/dist/common.js
+// ../qmd-team-intent-kb/packages/schema/dist/common.js
 var import_zod4, Uuid, Sha256Hash, IsoDatetime, NonEmptyString, SemVer, Tag, Author, TenantId, ContentMetadata;
 var init_common = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/schema/dist/common.js"() {
+  "../qmd-team-intent-kb/packages/schema/dist/common.js"() {
     "use strict";
     import_zod4 = __toESM(require_zod(), 1);
     init_enums();
@@ -36181,15 +36218,27 @@ var init_common = __esm({
       branch: import_zod4.z.string().optional(),
       confidence: Confidence.optional(),
       sensitivity: Sensitivity.optional(),
-      tags: import_zod4.z.array(Tag).default([])
+      tags: import_zod4.z.array(Tag).default([]),
+      /**
+       * The role of the token that proposed this candidate, stamped server-side at
+       * intake (R8, bead compile-then-govern-jfv.6.7). Never client-supplied — the
+       * intake path overwrites it from the bearer-token identity so a member cannot
+       * masquerade as an admin-authored proposal. A closed enum (`admin` | `member`),
+       * so the disclosure scanner and the enum-membership backstop treat it as
+       * closed-vocabulary. Optional/absent on legacy records and non-token (dev)
+       * intake; present on every token-authenticated proposal. Flows through
+       * promotion onto the curated memory so a later auto-govern step (B1) can
+       * quarantine member-authored content behind admin review.
+       */
+      proposedByRole: ProposerRole.optional()
     });
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/schema/dist/memory-candidate.js
+// ../qmd-team-intent-kb/packages/schema/dist/memory-candidate.js
 var import_zod5, PrePolicyFlags, MemoryCandidate;
 var init_memory_candidate = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/schema/dist/memory-candidate.js"() {
+  "../qmd-team-intent-kb/packages/schema/dist/memory-candidate.js"() {
     "use strict";
     import_zod5 = __toESM(require_zod(), 1);
     init_enums();
@@ -36220,10 +36269,10 @@ var init_memory_candidate = __esm({
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/schema/dist/curated-memory.js
+// ../qmd-team-intent-kb/packages/schema/dist/curated-memory.js
 var import_zod6, PolicyEvaluation, SupersessionLink, CuratedMemory;
 var init_curated_memory = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/schema/dist/curated-memory.js"() {
+  "../qmd-team-intent-kb/packages/schema/dist/curated-memory.js"() {
     "use strict";
     import_zod6 = __toESM(require_zod(), 1);
     init_enums();
@@ -36272,10 +36321,10 @@ var init_curated_memory = __esm({
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/schema/dist/governance-policy.js
+// ../qmd-team-intent-kb/packages/schema/dist/governance-policy.js
 var import_zod7, PolicyRule, GovernancePolicy;
 var init_governance_policy = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/schema/dist/governance-policy.js"() {
+  "../qmd-team-intent-kb/packages/schema/dist/governance-policy.js"() {
     "use strict";
     import_zod7 = __toESM(require_zod(), 1);
     init_enums();
@@ -36302,10 +36351,10 @@ var init_governance_policy = __esm({
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/schema/dist/search.js
+// ../qmd-team-intent-kb/packages/schema/dist/search.js
 var import_zod8, Pagination, SearchQuery, SearchHit, SearchResult;
 var init_search = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/schema/dist/search.js"() {
+  "../qmd-team-intent-kb/packages/schema/dist/search.js"() {
     "use strict";
     import_zod8 = __toESM(require_zod(), 1);
     init_enums();
@@ -36358,10 +36407,10 @@ var init_search = __esm({
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/schema/dist/audit-event.js
+// ../qmd-team-intent-kb/packages/schema/dist/audit-event.js
 var import_zod9, AuditEvent;
 var init_audit_event = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/schema/dist/audit-event.js"() {
+  "../qmd-team-intent-kb/packages/schema/dist/audit-event.js"() {
     "use strict";
     import_zod9 = __toESM(require_zod(), 1);
     init_enums();
@@ -36379,7 +36428,7 @@ var init_audit_event = __esm({
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/schema/dist/lifecycle.js
+// ../qmd-team-intent-kb/packages/schema/dist/lifecycle.js
 function isTransitionAllowed(from, to) {
   return ALLOWED_TRANSITIONS[from].includes(to);
 }
@@ -36400,7 +36449,7 @@ function validateTransition(from, to, request) {
 }
 var import_zod10, TransitionRequest, ALLOWED_TRANSITIONS;
 var init_lifecycle = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/schema/dist/lifecycle.js"() {
+  "../qmd-team-intent-kb/packages/schema/dist/lifecycle.js"() {
     "use strict";
     init_common();
     import_zod10 = __toESM(require_zod(), 1);
@@ -36418,9 +36467,9 @@ var init_lifecycle = __esm({
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/schema/dist/index.js
+// ../qmd-team-intent-kb/packages/schema/dist/index.js
 var init_dist = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/schema/dist/index.js"() {
+  "../qmd-team-intent-kb/packages/schema/dist/index.js"() {
     "use strict";
     init_enums();
     init_common();
@@ -36433,26 +36482,26 @@ var init_dist = __esm({
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/common/dist/result.js
+// ../qmd-team-intent-kb/packages/common/dist/result.js
 var init_result = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/common/dist/result.js"() {
+  "../qmd-team-intent-kb/packages/common/dist/result.js"() {
     "use strict";
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/common/dist/hash.js
+// ../qmd-team-intent-kb/packages/common/dist/hash.js
 function computeContentHash(content) {
   return (0, import_node_crypto2.createHash)("sha256").update(content, "utf8").digest("hex");
 }
 var import_node_crypto2;
 var init_hash = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/common/dist/hash.js"() {
+  "../qmd-team-intent-kb/packages/common/dist/hash.js"() {
     "use strict";
     import_node_crypto2 = require("node:crypto");
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/common/dist/uuid-v5.js
+// ../qmd-team-intent-kb/packages/common/dist/uuid-v5.js
 function uuidStringToBytes(uuid) {
   const hex = uuid.replace(/-/g, "");
   if (hex.length !== 32) {
@@ -36497,7 +36546,7 @@ function deriveLinkId(sourceMemoryId, targetMemoryId, linkType) {
 }
 var import_node_crypto3, SPOOL_UUID_NAMESPACE, NAME_FIELD_SEPARATOR;
 var init_uuid_v5 = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/common/dist/uuid-v5.js"() {
+  "../qmd-team-intent-kb/packages/common/dist/uuid-v5.js"() {
     "use strict";
     import_node_crypto3 = require("node:crypto");
     SPOOL_UUID_NAMESPACE = ["6c6f6e67-7368-6f72", "6500-69636f73706c"].join("-");
@@ -36505,7 +36554,7 @@ var init_uuid_v5 = __esm({
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/common/dist/paths.js
+// ../qmd-team-intent-kb/packages/common/dist/paths.js
 function getTeamKbBasePath() {
   const basePath = process.env["TEAMKB_BASE_PATH"];
   if (typeof basePath === "string" && basePath.trim() !== "") {
@@ -36522,7 +36571,7 @@ function resolveTeamKbPath(subdir) {
 }
 var import_node_path2, import_node_os, DEFAULT_TEAMKB_BASE;
 var init_paths = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/common/dist/paths.js"() {
+  "../qmd-team-intent-kb/packages/common/dist/paths.js"() {
     "use strict";
     import_node_path2 = require("node:path");
     import_node_os = require("node:os");
@@ -36530,7 +36579,7 @@ var init_paths = __esm({
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/common/dist/path-safety.js
+// ../qmd-team-intent-kb/packages/common/dist/path-safety.js
 function isPathSafe(path, allowedRoots) {
   if (path.includes("\0")) {
     return { safe: false, reason: "Path contains null byte" };
@@ -36556,19 +36605,19 @@ function isPathSafe(path, allowedRoots) {
   return { safe: true };
 }
 var init_path_safety = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/common/dist/path-safety.js"() {
+  "../qmd-team-intent-kb/packages/common/dist/path-safety.js"() {
     "use strict";
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/common/dist/freshness.js
+// ../qmd-team-intent-kb/packages/common/dist/freshness.js
 var init_freshness = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/common/dist/freshness.js"() {
+  "../qmd-team-intent-kb/packages/common/dist/freshness.js"() {
     "use strict";
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/common/dist/disclosure-filter.js
+// ../qmd-team-intent-kb/packages/common/dist/disclosure-filter.js
 function foldHomoglyphs(text) {
   let out = "";
   for (const ch of text) {
@@ -36659,7 +36708,7 @@ function assertDisclosureClean(candidate) {
 }
 var COMPENSATION_TERMS_PATTERN, RATIO_SPLIT_PATTERN, COMP_CONTEXT_PATTERN, PII_PATTERN, SECRET_PATTERNS, INVISIBLE_CHARS, HOMOGLYPH_MAP, ENUM_CONSTRAINED_FIELDS, DisclosureRejectedError;
 var init_disclosure_filter = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/common/dist/disclosure-filter.js"() {
+  "../qmd-team-intent-kb/packages/common/dist/disclosure-filter.js"() {
     "use strict";
     COMPENSATION_TERMS_PATTERN = /\bsalary\b|base pay\b|take[- ]home pay\b|(?:launch|signing|sign[- ]on) bonus|equity\s+(?:stakes?|grants?|granted|options?)\b|equity\s+[0-9]|\bvesting\b|\bRSUs?\b|stock options?\b|revenue[- ]share\s*[0-9]|7[- ]bucket/i;
     RATIO_SPLIT_PATTERN = /[0-9]{1,3}\s*\/\s*[0-9]{1,3}\s*(?:split|share)|[0-9]{1,2}\s*\/\s*[0-9]{1,2}\s*(?:max|→|->)\s*[0-9]{1,2}\s*\/\s*[0-9]{1,2}/i;
@@ -36800,9 +36849,9 @@ var init_disclosure_filter = __esm({
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/common/dist/index.js
+// ../qmd-team-intent-kb/packages/common/dist/index.js
 var init_dist2 = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/common/dist/index.js"() {
+  "../qmd-team-intent-kb/packages/common/dist/index.js"() {
     "use strict";
     init_result();
     init_hash();
@@ -36814,7 +36863,7 @@ var init_dist2 = __esm({
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/store/dist/repositories/enum-membership.js
+// ../qmd-team-intent-kb/packages/store/dist/repositories/enum-membership.js
 function assertEnumMembership(candidate) {
   const checks = [
     { field: "status", schema: CandidateStatus, value: candidate.status },
@@ -36849,7 +36898,7 @@ function assertEnumMembership(candidate) {
 }
 var EnumConstraintViolationError;
 var init_enum_membership = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/store/dist/repositories/enum-membership.js"() {
+  "../qmd-team-intent-kb/packages/store/dist/repositories/enum-membership.js"() {
     "use strict";
     init_dist();
     init_dist2();
@@ -36864,7 +36913,7 @@ var init_enum_membership = __esm({
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/store/dist/repositories/candidate-repository.js
+// ../qmd-team-intent-kb/packages/store/dist/repositories/candidate-repository.js
 function rowToCandidate(row) {
   const flatResult = CandidateRowSchema.safeParse(row);
   if (!flatResult.success) {
@@ -36910,9 +36959,19 @@ function rowToCandidate(row) {
   }
   return domainResult.data;
 }
+function rowToCandidateSafe(row) {
+  try {
+    return rowToCandidate(row);
+  } catch (e) {
+    const id = row !== null && typeof row === "object" && "id" in row ? String(row.id) : "<unknown>";
+    process.stderr.write(`[candidate-repository] skipping unparseable candidate row id=${id}: ${e instanceof Error ? e.message : String(e)}
+`);
+    return null;
+  }
+}
 var import_zod11, CandidateRowSchema, CandidateRepository;
 var init_candidate_repository = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/store/dist/repositories/candidate-repository.js"() {
+  "../qmd-team-intent-kb/packages/store/dist/repositories/candidate-repository.js"() {
     "use strict";
     import_zod11 = __toESM(require_zod(), 1);
     init_dist();
@@ -36938,10 +36997,12 @@ var init_candidate_repository = __esm({
       stmtInsert;
       stmtFindById;
       stmtFindByTenant;
+      stmtFindByStatus;
       stmtFindByHash;
       stmtCount;
       stmtCountByTenant;
       stmtDeleteByBatch;
+      stmtUpdateStatus;
       constructor(db) {
         this.stmtInsert = db.prepare(`
       INSERT INTO candidates (
@@ -36962,8 +37023,14 @@ var init_candidate_repository = __esm({
         this.stmtFindByTenant = db.prepare(`
       SELECT * FROM candidates WHERE tenant_id = ?
     `);
+        this.stmtFindByStatus = db.prepare(`
+      SELECT * FROM candidates WHERE status = ? AND tenant_id = ?
+    `);
         this.stmtFindByHash = db.prepare(`
       SELECT * FROM candidates WHERE content_hash = ? LIMIT 1
+    `);
+        this.stmtUpdateStatus = db.prepare(`
+      UPDATE candidates SET status = @status WHERE id = @id
     `);
         this.stmtCount = db.prepare(`
       SELECT COUNT(*) as cnt FROM candidates
@@ -37038,6 +37105,44 @@ var init_candidate_repository = __esm({
         return rows.map(rowToCandidate);
       }
       /**
+       * Return every candidate in the given `status`, scoped to `tenantId` (B1, bead
+       * compile-then-govern-jfv.2.1). The auto-govern sweep calls
+       * `findByStatus('inbox', config.tenantId)` to drain the pre-governance inbox.
+       *
+       * TOLERANT read: a row that fails validation is skipped and reported to stderr
+       * (via {@link rowToCandidateSafe}) rather than thrown, so a single malformed
+       * candidate can never abort the whole sweep — the inbox always drains. Tenant
+       * scoping is mandatory (not optional) so a sweep can never read across the
+       * tenant boundary.
+       */
+      findByStatus(status2, tenantId) {
+        const rows = this.stmtFindByStatus.all(status2, tenantId);
+        const out = [];
+        for (const row of rows) {
+          const c = rowToCandidateSafe(row);
+          if (c !== null)
+            out.push(c);
+        }
+        return out;
+      }
+      /**
+       * Stamp a candidate's terminal status IN PLACE (B1) — the non-destructive
+       * retirement primitive the sweep uses instead of DELETE. `candidates` is
+       * insert-only Tier-A source of truth, so a governed candidate LEAVES the inbox
+       * by changing its status marker, never by deletion (which would destroy the only
+       * copy of a remote teammate's proposal + the human review queue).
+       *
+       * Validates `status` against the closed {@link CandidateStatus} vocabulary before
+       * writing (a raw UPDATE otherwise bypasses the enum-membership backstop that
+       * `insert()` enforces). Returns the number of rows changed (0 if `id` is absent).
+       *
+       * @throws {z.ZodError} if `status` is not a valid CandidateStatus value.
+       */
+      updateStatus(id, status2) {
+        const validated = CandidateStatus.parse(status2);
+        return this.stmtUpdateStatus.run({ id, status: validated }).changes;
+      }
+      /**
        * Return the first candidate with the given content hash, or null.
        * Useful for duplicate detection before insertion.
        */
@@ -37067,7 +37172,7 @@ var init_candidate_repository = __esm({
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/store/dist/repositories/memory-repository.js
+// ../qmd-team-intent-kb/packages/store/dist/repositories/memory-repository.js
 function rowToMemory(row) {
   const flatResult = MemoryRowSchema.safeParse(row);
   if (!flatResult.success) {
@@ -37149,7 +37254,7 @@ function appendOptionalFilters(conditions, params, tenantId, categories, prefix)
 }
 var import_zod12, MemoryRowSchema, MemoryRepository;
 var init_memory_repository = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/store/dist/repositories/memory-repository.js"() {
+  "../qmd-team-intent-kb/packages/store/dist/repositories/memory-repository.js"() {
     "use strict";
     import_zod12 = __toESM(require_zod(), 1);
     init_dist();
@@ -37181,6 +37286,8 @@ var init_memory_repository = __esm({
       stmtFindById;
       stmtFindByTenant;
       stmtFindByHash;
+      stmtFindByHashAndTenant;
+      stmtTenantHashes;
       stmtFindByLifecycle;
       stmtUpdateLifecycle;
       stmtUpdate;
@@ -37222,6 +37329,12 @@ var init_memory_repository = __esm({
     `);
         this.stmtFindByHash = db.prepare(`
       SELECT * FROM curated_memories WHERE content_hash = ? LIMIT 1
+    `);
+        this.stmtFindByHashAndTenant = db.prepare(`
+      SELECT * FROM curated_memories WHERE content_hash = ? AND tenant_id = ? LIMIT 1
+    `);
+        this.stmtTenantHashes = db.prepare(`
+      SELECT content_hash FROM curated_memories WHERE tenant_id = ?
     `);
         this.stmtFindByLifecycle = db.prepare(`
       SELECT * FROM curated_memories WHERE lifecycle = ?
@@ -37272,6 +37385,21 @@ var init_memory_repository = __esm({
         this.stmtFindByTenantAndLifecycle = db.prepare(`
       SELECT * FROM curated_memories WHERE tenant_id = ? AND lifecycle = ?
     `);
+      }
+      /**
+       * The underlying better-sqlite3 connection this repository was built on.
+       *
+       * Exposed read-only so a caller that writes across SEVERAL repositories on the
+       * SAME connection — the curator's `promote()`, which touches curated_memories,
+       * audit_events, and memory_links — can wrap all of those writes in ONE
+       * transaction (all-or-nothing). Every repository constructed from a single
+       * `createDatabase()` (as govern.ts / the daemon / the plugin do) shares this
+       * exact handle, so a transaction opened here serializes every repo's writes on
+       * the connection. Do not use it to bypass a repository's prepared statements —
+       * it exists only to own a multi-repository transaction.
+       */
+      get connection() {
+        return this.db;
       }
       /** Insert a new curated memory. */
       insert(memory) {
@@ -37366,6 +37494,24 @@ var init_memory_repository = __esm({
         const rows = this.stmtAllHashes.all();
         return rows.map((r) => r.content_hash);
       }
+      /**
+       * Return the content hashes of the given tenant's memories only (B1). The
+       * tenant-scoped counterpart to {@link getAllContentHashes}, used by the curator's
+       * dedup so a batch/sweep never treats another tenant's memory as a duplicate.
+       */
+      getContentHashesByTenant(tenantId) {
+        const rows = this.stmtTenantHashes.all(tenantId);
+        return rows.map((r) => r.content_hash);
+      }
+      /**
+       * Return the first memory in the given tenant with the given content hash, or
+       * null (B1). The tenant-scoped counterpart to {@link findByContentHash}, so
+       * exact-hash dedup never crosses the tenant boundary.
+       */
+      findByContentHashAndTenant(hash, tenantId) {
+        const row = this.stmtFindByHashAndTenant.get(hash, tenantId);
+        return row !== void 0 ? rowToMemory(row) : null;
+      }
       /** Count memories grouped by lifecycle state */
       countByLifecycle() {
         const rows = this.stmtCountByLifecycle.all();
@@ -37452,7 +37598,7 @@ var init_memory_repository = __esm({
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/store/dist/repositories/policy-repository.js
+// ../qmd-team-intent-kb/packages/store/dist/repositories/policy-repository.js
 function rowToPolicy(row) {
   const flatResult = PolicyRowSchema.safeParse(row);
   if (!flatResult.success) {
@@ -37484,7 +37630,7 @@ function rowToPolicy(row) {
 }
 var import_zod13, PolicyRowSchema, PolicyRepository;
 var init_policy_repository = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/store/dist/repositories/policy-repository.js"() {
+  "../qmd-team-intent-kb/packages/store/dist/repositories/policy-repository.js"() {
     "use strict";
     import_zod13 = __toESM(require_zod(), 1);
     init_dist();
@@ -37583,7 +37729,7 @@ var init_policy_repository = __esm({
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/store/dist/audit-chain.js
+// ../qmd-team-intent-kb/packages/store/dist/audit-chain.js
 function canonicalRowJsonV1(row) {
   return JSON.stringify({
     id: row.id,
@@ -37617,14 +37763,14 @@ function computeEntryHash(row, hashVersion = CURRENT_AUDIT_HASH_VERSION) {
 }
 var import_node_crypto4, CURRENT_AUDIT_HASH_VERSION;
 var init_audit_chain = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/store/dist/audit-chain.js"() {
+  "../qmd-team-intent-kb/packages/store/dist/audit-chain.js"() {
     "use strict";
     import_node_crypto4 = require("node:crypto");
     CURRENT_AUDIT_HASH_VERSION = 2;
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/store/dist/repositories/audit-repository.js
+// ../qmd-team-intent-kb/packages/store/dist/repositories/audit-repository.js
 function rowToEvent(row) {
   const flatResult = AuditRowSchema.safeParse(row);
   if (!flatResult.success) {
@@ -37662,7 +37808,7 @@ function rowToEvent(row) {
 }
 var import_zod14, AuditRowSchema, AuditRepository;
 var init_audit_repository = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/store/dist/repositories/audit-repository.js"() {
+  "../qmd-team-intent-kb/packages/store/dist/repositories/audit-repository.js"() {
     "use strict";
     import_zod14 = __toESM(require_zod(), 1);
     init_dist();
@@ -37869,7 +38015,7 @@ var init_audit_repository = __esm({
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/store/dist/audit-verify.js
+// ../qmd-team-intent-kb/packages/store/dist/audit-verify.js
 function rowHashVersion(row) {
   return row.hash_version === 2 ? 2 : 1;
 }
@@ -37940,13 +38086,13 @@ function verifyAuditChain(repo) {
   };
 }
 var init_audit_verify = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/store/dist/audit-verify.js"() {
+  "../qmd-team-intent-kb/packages/store/dist/audit-verify.js"() {
     "use strict";
     init_audit_chain();
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/store/dist/audit-anchor.js
+// ../qmd-team-intent-kb/packages/store/dist/audit-anchor.js
 function anchorBodyJson(b) {
   return JSON.stringify({
     schemaVersion: b.schemaVersion,
@@ -38047,7 +38193,7 @@ function verifyAnchors(repo, anchorPath) {
 }
 var import_node_crypto5, import_node_fs2;
 var init_audit_anchor = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/store/dist/audit-anchor.js"() {
+  "../qmd-team-intent-kb/packages/store/dist/audit-anchor.js"() {
     "use strict";
     import_node_crypto5 = require("node:crypto");
     import_node_fs2 = require("node:fs");
@@ -38055,7 +38201,7 @@ var init_audit_anchor = __esm({
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/store/dist/exception-manifest.js
+// ../qmd-team-intent-kb/packages/store/dist/exception-manifest.js
 function sortedEntries(entries) {
   return [...entries].sort((a, b) => {
     if (a.seq !== b.seq)
@@ -38156,7 +38302,7 @@ function classifyChainBreaks(breaks, manifest, rowsById) {
 }
 var import_node_crypto6, import_node_fs3, import_zod15, TAMPER_REASONS, TAMPER_REASON_SET, ExceptionManifestEntrySchema, ExceptionManifestSchema, ExceptionManifestError;
 var init_exception_manifest = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/store/dist/exception-manifest.js"() {
+  "../qmd-team-intent-kb/packages/store/dist/exception-manifest.js"() {
     "use strict";
     import_node_crypto6 = require("node:crypto");
     import_node_fs3 = require("node:fs");
@@ -38208,16 +38354,16 @@ var init_exception_manifest = __esm({
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/store/dist/signed-merge-anchor.js
+// ../qmd-team-intent-kb/packages/store/dist/signed-merge-anchor.js
 var init_signed_merge_anchor = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/store/dist/signed-merge-anchor.js"() {
+  "../qmd-team-intent-kb/packages/store/dist/signed-merge-anchor.js"() {
     "use strict";
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/store/dist/audit-verify-merge.js
+// ../qmd-team-intent-kb/packages/store/dist/audit-verify-merge.js
 var init_audit_verify_merge = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/store/dist/audit-verify-merge.js"() {
+  "../qmd-team-intent-kb/packages/store/dist/audit-verify-merge.js"() {
     "use strict";
     init_audit_chain();
     init_audit_verify();
@@ -38225,7 +38371,7 @@ var init_audit_verify_merge = __esm({
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/store/dist/repositories/export-state-repository.js
+// ../qmd-team-intent-kb/packages/store/dist/repositories/export-state-repository.js
 function rowToState(row) {
   const result = ExportStateRowSchema.safeParse(row);
   if (!result.success) {
@@ -38241,7 +38387,7 @@ function rowToState(row) {
 }
 var import_zod16, ExportStateRowSchema, ExportStateRepository;
 var init_export_state_repository = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/store/dist/repositories/export-state-repository.js"() {
+  "../qmd-team-intent-kb/packages/store/dist/repositories/export-state-repository.js"() {
     "use strict";
     import_zod16 = __toESM(require_zod(), 1);
     ExportStateRowSchema = import_zod16.z.object({
@@ -38283,23 +38429,23 @@ var init_export_state_repository = __esm({
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/store/dist/repositories/memory-links-repository.js
+// ../qmd-team-intent-kb/packages/store/dist/repositories/memory-links-repository.js
 var init_memory_links_repository = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/store/dist/repositories/memory-links-repository.js"() {
+  "../qmd-team-intent-kb/packages/store/dist/repositories/memory-links-repository.js"() {
     "use strict";
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/store/dist/repositories/import-batch-repository.js
+// ../qmd-team-intent-kb/packages/store/dist/repositories/import-batch-repository.js
 var init_import_batch_repository = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/store/dist/repositories/import-batch-repository.js"() {
+  "../qmd-team-intent-kb/packages/store/dist/repositories/import-batch-repository.js"() {
     "use strict";
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/store/dist/index.js
+// ../qmd-team-intent-kb/packages/store/dist/index.js
 var init_dist3 = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/store/dist/index.js"() {
+  "../qmd-team-intent-kb/packages/store/dist/index.js"() {
     "use strict";
     init_database();
     init_schema();
@@ -38320,7 +38466,7 @@ var init_dist3 = __esm({
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/qmd-adapter/dist/config.js
+// ../qmd-team-intent-kb/packages/qmd-adapter/dist/config.js
 function getQmdTenantIndexPath(tenantId) {
   return resolveTeamKbPath(`${QMD_INDEX_DIR}/${tenantId}`);
 }
@@ -38333,7 +38479,7 @@ function getQmdTenantEnv(tenantId) {
 }
 var import_node_path3, QMD_INDEX_DIR, DEFAULT_QMD_BINARY, DEFAULT_TIMEOUT;
 var init_config = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/qmd-adapter/dist/config.js"() {
+  "../qmd-team-intent-kb/packages/qmd-adapter/dist/config.js"() {
     "use strict";
     import_node_path3 = require("node:path");
     init_dist2();
@@ -38343,10 +38489,10 @@ var init_config = __esm({
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/qmd-adapter/dist/executor/real-executor.js
+// ../qmd-team-intent-kb/packages/qmd-adapter/dist/executor/real-executor.js
 var import_node_child_process, import_node_util, execFileAsync, RealQmdExecutor;
 var init_real_executor = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/qmd-adapter/dist/executor/real-executor.js"() {
+  "../qmd-team-intent-kb/packages/qmd-adapter/dist/executor/real-executor.js"() {
     "use strict";
     import_node_child_process = require("node:child_process");
     import_node_util = require("node:util");
@@ -38403,14 +38549,14 @@ var init_real_executor = __esm({
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/qmd-adapter/dist/executor/mock-executor.js
+// ../qmd-team-intent-kb/packages/qmd-adapter/dist/executor/mock-executor.js
 var init_mock_executor = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/qmd-adapter/dist/executor/mock-executor.js"() {
+  "../qmd-team-intent-kb/packages/qmd-adapter/dist/executor/mock-executor.js"() {
     "use strict";
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/qmd-adapter/dist/collections/collection-registry.js
+// ../qmd-team-intent-kb/packages/qmd-adapter/dist/collections/collection-registry.js
 function getDefaultSearchCollections() {
   return KNOWN_COLLECTIONS.filter((c) => c.includeInDefaultSearch).map((c) => c.name);
 }
@@ -38419,7 +38565,7 @@ function getExportableCollections() {
 }
 var KNOWN_COLLECTIONS;
 var init_collection_registry = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/qmd-adapter/dist/collections/collection-registry.js"() {
+  "../qmd-team-intent-kb/packages/qmd-adapter/dist/collections/collection-registry.js"() {
     "use strict";
     KNOWN_COLLECTIONS = [
       {
@@ -38456,10 +38602,10 @@ var init_collection_registry = __esm({
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/qmd-adapter/dist/collections/collection-manager.js
+// ../qmd-team-intent-kb/packages/qmd-adapter/dist/collections/collection-manager.js
 var import_node_path4, CollectionManager;
 var init_collection_manager = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/qmd-adapter/dist/collections/collection-manager.js"() {
+  "../qmd-team-intent-kb/packages/qmd-adapter/dist/collections/collection-manager.js"() {
     "use strict";
     import_node_path4 = require("node:path");
     init_collection_registry();
@@ -38546,18 +38692,18 @@ var init_collection_manager = __esm({
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/qmd-adapter/dist/index-manager/index-paths.js
+// ../qmd-team-intent-kb/packages/qmd-adapter/dist/index-manager/index-paths.js
 var init_index_paths = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/qmd-adapter/dist/index-manager/index-paths.js"() {
+  "../qmd-team-intent-kb/packages/qmd-adapter/dist/index-manager/index-paths.js"() {
     "use strict";
     init_config();
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/qmd-adapter/dist/index-manager/index-lifecycle.js
+// ../qmd-team-intent-kb/packages/qmd-adapter/dist/index-manager/index-lifecycle.js
 var IndexLifecycleManager;
 var init_index_lifecycle = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/qmd-adapter/dist/index-manager/index-lifecycle.js"() {
+  "../qmd-team-intent-kb/packages/qmd-adapter/dist/index-manager/index-lifecycle.js"() {
     "use strict";
     IndexLifecycleManager = class {
       executor;
@@ -38633,7 +38779,7 @@ var init_index_lifecycle = __esm({
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/qmd-adapter/dist/search/result-parser.js
+// ../qmd-team-intent-kb/packages/qmd-adapter/dist/search/result-parser.js
 function parseQueryOutput(stdout) {
   const trimmed = stdout.trim();
   if (!trimmed)
@@ -38672,15 +38818,15 @@ function deriveCollectionFromPath(filePath) {
   return "unknown";
 }
 var init_result_parser = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/qmd-adapter/dist/search/result-parser.js"() {
+  "../qmd-team-intent-kb/packages/qmd-adapter/dist/search/result-parser.js"() {
     "use strict";
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/qmd-adapter/dist/search/search-client.js
+// ../qmd-team-intent-kb/packages/qmd-adapter/dist/search/search-client.js
 var SearchClient;
 var init_search_client = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/qmd-adapter/dist/search/search-client.js"() {
+  "../qmd-team-intent-kb/packages/qmd-adapter/dist/search/search-client.js"() {
     "use strict";
     init_collection_registry();
     init_result_parser();
@@ -38729,7 +38875,7 @@ var init_search_client = __esm({
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/qmd-adapter/dist/health/health-check.js
+// ../qmd-team-intent-kb/packages/qmd-adapter/dist/health/health-check.js
 async function checkHealth(executor) {
   const available = await executor.isAvailable();
   if (!available) {
@@ -38756,15 +38902,15 @@ async function checkHealth(executor) {
   return { available, version, initialized, collections };
 }
 var init_health_check = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/qmd-adapter/dist/health/health-check.js"() {
+  "../qmd-team-intent-kb/packages/qmd-adapter/dist/health/health-check.js"() {
     "use strict";
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/qmd-adapter/dist/adapter.js
+// ../qmd-team-intent-kb/packages/qmd-adapter/dist/adapter.js
 var import_node_fs4, import_node_path5, QmdAdapter;
 var init_adapter = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/qmd-adapter/dist/adapter.js"() {
+  "../qmd-team-intent-kb/packages/qmd-adapter/dist/adapter.js"() {
     "use strict";
     import_node_fs4 = require("node:fs");
     import_node_path5 = require("node:path");
@@ -38845,77 +38991,77 @@ var init_adapter = __esm({
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/qmd-adapter/dist/weights/verify-weights.js
+// ../qmd-team-intent-kb/packages/qmd-adapter/dist/weights/verify-weights.js
 var init_verify_weights = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/qmd-adapter/dist/weights/verify-weights.js"() {
+  "../qmd-team-intent-kb/packages/qmd-adapter/dist/weights/verify-weights.js"() {
     "use strict";
     init_dist2();
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/qmd-adapter/dist/weights/weights-manifest.js
+// ../qmd-team-intent-kb/packages/qmd-adapter/dist/weights/weights-manifest.js
 var init_weights_manifest = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/qmd-adapter/dist/weights/weights-manifest.js"() {
+  "../qmd-team-intent-kb/packages/qmd-adapter/dist/weights/weights-manifest.js"() {
     "use strict";
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/qmd-adapter/dist/weights/index.js
+// ../qmd-team-intent-kb/packages/qmd-adapter/dist/weights/index.js
 var init_weights = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/qmd-adapter/dist/weights/index.js"() {
+  "../qmd-team-intent-kb/packages/qmd-adapter/dist/weights/index.js"() {
     "use strict";
     init_verify_weights();
     init_weights_manifest();
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/qmd-adapter/dist/eval/metrics.js
+// ../qmd-team-intent-kb/packages/qmd-adapter/dist/eval/metrics.js
 var init_metrics = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/qmd-adapter/dist/eval/metrics.js"() {
+  "../qmd-team-intent-kb/packages/qmd-adapter/dist/eval/metrics.js"() {
     "use strict";
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/qmd-adapter/dist/eval/run-eval.js
+// ../qmd-team-intent-kb/packages/qmd-adapter/dist/eval/run-eval.js
 var init_run_eval = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/qmd-adapter/dist/eval/run-eval.js"() {
+  "../qmd-team-intent-kb/packages/qmd-adapter/dist/eval/run-eval.js"() {
     "use strict";
     init_metrics();
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/qmd-adapter/dist/eval/datasets/seed-queries.js
+// ../qmd-team-intent-kb/packages/qmd-adapter/dist/eval/datasets/seed-queries.js
 var init_seed_queries = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/qmd-adapter/dist/eval/datasets/seed-queries.js"() {
+  "../qmd-team-intent-kb/packages/qmd-adapter/dist/eval/datasets/seed-queries.js"() {
     "use strict";
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/qmd-adapter/dist/eval/stratified-report.js
+// ../qmd-team-intent-kb/packages/qmd-adapter/dist/eval/stratified-report.js
 var init_stratified_report = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/qmd-adapter/dist/eval/stratified-report.js"() {
+  "../qmd-team-intent-kb/packages/qmd-adapter/dist/eval/stratified-report.js"() {
     "use strict";
     init_metrics();
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/qmd-adapter/dist/eval/qmd-retrieval.js
+// ../qmd-team-intent-kb/packages/qmd-adapter/dist/eval/qmd-retrieval.js
 var init_qmd_retrieval = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/qmd-adapter/dist/eval/qmd-retrieval.js"() {
+  "../qmd-team-intent-kb/packages/qmd-adapter/dist/eval/qmd-retrieval.js"() {
     "use strict";
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/qmd-adapter/dist/eval/datasets/governed-brain-v1.js
+// ../qmd-team-intent-kb/packages/qmd-adapter/dist/eval/datasets/governed-brain-v1.js
 var init_governed_brain_v1 = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/qmd-adapter/dist/eval/datasets/governed-brain-v1.js"() {
+  "../qmd-team-intent-kb/packages/qmd-adapter/dist/eval/datasets/governed-brain-v1.js"() {
     "use strict";
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/qmd-adapter/dist/eval/index.js
+// ../qmd-team-intent-kb/packages/qmd-adapter/dist/eval/index.js
 var init_eval = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/qmd-adapter/dist/eval/index.js"() {
+  "../qmd-team-intent-kb/packages/qmd-adapter/dist/eval/index.js"() {
     "use strict";
     init_metrics();
     init_run_eval();
@@ -38926,41 +39072,41 @@ var init_eval = __esm({
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/qmd-adapter/dist/native/fts5-backend.js
+// ../qmd-team-intent-kb/packages/qmd-adapter/dist/native/fts5-backend.js
 var import_better_sqlite32;
 var init_fts5_backend = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/qmd-adapter/dist/native/fts5-backend.js"() {
+  "../qmd-team-intent-kb/packages/qmd-adapter/dist/native/fts5-backend.js"() {
     "use strict";
     import_better_sqlite32 = __toESM(require("better-sqlite3"), 1);
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/qmd-adapter/dist/native/index.js
+// ../qmd-team-intent-kb/packages/qmd-adapter/dist/native/index.js
 var init_native = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/qmd-adapter/dist/native/index.js"() {
+  "../qmd-team-intent-kb/packages/qmd-adapter/dist/native/index.js"() {
     "use strict";
     init_fts5_backend();
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/qmd-adapter/dist/reindex/reindex.js
+// ../qmd-team-intent-kb/packages/qmd-adapter/dist/reindex/reindex.js
 var init_reindex = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/qmd-adapter/dist/reindex/reindex.js"() {
+  "../qmd-team-intent-kb/packages/qmd-adapter/dist/reindex/reindex.js"() {
     "use strict";
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/qmd-adapter/dist/canary/search-canary.js
+// ../qmd-team-intent-kb/packages/qmd-adapter/dist/canary/search-canary.js
 var init_search_canary = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/qmd-adapter/dist/canary/search-canary.js"() {
+  "../qmd-team-intent-kb/packages/qmd-adapter/dist/canary/search-canary.js"() {
     "use strict";
     init_reindex();
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/qmd-adapter/dist/index.js
+// ../qmd-team-intent-kb/packages/qmd-adapter/dist/index.js
 var init_dist4 = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/qmd-adapter/dist/index.js"() {
+  "../qmd-team-intent-kb/packages/qmd-adapter/dist/index.js"() {
     "use strict";
     init_config();
     init_real_executor();
@@ -38981,7 +39127,7 @@ var init_dist4 = __esm({
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/claude-runtime/dist/config.js
+// ../qmd-team-intent-kb/packages/claude-runtime/dist/config.js
 function getSpoolPath() {
   return resolveTeamKbPath(SPOOL_DIR);
 }
@@ -38992,17 +39138,17 @@ function getSpoolFilename(date) {
 }
 var SPOOL_DIR;
 var init_config2 = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/claude-runtime/dist/config.js"() {
+  "../qmd-team-intent-kb/packages/claude-runtime/dist/config.js"() {
     "use strict";
     init_dist2();
     SPOOL_DIR = "spool";
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/claude-runtime/dist/secrets/patterns.js
+// ../qmd-team-intent-kb/packages/claude-runtime/dist/secrets/patterns.js
 var SECRET_PATTERNS2, PII_PATTERNS;
 var init_patterns = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/claude-runtime/dist/secrets/patterns.js"() {
+  "../qmd-team-intent-kb/packages/claude-runtime/dist/secrets/patterns.js"() {
     "use strict";
     SECRET_PATTERNS2 = [
       {
@@ -39163,7 +39309,7 @@ var init_patterns = __esm({
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/claude-runtime/dist/secrets/secret-scanner.js
+// ../qmd-team-intent-kb/packages/claude-runtime/dist/secrets/secret-scanner.js
 function execWithContext(pattern, text, contextText) {
   if (pattern.regex.global || pattern.regex.sticky) {
     pattern.regex.lastIndex = 0;
@@ -39338,7 +39484,7 @@ function scanForSecrets(content, patterns = SECRET_PATTERNS2) {
 }
 var LIMITS, BASE64_CANDIDATE_RE, HEX_CANDIDATE_RE;
 var init_secret_scanner = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/claude-runtime/dist/secrets/secret-scanner.js"() {
+  "../qmd-team-intent-kb/packages/claude-runtime/dist/secrets/secret-scanner.js"() {
     "use strict";
     init_patterns();
     LIMITS = {
@@ -39358,15 +39504,15 @@ var init_secret_scanner = __esm({
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/claude-runtime/dist/secrets/redactor.js
+// ../qmd-team-intent-kb/packages/claude-runtime/dist/secrets/redactor.js
 var init_redactor = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/claude-runtime/dist/secrets/redactor.js"() {
+  "../qmd-team-intent-kb/packages/claude-runtime/dist/secrets/redactor.js"() {
     "use strict";
     init_patterns();
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/claude-runtime/dist/secrets/content-classifier.js
+// ../qmd-team-intent-kb/packages/claude-runtime/dist/secrets/content-classifier.js
 function classifyContent(content) {
   const credentialMatches = scanForSecrets(content, SECRET_PATTERNS2);
   const piiMatches = scanForSecrets(content, PII_PATTERNS);
@@ -39404,7 +39550,7 @@ function classifyContent(content) {
 }
 var INTERNAL_PATH_PATTERNS;
 var init_content_classifier = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/claude-runtime/dist/secrets/content-classifier.js"() {
+  "../qmd-team-intent-kb/packages/claude-runtime/dist/secrets/content-classifier.js"() {
     "use strict";
     init_secret_scanner();
     init_patterns();
@@ -39416,9 +39562,9 @@ var init_content_classifier = __esm({
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/claude-runtime/dist/capture/candidate-builder.js
+// ../qmd-team-intent-kb/packages/claude-runtime/dist/capture/candidate-builder.js
 var init_candidate_builder = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/claude-runtime/dist/capture/candidate-builder.js"() {
+  "../qmd-team-intent-kb/packages/claude-runtime/dist/capture/candidate-builder.js"() {
     "use strict";
     init_dist();
     init_dist2();
@@ -39426,10 +39572,10 @@ var init_candidate_builder = __esm({
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/repo-resolver/dist/types.js
+// ../qmd-team-intent-kb/packages/repo-resolver/dist/types.js
 var import_zod17, RepoContext, ResolverError;
 var init_types2 = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/repo-resolver/dist/types.js"() {
+  "../qmd-team-intent-kb/packages/repo-resolver/dist/types.js"() {
     "use strict";
     import_zod17 = __toESM(require_zod(), 1);
     RepoContext = import_zod17.z.object({
@@ -39460,17 +39606,17 @@ var init_types2 = __esm({
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/repo-resolver/dist/git.js
+// ../qmd-team-intent-kb/packages/repo-resolver/dist/git.js
 var init_git = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/repo-resolver/dist/git.js"() {
+  "../qmd-team-intent-kb/packages/repo-resolver/dist/git.js"() {
     "use strict";
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/repo-resolver/dist/cache.js
+// ../qmd-team-intent-kb/packages/repo-resolver/dist/cache.js
 var DEFAULT_TTL_MS, RepoContextCache, defaultCache;
 var init_cache = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/repo-resolver/dist/cache.js"() {
+  "../qmd-team-intent-kb/packages/repo-resolver/dist/cache.js"() {
     "use strict";
     DEFAULT_TTL_MS = 5 * 60 * 1e3;
     RepoContextCache = class {
@@ -39533,18 +39679,18 @@ var init_cache = __esm({
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/repo-resolver/dist/monorepo.js
+// ../qmd-team-intent-kb/packages/repo-resolver/dist/monorepo.js
 var MAX_MANIFEST_SIZE;
 var init_monorepo = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/repo-resolver/dist/monorepo.js"() {
+  "../qmd-team-intent-kb/packages/repo-resolver/dist/monorepo.js"() {
     "use strict";
     MAX_MANIFEST_SIZE = 64 * 1024;
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/repo-resolver/dist/resolver.js
+// ../qmd-team-intent-kb/packages/repo-resolver/dist/resolver.js
 var init_resolver = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/repo-resolver/dist/resolver.js"() {
+  "../qmd-team-intent-kb/packages/repo-resolver/dist/resolver.js"() {
     "use strict";
     init_dist2();
     init_git();
@@ -39553,18 +39699,18 @@ var init_resolver = __esm({
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/repo-resolver/dist/tenant.js
+// ../qmd-team-intent-kb/packages/repo-resolver/dist/tenant.js
 var MAX_CONFIG_SIZE;
 var init_tenant = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/repo-resolver/dist/tenant.js"() {
+  "../qmd-team-intent-kb/packages/repo-resolver/dist/tenant.js"() {
     "use strict";
     MAX_CONFIG_SIZE = 64 * 1024;
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/repo-resolver/dist/index.js
+// ../qmd-team-intent-kb/packages/repo-resolver/dist/index.js
 var init_dist5 = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/repo-resolver/dist/index.js"() {
+  "../qmd-team-intent-kb/packages/repo-resolver/dist/index.js"() {
     "use strict";
     init_types2();
     init_resolver();
@@ -39574,10 +39720,10 @@ var init_dist5 = __esm({
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/claude-runtime/dist/capture/git-context.js
+// ../qmd-team-intent-kb/packages/claude-runtime/dist/capture/git-context.js
 var import_node_child_process2, import_node_util2, execFileAsync2;
 var init_git_context = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/claude-runtime/dist/capture/git-context.js"() {
+  "../qmd-team-intent-kb/packages/claude-runtime/dist/capture/git-context.js"() {
     "use strict";
     import_node_child_process2 = require("node:child_process");
     import_node_util2 = require("node:util");
@@ -39585,16 +39731,16 @@ var init_git_context = __esm({
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/claude-runtime/dist/capture/context-provider.js
+// ../qmd-team-intent-kb/packages/claude-runtime/dist/capture/context-provider.js
 var init_context_provider = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/claude-runtime/dist/capture/context-provider.js"() {
+  "../qmd-team-intent-kb/packages/claude-runtime/dist/capture/context-provider.js"() {
     "use strict";
     init_dist5();
     init_git_context();
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/claude-runtime/dist/spool/spool-writer.js
+// ../qmd-team-intent-kb/packages/claude-runtime/dist/spool/spool-writer.js
 async function writeToSpool(candidate, spoolDir, agentId) {
   const dir = spoolDir ?? getSpoolPath();
   const filename = agentId ? `spool-${agentId}.jsonl` : getSpoolFilename();
@@ -39623,7 +39769,7 @@ async function writeToSpool(candidate, spoolDir, agentId) {
 }
 var import_promises, import_node_path6;
 var init_spool_writer = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/claude-runtime/dist/spool/spool-writer.js"() {
+  "../qmd-team-intent-kb/packages/claude-runtime/dist/spool/spool-writer.js"() {
     "use strict";
     import_promises = require("node:fs/promises");
     import_node_path6 = require("node:path");
@@ -39632,7 +39778,7 @@ var init_spool_writer = __esm({
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/claude-runtime/dist/spool/spool-reader.js
+// ../qmd-team-intent-kb/packages/claude-runtime/dist/spool/spool-reader.js
 async function verifySpoolManifest(spoolFilePath) {
   const manifestPath2 = `${spoolFilePath}.manifest.json`;
   let manifestRaw;
@@ -39698,7 +39844,7 @@ async function listSpoolFiles(spoolDir) {
 }
 var import_node_crypto7, import_promises2, import_node_path7;
 var init_spool_reader = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/claude-runtime/dist/spool/spool-reader.js"() {
+  "../qmd-team-intent-kb/packages/claude-runtime/dist/spool/spool-reader.js"() {
     "use strict";
     import_node_crypto7 = require("node:crypto");
     import_promises2 = require("node:fs/promises");
@@ -39708,48 +39854,48 @@ var init_spool_reader = __esm({
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/claude-runtime/dist/spool/write-jsonl.js
+// ../qmd-team-intent-kb/packages/claude-runtime/dist/spool/write-jsonl.js
 var init_write_jsonl = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/claude-runtime/dist/spool/write-jsonl.js"() {
+  "../qmd-team-intent-kb/packages/claude-runtime/dist/spool/write-jsonl.js"() {
     "use strict";
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/claude-runtime/dist/spool/failure-bucket.js
+// ../qmd-team-intent-kb/packages/claude-runtime/dist/spool/failure-bucket.js
 var init_failure_bucket = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/claude-runtime/dist/spool/failure-bucket.js"() {
+  "../qmd-team-intent-kb/packages/claude-runtime/dist/spool/failure-bucket.js"() {
     "use strict";
     init_config2();
     init_write_jsonl();
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/claude-runtime/dist/spool/redaction-audit.js
+// ../qmd-team-intent-kb/packages/claude-runtime/dist/spool/redaction-audit.js
 var init_redaction_audit = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/claude-runtime/dist/spool/redaction-audit.js"() {
+  "../qmd-team-intent-kb/packages/claude-runtime/dist/spool/redaction-audit.js"() {
     "use strict";
     init_config2();
     init_write_jsonl();
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/claude-runtime/dist/templates/hook-templates.js
+// ../qmd-team-intent-kb/packages/claude-runtime/dist/templates/hook-templates.js
 var init_hook_templates = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/claude-runtime/dist/templates/hook-templates.js"() {
+  "../qmd-team-intent-kb/packages/claude-runtime/dist/templates/hook-templates.js"() {
     "use strict";
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/claude-runtime/dist/templates/claudemd-templates.js
+// ../qmd-team-intent-kb/packages/claude-runtime/dist/templates/claudemd-templates.js
 var init_claudemd_templates = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/claude-runtime/dist/templates/claudemd-templates.js"() {
+  "../qmd-team-intent-kb/packages/claude-runtime/dist/templates/claudemd-templates.js"() {
     "use strict";
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/claude-runtime/dist/index.js
+// ../qmd-team-intent-kb/packages/claude-runtime/dist/index.js
 var init_dist6 = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/claude-runtime/dist/index.js"() {
+  "../qmd-team-intent-kb/packages/claude-runtime/dist/index.js"() {
     "use strict";
     init_config2();
     init_patterns();
@@ -39790,7 +39936,7 @@ var init_config3 = __esm({
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/policy-engine/dist/rules/secret-detection-rule.js
+// ../qmd-team-intent-kb/packages/policy-engine/dist/rules/secret-detection-rule.js
 function evaluateSecretDetection(candidate, rule, _context) {
   const matches = scanForSecrets(candidate.content);
   if (matches.length === 0) {
@@ -39811,13 +39957,13 @@ function evaluateSecretDetection(candidate, rule, _context) {
   };
 }
 var init_secret_detection_rule = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/policy-engine/dist/rules/secret-detection-rule.js"() {
+  "../qmd-team-intent-kb/packages/policy-engine/dist/rules/secret-detection-rule.js"() {
     "use strict";
     init_dist6();
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/policy-engine/dist/rules/content-length-rule.js
+// ../qmd-team-intent-kb/packages/policy-engine/dist/rules/content-length-rule.js
 function evaluateContentLength(candidate, rule, _context) {
   const min = typeof rule.parameters["min"] === "number" ? rule.parameters["min"] : DEFAULT_MIN;
   const max = typeof rule.parameters["max"] === "number" ? rule.parameters["max"] : DEFAULT_MAX;
@@ -39849,14 +39995,14 @@ function evaluateContentLength(candidate, rule, _context) {
 }
 var DEFAULT_MIN, DEFAULT_MAX;
 var init_content_length_rule = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/policy-engine/dist/rules/content-length-rule.js"() {
+  "../qmd-team-intent-kb/packages/policy-engine/dist/rules/content-length-rule.js"() {
     "use strict";
     DEFAULT_MIN = 10;
     DEFAULT_MAX = 5e4;
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/policy-engine/dist/rules/source-trust-rule.js
+// ../qmd-team-intent-kb/packages/policy-engine/dist/rules/source-trust-rule.js
 function isTrustLevel(value) {
   return value === "high" || value === "medium" || value === "low" || value === "untrusted";
 }
@@ -39885,7 +40031,7 @@ function evaluateSourceTrust(candidate, rule, _context) {
 }
 var TRUST_ORDER, DEFAULT_MINIMUM_TRUST;
 var init_source_trust_rule = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/policy-engine/dist/rules/source-trust-rule.js"() {
+  "../qmd-team-intent-kb/packages/policy-engine/dist/rules/source-trust-rule.js"() {
     "use strict";
     TRUST_ORDER = {
       high: 4,
@@ -39897,7 +40043,7 @@ var init_source_trust_rule = __esm({
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/policy-engine/dist/rules/relevance-score-rule.js
+// ../qmd-team-intent-kb/packages/policy-engine/dist/rules/relevance-score-rule.js
 function evaluateRelevanceScore(candidate, rule, _context) {
   const minimumScore = typeof rule.parameters["minimumScore"] === "number" ? rule.parameters["minimumScore"] : DEFAULT_MINIMUM_SCORE;
   let score = 0;
@@ -39951,13 +40097,13 @@ function evaluateRelevanceScore(candidate, rule, _context) {
 }
 var DEFAULT_MINIMUM_SCORE;
 var init_relevance_score_rule = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/policy-engine/dist/rules/relevance-score-rule.js"() {
+  "../qmd-team-intent-kb/packages/policy-engine/dist/rules/relevance-score-rule.js"() {
     "use strict";
     DEFAULT_MINIMUM_SCORE = 0.3;
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/policy-engine/dist/rules/dedup-check-rule.js
+// ../qmd-team-intent-kb/packages/policy-engine/dist/rules/dedup-check-rule.js
 function evaluateDedupCheck(candidate, rule, context) {
   if (context.existingHashes === void 0 || context.existingHashes.size === 0) {
     return {
@@ -39984,13 +40130,13 @@ function evaluateDedupCheck(candidate, rule, context) {
   };
 }
 var init_dedup_check_rule = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/policy-engine/dist/rules/dedup-check-rule.js"() {
+  "../qmd-team-intent-kb/packages/policy-engine/dist/rules/dedup-check-rule.js"() {
     "use strict";
     init_dist2();
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/policy-engine/dist/rules/tenant-match-rule.js
+// ../qmd-team-intent-kb/packages/policy-engine/dist/rules/tenant-match-rule.js
 function evaluateTenantMatch(candidate, rule, context) {
   if (context.tenantId === void 0) {
     return {
@@ -40016,12 +40162,12 @@ function evaluateTenantMatch(candidate, rule, context) {
   };
 }
 var init_tenant_match_rule = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/policy-engine/dist/rules/tenant-match-rule.js"() {
+  "../qmd-team-intent-kb/packages/policy-engine/dist/rules/tenant-match-rule.js"() {
     "use strict";
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/policy-engine/dist/rules/sensitivity-gate-rule.js
+// ../qmd-team-intent-kb/packages/policy-engine/dist/rules/sensitivity-gate-rule.js
 function parseBlockedLevels(params) {
   if (!params || !Array.isArray(params["blockedLevels"]))
     return DEFAULT_BLOCKED_LEVELS;
@@ -40049,7 +40195,7 @@ function evaluateSensitivityGate(candidate, rule, _context) {
 }
 var VALID_LEVELS, DEFAULT_BLOCKED_LEVELS;
 var init_sensitivity_gate_rule = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/policy-engine/dist/rules/sensitivity-gate-rule.js"() {
+  "../qmd-team-intent-kb/packages/policy-engine/dist/rules/sensitivity-gate-rule.js"() {
     "use strict";
     init_dist6();
     init_dist();
@@ -40058,7 +40204,7 @@ var init_sensitivity_gate_rule = __esm({
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/policy-engine/dist/rules/content-sanitization-rule.js
+// ../qmd-team-intent-kb/packages/policy-engine/dist/rules/content-sanitization-rule.js
 function evaluateContentSanitization(candidate, rule, _context) {
   const params = rule.parameters;
   const enabledPatternIds = Array.isArray(params["enabledPatterns"]) ? params["enabledPatterns"].filter((v) => typeof v === "string") : void 0;
@@ -40086,7 +40232,7 @@ function evaluateContentSanitization(candidate, rule, _context) {
 }
 var DEFAULT_PATTERNS;
 var init_content_sanitization_rule = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/policy-engine/dist/rules/content-sanitization-rule.js"() {
+  "../qmd-team-intent-kb/packages/policy-engine/dist/rules/content-sanitization-rule.js"() {
     "use strict";
     DEFAULT_PATTERNS = [
       {
@@ -40123,14 +40269,14 @@ var init_content_sanitization_rule = __esm({
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/policy-engine/dist/rules/index.js
+// ../qmd-team-intent-kb/packages/policy-engine/dist/rules/index.js
 function createRule(type) {
   const evaluator = RULE_REGISTRY[type];
   return evaluator;
 }
 var RULE_REGISTRY;
 var init_rules = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/policy-engine/dist/rules/index.js"() {
+  "../qmd-team-intent-kb/packages/policy-engine/dist/rules/index.js"() {
     "use strict";
     init_secret_detection_rule();
     init_content_length_rule();
@@ -40153,10 +40299,10 @@ var init_rules = __esm({
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/policy-engine/dist/pipeline.js
+// ../qmd-team-intent-kb/packages/policy-engine/dist/pipeline.js
 var PolicyPipeline;
 var init_pipeline2 = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/policy-engine/dist/pipeline.js"() {
+  "../qmd-team-intent-kb/packages/policy-engine/dist/pipeline.js"() {
     "use strict";
     init_rules();
     PolicyPipeline = class {
@@ -40210,9 +40356,9 @@ var init_pipeline2 = __esm({
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/policy-engine/dist/index.js
+// ../qmd-team-intent-kb/packages/policy-engine/dist/index.js
 var init_dist7 = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/packages/policy-engine/dist/index.js"() {
+  "../qmd-team-intent-kb/packages/policy-engine/dist/index.js"() {
     "use strict";
     init_rules();
     init_secret_detection_rule();
@@ -40227,10 +40373,10 @@ var init_dist7 = __esm({
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/apps/curator/dist/dedup/dedup-checker.js
-function checkDuplicate(candidate, memoryRepo) {
+// ../qmd-team-intent-kb/apps/curator/dist/dedup/dedup-checker.js
+function checkDuplicate(candidate, memoryRepo, tenantId) {
   const contentHash = computeContentHash(candidate.content);
-  const existing = memoryRepo.findByContentHash(contentHash);
+  const existing = tenantId !== void 0 ? memoryRepo.findByContentHashAndTenant(contentHash, tenantId) : memoryRepo.findByContentHash(contentHash);
   if (existing !== null) {
     return {
       isDuplicate: true,
@@ -40242,13 +40388,13 @@ function checkDuplicate(candidate, memoryRepo) {
   return { isDuplicate: false, contentHash };
 }
 var init_dedup_checker = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/apps/curator/dist/dedup/dedup-checker.js"() {
+  "../qmd-team-intent-kb/apps/curator/dist/dedup/dedup-checker.js"() {
     "use strict";
     init_dist2();
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/apps/curator/dist/supersession/supersession-detector.js
+// ../qmd-team-intent-kb/apps/curator/dist/supersession/supersession-detector.js
 function detectSupersession(candidate, memoryRepo, threshold = 0.6) {
   const existingMemories = memoryRepo.findByTenantAndLifecycle(candidate.tenantId, "active").filter((m) => m.category === candidate.category);
   let bestMatch = null;
@@ -40283,12 +40429,12 @@ function tokenize(text) {
   return text.toLowerCase().split(/\s+/).filter((t) => t.length > 0);
 }
 var init_supersession_detector = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/apps/curator/dist/supersession/supersession-detector.js"() {
+  "../qmd-team-intent-kb/apps/curator/dist/supersession/supersession-detector.js"() {
     "use strict";
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/apps/curator/dist/import/wikilink-parser.js
+// ../qmd-team-intent-kb/apps/curator/dist/import/wikilink-parser.js
 function extractWikiLinks(content) {
   const codeRanges = findCodeRanges(content);
   const links = [];
@@ -40339,13 +40485,13 @@ function isInsideCodeRange(start, end, ranges) {
 }
 var WIKILINK_RE;
 var init_wikilink_parser = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/apps/curator/dist/import/wikilink-parser.js"() {
+  "../qmd-team-intent-kb/apps/curator/dist/import/wikilink-parser.js"() {
     "use strict";
     WIKILINK_RE = /\[\[([^\[\]|][^\[\]|]*?)(?:\|([^\[\]]*))?\]\]/g;
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/apps/curator/dist/promotion/promoter.js
+// ../qmd-team-intent-kb/apps/curator/dist/promotion/promoter.js
 function promote(input, memoryRepo, auditRepo, dryRun = false, linksRepo, evalCallback, now = (/* @__PURE__ */ new Date()).toISOString()) {
   const memoryId = deriveMemoryId(input.candidate.id, input.contentHash);
   const policyEvaluations = input.pipelineResult.evaluations.map((ev, index) => ({
@@ -40376,125 +40522,127 @@ function promote(input, memoryRepo, auditRepo, dryRun = false, linksRepo, evalCa
     version: 1
   });
   if (!dryRun) {
-    if (input.supersession !== void 0) {
-      const oldMemory = memoryRepo.findById(input.supersession.supersededMemoryId);
-      if (oldMemory !== null) {
-        const updatedOld = CuratedMemory.parse({
-          ...oldMemory,
-          lifecycle: "superseded",
-          supersession: {
-            supersededBy: memoryId,
-            reason: `Title similarity: ${input.supersession.similarity.toFixed(2)}`,
-            linkedAt: now
+    memoryRepo.connection.transaction(() => {
+      if (input.supersession !== void 0) {
+        const oldMemory = memoryRepo.findById(input.supersession.supersededMemoryId);
+        if (oldMemory !== null) {
+          const updatedOld = CuratedMemory.parse({
+            ...oldMemory,
+            lifecycle: "superseded",
+            supersession: {
+              supersededBy: memoryId,
+              reason: `Title similarity: ${input.supersession.similarity.toFixed(2)}`,
+              linkedAt: now
+            },
+            updatedAt: now
+          });
+          memoryRepo.update(updatedOld);
+        }
+        auditRepo.insert(AuditEvent.parse({
+          // Content-derived (bead 8da.5): identity is the superseded memory +
+          // the 'superseded' action + the superseding memory id as discriminator,
+          // so two clones supersede-by-the-same-memory mint the same audit id and
+          // hence the same v2 entry_hash at the same chain position.
+          id: deriveAuditEventId(input.supersession.supersededMemoryId, "superseded", memoryId),
+          action: "superseded",
+          memoryId: input.supersession.supersededMemoryId,
+          tenantId: input.candidate.tenantId,
+          actor: { type: "system", id: "curator" },
+          reason: `Superseded by ${memoryId}`,
+          details: {
+            newMemoryId: memoryId,
+            similarity: input.supersession.similarity
           },
-          updatedAt: now
-        });
-        memoryRepo.update(updatedOld);
+          timestamp: now
+        }));
       }
-      auditRepo.insert(AuditEvent.parse({
-        // Content-derived (bead 8da.5): identity is the superseded memory +
-        // the 'superseded' action + the superseding memory id as discriminator,
-        // so two clones supersede-by-the-same-memory mint the same audit id and
-        // hence the same v2 entry_hash at the same chain position.
-        id: deriveAuditEventId(input.supersession.supersededMemoryId, "superseded", memoryId),
-        action: "superseded",
-        memoryId: input.supersession.supersededMemoryId,
-        tenantId: input.candidate.tenantId,
-        actor: { type: "system", id: "curator" },
-        reason: `Superseded by ${memoryId}`,
-        details: {
-          newMemoryId: memoryId,
-          similarity: input.supersession.similarity
-        },
-        timestamp: now
-      }));
-    }
-    memoryRepo.insert(memory);
-    if (input.supersession !== void 0 && linksRepo) {
-      linksRepo.insert({
-        // Content-derived (bead 8da.5): a graph edge's identity is its
-        // (source, target, type) triple, stable across clones for the same
-        // logical promotion. Not part of the audit chain, but kept deterministic
-        // so the whole promotion is byte-reproducible across clones.
-        id: deriveLinkId(memoryId, input.supersession.supersededMemoryId, "supersedes"),
-        sourceMemoryId: memoryId,
-        targetMemoryId: input.supersession.supersededMemoryId,
-        linkType: "supersedes",
-        weight: input.supersession.similarity,
-        createdBy: "curator",
-        source: "curator",
-        importBatchId: null,
-        createdAt: now
-      });
-    }
-    if (linksRepo) {
-      const wikiLinks = extractWikiLinks(input.candidate.content);
-      for (const wl of wikiLinks) {
-        const targets = memoryRepo.searchByText(wl.slug);
-        const match = targets.find((m) => m.title.toLowerCase() === wl.slug.toLowerCase() && m.id !== memoryId);
-        if (match) {
-          try {
-            linksRepo.insert({
-              // Content-derived (bead 8da.5): (source, target, type) edge identity,
-              // stable across clones. See the supersedes edge above.
-              id: deriveLinkId(memoryId, match.id, "relates_to"),
-              sourceMemoryId: memoryId,
-              targetMemoryId: match.id,
-              linkType: "relates_to",
-              weight: 1,
-              createdBy: "curator",
-              source: "curator",
-              importBatchId: null,
-              createdAt: now
-            });
-          } catch {
+      memoryRepo.insert(memory);
+      if (input.supersession !== void 0 && linksRepo) {
+        linksRepo.insert({
+          // Content-derived (bead 8da.5): a graph edge's identity is its
+          // (source, target, type) triple, stable across clones for the same
+          // logical promotion. Not part of the audit chain, but kept deterministic
+          // so the whole promotion is byte-reproducible across clones.
+          id: deriveLinkId(memoryId, input.supersession.supersededMemoryId, "supersedes"),
+          sourceMemoryId: memoryId,
+          targetMemoryId: input.supersession.supersededMemoryId,
+          linkType: "supersedes",
+          weight: input.supersession.similarity,
+          createdBy: "curator",
+          source: "curator",
+          importBatchId: null,
+          createdAt: now
+        });
+      }
+      if (linksRepo) {
+        const wikiLinks = extractWikiLinks(input.candidate.content);
+        for (const wl of wikiLinks) {
+          const targets = memoryRepo.searchByText(wl.slug);
+          const match = targets.find((m) => m.title.toLowerCase() === wl.slug.toLowerCase() && m.id !== memoryId);
+          if (match) {
+            try {
+              linksRepo.insert({
+                // Content-derived (bead 8da.5): (source, target, type) edge identity,
+                // stable across clones. See the supersedes edge above.
+                id: deriveLinkId(memoryId, match.id, "relates_to"),
+                sourceMemoryId: memoryId,
+                targetMemoryId: match.id,
+                linkType: "relates_to",
+                weight: 1,
+                createdBy: "curator",
+                source: "curator",
+                importBatchId: null,
+                createdAt: now
+              });
+            } catch {
+            }
           }
         }
       }
-    }
-    auditRepo.insert(AuditEvent.parse({
-      // Content-derived (bead 8da.5): one 'promoted' event per memory, so the
-      // (memoryId, action) pair is already unique, so no discriminator needed.
-      id: deriveAuditEventId(memoryId, "promoted"),
-      action: "promoted",
-      memoryId,
-      tenantId: input.candidate.tenantId,
-      actor: { type: "system", id: "curator" },
-      reason: "Passed all governance rules",
-      details: { candidateId: input.candidate.id },
-      timestamp: now
-    }));
-    if (evalCallback !== void 0) {
-      try {
-        for (const verdict of evalCallback(memory, input.pipelineResult)) {
-          auditRepo.insert(AuditEvent.parse({
-            // Content-derived (bead 8da.5): several eval-result rows can be
-            // emitted per promotion, so the evaluator name discriminates them.
-            // Identical evaluator verdicts on two clones mint the same id.
-            id: deriveAuditEventId(memoryId, "eval-result", verdict.name),
-            action: "eval-result",
-            memoryId,
-            tenantId: input.candidate.tenantId,
-            actor: { type: "system", id: "curator" },
-            reason: `eval ${verdict.name}: ${verdict.passed ? "pass" : "fail"}`,
-            details: {
-              evaluator: verdict.name,
-              passed: verdict.passed,
-              score: verdict.score,
-              threshold: verdict.threshold,
-              ...verdict.details
-            },
-            timestamp: now
-          }));
+      auditRepo.insert(AuditEvent.parse({
+        // Content-derived (bead 8da.5): one 'promoted' event per memory, so the
+        // (memoryId, action) pair is already unique, so no discriminator needed.
+        id: deriveAuditEventId(memoryId, "promoted"),
+        action: "promoted",
+        memoryId,
+        tenantId: input.candidate.tenantId,
+        actor: { type: "system", id: "curator" },
+        reason: "Passed all governance rules",
+        details: { candidateId: input.candidate.id },
+        timestamp: now
+      }));
+      if (evalCallback !== void 0) {
+        try {
+          for (const verdict of evalCallback(memory, input.pipelineResult)) {
+            auditRepo.insert(AuditEvent.parse({
+              // Content-derived (bead 8da.5): several eval-result rows can be
+              // emitted per promotion, so the evaluator name discriminates them.
+              // Identical evaluator verdicts on two clones mint the same id.
+              id: deriveAuditEventId(memoryId, "eval-result", verdict.name),
+              action: "eval-result",
+              memoryId,
+              tenantId: input.candidate.tenantId,
+              actor: { type: "system", id: "curator" },
+              reason: `eval ${verdict.name}: ${verdict.passed ? "pass" : "fail"}`,
+              details: {
+                evaluator: verdict.name,
+                passed: verdict.passed,
+                score: verdict.score,
+                threshold: verdict.threshold,
+                ...verdict.details
+              },
+              timestamp: now
+            }));
+          }
+        } catch {
         }
-      } catch {
       }
-    }
+    }).immediate();
   }
   return memory;
 }
 var init_promoter = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/apps/curator/dist/promotion/promoter.js"() {
+  "../qmd-team-intent-kb/apps/curator/dist/promotion/promoter.js"() {
     "use strict";
     init_dist2();
     init_dist();
@@ -40502,7 +40650,7 @@ var init_promoter = __esm({
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/apps/curator/dist/rejection/rejector.js
+// ../qmd-team-intent-kb/apps/curator/dist/rejection/rejector.js
 function reject(candidate, pipelineResult, auditRepo, dryRun = false) {
   const reason = pipelineResult.rejectedBy !== void 0 ? `Rejected by rule: ${pipelineResult.rejectedBy}` : `Flagged by rules: ${pipelineResult.flaggedBy?.join(", ") ?? "unknown"}`;
   if (!dryRun) {
@@ -40525,17 +40673,17 @@ function reject(candidate, pipelineResult, auditRepo, dryRun = false) {
 }
 var import_node_crypto8;
 var init_rejector = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/apps/curator/dist/rejection/rejector.js"() {
+  "../qmd-team-intent-kb/apps/curator/dist/rejection/rejector.js"() {
     "use strict";
     import_node_crypto8 = require("node:crypto");
     init_dist();
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/apps/curator/dist/curator.js
+// ../qmd-team-intent-kb/apps/curator/dist/curator.js
 var Curator;
 var init_curator = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/apps/curator/dist/curator.js"() {
+  "../qmd-team-intent-kb/apps/curator/dist/curator.js"() {
     "use strict";
     init_dist2();
     init_dist7();
@@ -40559,7 +40707,7 @@ var init_curator = __esm({
        */
       processSingle(candidate, existingHashes) {
         const contentHash = computeContentHash(candidate.content);
-        const dedup = checkDuplicate(candidate, this.deps.memoryRepo);
+        const dedup = checkDuplicate(candidate, this.deps.memoryRepo, this.config.tenantId);
         if (dedup.isDuplicate) {
           return {
             candidateId: candidate.id,
@@ -40584,13 +40732,14 @@ var init_curator = __esm({
           });
         }
         const pipeline = new PolicyPipeline(policy);
-        const hashSet = existingHashes ?? new Set(this.deps.memoryRepo.getAllContentHashes());
+        const hashSet = existingHashes ?? new Set(this.deps.memoryRepo.getContentHashesByTenant(this.config.tenantId));
         const pipelineResult = pipeline.evaluate(candidate, {
           existingHashes: hashSet,
           tenantId: this.config.tenantId
         });
+        const suppressReject = this.config.dryRun === true || this.config.suppressRejectionReceipts === true;
         if (pipelineResult.outcome === "rejected") {
-          const reason = reject(candidate, pipelineResult, this.deps.auditRepo, this.config.dryRun);
+          const reason = reject(candidate, pipelineResult, this.deps.auditRepo, suppressReject);
           return {
             candidateId: candidate.id,
             outcome: "rejected",
@@ -40599,7 +40748,7 @@ var init_curator = __esm({
           };
         }
         if (pipelineResult.outcome === "flagged") {
-          const reason = reject(candidate, pipelineResult, this.deps.auditRepo, this.config.dryRun);
+          const reason = reject(candidate, pipelineResult, this.deps.auditRepo, suppressReject);
           return {
             candidateId: candidate.id,
             outcome: "flagged",
@@ -40622,7 +40771,7 @@ var init_curator = __esm({
         let rejected = 0;
         let flagged = 0;
         let duplicates = 0;
-        const existingHashes = new Set(this.deps.memoryRepo.getAllContentHashes());
+        const existingHashes = new Set(this.deps.memoryRepo.getContentHashesByTenant(this.config.tenantId));
         for (const candidate of candidates) {
           const result = this.processSingle(candidate, existingHashes);
           results.push(result);
@@ -40672,7 +40821,7 @@ var init_curator = __esm({
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/apps/curator/dist/intake/spool-intake.js
+// ../qmd-team-intent-kb/apps/curator/dist/intake/spool-intake.js
 async function ingestFromSpool(candidateRepo, spoolDir, opts) {
   const detailed = await ingestFromSpoolDetailed(candidateRepo, spoolDir, opts);
   if (!detailed.ok)
@@ -40722,8 +40871,25 @@ async function ingestFromSpoolDetailed(candidateRepo, spoolDir, opts) {
         throw e;
       }
     }
+    if (opts?.archiveIngestedDir !== void 0) {
+      await archiveIngestedFile(filepath, opts.archiveIngestedDir);
+    }
   }
   return { ok: true, value: { ingested, tampered, rejected } };
+}
+async function archiveIngestedFile(spoolFilePath, archiveDir) {
+  try {
+    await (0, import_promises3.mkdir)(archiveDir, { recursive: true });
+    const dest = (0, import_node_path9.join)(archiveDir, (0, import_node_path9.basename)(spoolFilePath));
+    await (0, import_promises3.rename)(spoolFilePath, dest);
+    try {
+      await (0, import_promises3.rename)(`${spoolFilePath}.manifest.json`, `${dest}.manifest.json`);
+    } catch {
+    }
+  } catch (e) {
+    process.stderr.write(`[spool-intake] archive skipped for ${(0, import_node_path9.basename)(spoolFilePath)}: ${e instanceof Error ? e.message : String(e)}
+`);
+  }
 }
 async function quarantineTamperedFile(spoolFilePath, spoolDir, quarantineDirOverride, expected, actual) {
   try {
@@ -40751,7 +40917,7 @@ async function quarantineTamperedFile(spoolFilePath, spoolDir, quarantineDirOver
 }
 var import_promises3, import_node_path9;
 var init_spool_intake = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/apps/curator/dist/intake/spool-intake.js"() {
+  "../qmd-team-intent-kb/apps/curator/dist/intake/spool-intake.js"() {
     "use strict";
     import_promises3 = require("node:fs/promises");
     import_node_path9 = require("node:path");
@@ -40760,10 +40926,10 @@ var init_spool_intake = __esm({
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/apps/curator/dist/merge/merge-gate.js
+// ../qmd-team-intent-kb/apps/curator/dist/merge/merge-gate.js
 var MERGE_EPOCH_MS;
 var init_merge_gate = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/apps/curator/dist/merge/merge-gate.js"() {
+  "../qmd-team-intent-kb/apps/curator/dist/merge/merge-gate.js"() {
     "use strict";
     init_dist2();
     init_dist7();
@@ -40773,31 +40939,31 @@ var init_merge_gate = __esm({
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/apps/curator/dist/import/markdown-parser.js
+// ../qmd-team-intent-kb/apps/curator/dist/import/markdown-parser.js
 var init_markdown_parser = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/apps/curator/dist/import/markdown-parser.js"() {
+  "../qmd-team-intent-kb/apps/curator/dist/import/markdown-parser.js"() {
     "use strict";
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/apps/curator/dist/import/vault-walker.js
+// ../qmd-team-intent-kb/apps/curator/dist/import/vault-walker.js
 var init_vault_walker = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/apps/curator/dist/import/vault-walker.js"() {
+  "../qmd-team-intent-kb/apps/curator/dist/import/vault-walker.js"() {
     "use strict";
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/apps/curator/dist/import/collision-detector.js
+// ../qmd-team-intent-kb/apps/curator/dist/import/collision-detector.js
 var init_collision_detector = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/apps/curator/dist/import/collision-detector.js"() {
+  "../qmd-team-intent-kb/apps/curator/dist/import/collision-detector.js"() {
     "use strict";
     init_dist2();
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/apps/curator/dist/import/import-pipeline.js
+// ../qmd-team-intent-kb/apps/curator/dist/import/import-pipeline.js
 var init_import_pipeline = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/apps/curator/dist/import/import-pipeline.js"() {
+  "../qmd-team-intent-kb/apps/curator/dist/import/import-pipeline.js"() {
     "use strict";
     init_dist2();
     init_vault_walker();
@@ -40806,9 +40972,9 @@ var init_import_pipeline = __esm({
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/apps/curator/dist/import/index.js
+// ../qmd-team-intent-kb/apps/curator/dist/import/index.js
 var init_import = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/apps/curator/dist/import/index.js"() {
+  "../qmd-team-intent-kb/apps/curator/dist/import/index.js"() {
     "use strict";
     init_markdown_parser();
     init_vault_walker();
@@ -40818,9 +40984,9 @@ var init_import = __esm({
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/apps/curator/dist/index.js
+// ../qmd-team-intent-kb/apps/curator/dist/index.js
 var init_dist8 = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/apps/curator/dist/index.js"() {
+  "../qmd-team-intent-kb/apps/curator/dist/index.js"() {
     "use strict";
     init_curator();
     init_spool_intake();
@@ -40834,7 +41000,7 @@ var init_dist8 = __esm({
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/apps/git-exporter/dist/formatter/frontmatter.js
+// ../qmd-team-intent-kb/apps/git-exporter/dist/formatter/frontmatter.js
 function extractFrontmatter(memory) {
   return {
     id: memory.id,
@@ -40885,12 +41051,12 @@ function escapeYamlString(s) {
   return s.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 }
 var init_frontmatter = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/apps/git-exporter/dist/formatter/frontmatter.js"() {
+  "../qmd-team-intent-kb/apps/git-exporter/dist/formatter/frontmatter.js"() {
     "use strict";
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/apps/git-exporter/dist/formatter/markdown-formatter.js
+// ../qmd-team-intent-kb/apps/git-exporter/dist/formatter/markdown-formatter.js
 function formatMemoryAsMarkdown(memory, resolveLinks) {
   const frontmatter = renderFrontmatter(extractFrontmatter(memory));
   const content = resolveLinks ? resolveLinks(memory.content) : memory.content;
@@ -40902,13 +41068,13 @@ ${content}
 `;
 }
 var init_markdown_formatter = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/apps/git-exporter/dist/formatter/markdown-formatter.js"() {
+  "../qmd-team-intent-kb/apps/git-exporter/dist/formatter/markdown-formatter.js"() {
     "use strict";
     init_frontmatter();
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/apps/git-exporter/dist/formatter/directory-mapper.js
+// ../qmd-team-intent-kb/apps/git-exporter/dist/formatter/directory-mapper.js
 function getDirectory(memory) {
   if (memory.lifecycle === "archived" || memory.lifecycle === "superseded") {
     return "archive";
@@ -40935,12 +41101,12 @@ function getRelativePath2(memory) {
   return `${getDirectory(memory)}/${memory.id}.md`;
 }
 var init_directory_mapper = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/apps/git-exporter/dist/formatter/directory-mapper.js"() {
+  "../qmd-team-intent-kb/apps/git-exporter/dist/formatter/directory-mapper.js"() {
     "use strict";
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/apps/git-exporter/dist/diff/change-detector.js
+// ../qmd-team-intent-kb/apps/git-exporter/dist/diff/change-detector.js
 function detectChanges(memoryRepo, exportStateRepo, config2) {
   const exportState = exportStateRepo.get(config2.targetId);
   let memories;
@@ -40973,14 +41139,14 @@ function detectChanges(memoryRepo, exportStateRepo, config2) {
 }
 var import_node_path10;
 var init_change_detector = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/apps/git-exporter/dist/diff/change-detector.js"() {
+  "../qmd-team-intent-kb/apps/git-exporter/dist/diff/change-detector.js"() {
     "use strict";
     init_directory_mapper();
     import_node_path10 = require("node:path");
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/apps/git-exporter/dist/writer/file-writer.js
+// ../qmd-team-intent-kb/apps/git-exporter/dist/writer/file-writer.js
 function assertPathSafe(filePath, allowedRoot) {
   if (filePath.includes("\0")) {
     throw new Error("Unsafe file path: Path contains null byte");
@@ -41025,14 +41191,14 @@ function removeFile(filePath, exportRoot) {
 }
 var import_node_fs5, import_node_path11;
 var init_file_writer = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/apps/git-exporter/dist/writer/file-writer.js"() {
+  "../qmd-team-intent-kb/apps/git-exporter/dist/writer/file-writer.js"() {
     "use strict";
     import_node_fs5 = require("node:fs");
     import_node_path11 = require("node:path");
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/apps/git-exporter/dist/exporter.js
+// ../qmd-team-intent-kb/apps/git-exporter/dist/exporter.js
 function isSensitivityRestricted(level) {
   const idx = Sensitivity.options.indexOf(level);
   return idx >= CONFIDENTIAL_INDEX;
@@ -41086,7 +41252,7 @@ function runExport(memoryRepo, exportStateRepo, config2, nowFn = () => (/* @__PU
 }
 var import_node_fs6, CONFIDENTIAL_INDEX;
 var init_exporter = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/apps/git-exporter/dist/exporter.js"() {
+  "../qmd-team-intent-kb/apps/git-exporter/dist/exporter.js"() {
     "use strict";
     init_dist();
     init_change_detector();
@@ -41097,18 +41263,18 @@ var init_exporter = __esm({
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/apps/git-exporter/dist/cli.js
+// ../qmd-team-intent-kb/apps/git-exporter/dist/cli.js
 var init_cli = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/apps/git-exporter/dist/cli.js"() {
+  "../qmd-team-intent-kb/apps/git-exporter/dist/cli.js"() {
     "use strict";
     init_dist3();
     init_exporter();
   }
 });
 
-// ../../../home/jeremy/000-projects/qmd-team-intent-kb/apps/git-exporter/dist/index.js
+// ../qmd-team-intent-kb/apps/git-exporter/dist/index.js
 var init_dist9 = __esm({
-  "../../../home/jeremy/000-projects/qmd-team-intent-kb/apps/git-exporter/dist/index.js"() {
+  "../qmd-team-intent-kb/apps/git-exporter/dist/index.js"() {
     "use strict";
     init_frontmatter();
     init_markdown_formatter();
@@ -41315,21 +41481,11 @@ async function runGovernLocked(config2) {
 `
       );
     }
-    const ingestResult = await ingestFromSpool(candidateRepo, config2.spoolPath);
-    const candidates = ingestResult.ok ? ingestResult.value : [];
-    const curation = { processed: 0, promoted: 0, rejected: 0, flagged: 0, duplicates: 0 };
-    if (candidates.length > 0) {
-      const curator = new Curator(
-        { candidateRepo, memoryRepo, policyRepo, auditRepo },
-        { tenantId: config2.tenantId }
-      );
-      const r = curator.processBatch(candidates);
-      curation.processed = r.processed;
-      curation.promoted = r.promoted;
-      curation.rejected = r.rejected;
-      curation.flagged = r.flagged;
-      curation.duplicates = r.duplicates;
-    }
+    const ingestResult = await ingestFromSpool(candidateRepo, config2.spoolPath, {
+      archiveIngestedDir: (0, import_node_path14.join)(config2.spoolPath, "ingested")
+    });
+    const ingested = ingestResult.ok ? ingestResult.value.length : 0;
+    const curation = sweepInbox(config2, { candidateRepo, memoryRepo, policyRepo, auditRepo });
     let exported = 0;
     try {
       const ex = await runExport(
@@ -41360,12 +41516,14 @@ async function runGovernLocked(config2) {
       process.stderr.write("[govern] anchor failed (best-effort; govern pass unaffected)\n");
     }
     return {
-      ingested: candidates.length,
+      ingested,
       processed: curation.processed,
       promoted: curation.promoted,
       rejected: curation.rejected,
       flagged: curation.flagged,
       duplicates: curation.duplicates,
+      quarantined: curation.quarantined,
+      skipped: curation.skipped,
       exported,
       indexUpdated,
       indexError,
@@ -41375,16 +41533,116 @@ async function runGovernLocked(config2) {
     db.close();
   }
 }
+function sweepInbox(config2, deps) {
+  const { candidateRepo, memoryRepo, policyRepo, auditRepo } = deps;
+  const inbox = candidateRepo.findByStatus("inbox", config2.tenantId);
+  const res = {
+    processed: inbox.length,
+    promoted: 0,
+    rejected: 0,
+    flagged: 0,
+    duplicates: 0,
+    quarantined: 0,
+    skipped: 0
+  };
+  if (inbox.length === 0) return res;
+  const curator = new Curator(
+    { candidateRepo, memoryRepo, policyRepo, auditRepo },
+    { tenantId: config2.tenantId, suppressRejectionReceipts: true }
+  );
+  const existingHashes = new Set(memoryRepo.getContentHashesByTenant(config2.tenantId));
+  const outcomes = [];
+  for (const candidate of inbox) {
+    try {
+      if (isMemberAuthored(candidate)) {
+        candidateRepo.updateStatus(candidate.id, "quarantined");
+        res.quarantined++;
+        outcomes.push({ candidateId: candidate.id, outcome: "quarantined" });
+        continue;
+      }
+      const result = curator.processSingle(candidate, existingHashes);
+      switch (result.outcome) {
+        case "promoted":
+          candidateRepo.updateStatus(candidate.id, "promoted");
+          existingHashes.add(computeContentHash(candidate.content));
+          res.promoted++;
+          outcomes.push({ candidateId: candidate.id, outcome: "promoted" });
+          break;
+        case "duplicate":
+          candidateRepo.updateStatus(candidate.id, "duplicate");
+          res.duplicates++;
+          outcomes.push({ candidateId: candidate.id, outcome: "duplicate" });
+          break;
+        case "flagged":
+          res.flagged++;
+          outcomes.push({ candidateId: candidate.id, outcome: "flagged" });
+          break;
+        case "rejected":
+          res.rejected++;
+          outcomes.push({ candidateId: candidate.id, outcome: "rejected" });
+          break;
+      }
+    } catch (e) {
+      res.skipped++;
+      outcomes.push({ candidateId: candidate.id, outcome: "skipped" });
+      process.stderr.write(
+        `[govern:sweep] skipped candidate ${candidate.id}: ${e instanceof Error ? e.message : String(e)}
+`
+      );
+    }
+  }
+  const leftInbox = res.promoted + res.duplicates + res.quarantined;
+  if (leftInbox > 0) {
+    try {
+      auditRepo.insert(
+        AuditEvent.parse({
+          id: (0, import_node_crypto10.randomUUID)(),
+          action: "governed",
+          memoryId: SWEEP_RECEIPT_MEMORY_ID,
+          tenantId: config2.tenantId,
+          actor: { type: "system", id: "auto-govern" },
+          reason: `Auto-govern sweep: ${res.promoted} promoted, ${res.duplicates} duplicate, ${res.quarantined} quarantined, ${res.flagged} flagged, ${res.rejected} rejected, ${res.skipped} skipped`,
+          details: {
+            promoted: res.promoted,
+            duplicates: res.duplicates,
+            quarantined: res.quarantined,
+            flagged: res.flagged,
+            rejected: res.rejected,
+            skipped: res.skipped,
+            processed: res.processed,
+            outcomes
+          },
+          timestamp: (/* @__PURE__ */ new Date()).toISOString()
+        })
+      );
+    } catch (e) {
+      process.stderr.write(
+        `[govern:sweep] batch receipt skipped: ${e instanceof Error ? e.message : String(e)}
+`
+      );
+    }
+  }
+  return res;
+}
+function isMemberAuthored(candidate) {
+  return candidate.metadata?.proposedByRole === "member";
+}
+var import_node_crypto10, import_node_path14, SWEEP_RECEIPT_MEMORY_ID;
 var init_govern = __esm({
   "src/govern.ts"() {
     "use strict";
+    import_node_crypto10 = require("node:crypto");
+    import_node_path14 = require("node:path");
     init_dist8();
     init_dist9();
+    init_dist2();
+    init_dist();
     init_dist3();
     init_dist4();
     init_seed_policy();
     init_anchor();
     init_write_lock();
+    SWEEP_RECEIPT_MEMORY_ID = "00000000-0000-4000-8000-000000000b10";
   }
 });
 
@@ -41403,7 +41661,7 @@ function isMissingNativeDep(e) {
   );
 }
 function manifestPath(basePath) {
-  return (0, import_node_path14.join)(basePath, "audit", "exceptions.manifest.json");
+  return (0, import_node_path15.join)(basePath, "audit", "exceptions.manifest.json");
 }
 function loadExceptionManifest(basePath) {
   const p = manifestPath(basePath);
@@ -41457,16 +41715,16 @@ async function startLocalServer() {
 `
   );
 }
-var import_node_crypto10, import_node_fs9, import_zod18, import_node_path14, VERSION2, config, CATEGORIES2, NATIVE_DEP_HINT, server2;
+var import_node_crypto11, import_node_fs9, import_zod18, import_node_path15, VERSION2, config, CATEGORIES2, NATIVE_DEP_HINT, server2;
 var init_local_server = __esm({
   "src/local-server.ts"() {
     "use strict";
-    import_node_crypto10 = require("node:crypto");
+    import_node_crypto11 = require("node:crypto");
     import_node_fs9 = require("node:fs");
     init_mcp();
     init_stdio2();
     import_zod18 = __toESM(require_zod(), 1);
-    import_node_path14 = require("node:path");
+    import_node_path15 = require("node:path");
     init_dist3();
     init_dist4();
     init_dist6();
@@ -41567,7 +41825,7 @@ var init_local_server = __esm({
         }
         try {
           const auditRepo = new AuditRepository(db);
-          const result = verifyAnchors(auditRepo, (0, import_node_path14.join)(config.basePath, "audit", "anchors.jsonl"));
+          const result = verifyAnchors(auditRepo, (0, import_node_path15.join)(config.basePath, "audit", "anchors.jsonl"));
           const manifest = loadExceptionManifest(config.basePath);
           const rowsById = buildRowsById(auditRepo);
           const classified = classifyChainBreaks(result.chain.breaks, manifest, rowsById);
@@ -41614,7 +41872,7 @@ var init_local_server = __esm({
       },
       async (params) => {
         const candidate = {
-          id: (0, import_node_crypto10.randomUUID)(),
+          id: (0, import_node_crypto11.randomUUID)(),
           status: "inbox",
           source: "mcp",
           content: params.content,
@@ -41652,11 +41910,13 @@ var init_local_server = __esm({
         }
         const parts = [
           `${s.promoted} promoted`,
+          `${s.quarantined} quarantined`,
           `${s.rejected} rejected`,
           `${s.duplicates} duplicate`,
           `${s.flagged} flagged`
         ];
-        let message = `Governed ${s.ingested} candidate(s): ${parts.join(", ")}.`;
+        if (s.skipped > 0) parts.push(`${s.skipped} skipped`);
+        let message = `Governed ${s.processed} inbox candidate(s) (${s.ingested} newly ingested): ${parts.join(", ")}.`;
         if (!s.indexUpdated) {
           message += " Search index not refreshed \u2014 install qmd 2.x on PATH and re-run brain_govern to make new memories searchable.";
         }
@@ -41710,7 +41970,7 @@ var init_local_server = __esm({
             db.transaction(() => {
               memoryRepo.updateLifecycle(params.memoryId, params.to, now);
               auditRepo.insert({
-                id: (0, import_node_crypto10.randomUUID)(),
+                id: (0, import_node_crypto11.randomUUID)(),
                 action,
                 memoryId: params.memoryId,
                 tenantId: memory.tenantId,
