@@ -46,3 +46,9 @@ jobs:
 
       - name: Smoke — capture -> govern -> audit-verify -> search
         run: node smoke/smoke.mjs
+
+      # B1 (auto-govern the remote brain_capture inbox): seed remote-shape
+      # candidates directly in the throwaway `candidates` table, then drive the
+      # sweep — proves promote/quarantine/duplicate/keep-in-inbox + idempotency.
+      - name: Smoke — B1 auto-govern inbox sweep (quarantine + idempotency)
+        run: node smoke/b1-inbox-sweep.mjs
