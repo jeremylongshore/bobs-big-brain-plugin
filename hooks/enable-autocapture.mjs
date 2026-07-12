@@ -16,7 +16,7 @@
  * It edits ONLY your own ~/.claude/settings.json (a timestamped backup is written
  * first) and a marker at ~/.teamkb/autocapture.enabled. It never touches the brain.
  */
-import { readFileSync, writeFileSync, existsSync, mkdirSync, rmSync, copyFileSync, readdirSync, unlinkSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, rmSync, copyFileSync, chmodSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -96,8 +96,10 @@ function hookPresent(settings) {
 }
 
 function addHook(settings) {
-  settings.hooks ??= {};
-  settings.hooks.Stop ??= [];
+  if (typeof settings.hooks !== 'object' || settings.hooks === null) settings.hooks = {};
+  // `??=` won't repair a Stop that exists but isn't an array (corruption / a
+  // different shape) — a later .push() would then throw. Coerce to an array first.
+  if (!Array.isArray(settings.hooks.Stop)) settings.hooks.Stop = [];
   if (!hookPresent(settings)) {
     settings.hooks.Stop.push({ matcher: '', hooks: [{ type: 'command', command: HOOK_COMMAND }] });
   }
@@ -143,13 +145,8 @@ if (args.has('--off')) {
   writeSettings(removeHook(settings));
   if (existsSync(MARKER)) rmSync(MARKER, { force: true });
   if (args.has('--purge') && existsSync(LOG_DIR)) {
-    for (const f of readdirSync(LOG_DIR)) {
-      try {
-        unlinkSync(join(LOG_DIR, f));
-      } catch {
-        /* ignore */
-      }
-    }
+    // Remove the whole logs dir in one call (handles any nested files/dirs safely).
+    rmSync(LOG_DIR, { recursive: true, force: true });
     console.log(`Purged local autocapture logs in ${LOG_DIR}.`);
   }
   console.log('auto-capture DISABLED — the Stop hook + opt-in marker are removed.');
@@ -165,6 +162,7 @@ if (!consented) {
 }
 mkdirSync(TEAMKB_HOME, { recursive: true });
 writeFileSync(MARKER, `enabled ${new Date().toISOString()}\n`, { mode: 0o600 });
+chmodSync(MARKER, 0o600); // writeFileSync's mode only applies on CREATE; enforce 600 even if it pre-existed looser.
 writeSettings(addHook(readSettings()));
 console.log(`\nauto-capture ENABLED.`);
 console.log(`  • Stop hook registered in ${SETTINGS} (backup: ${SETTINGS}.autocapture-bak)`);

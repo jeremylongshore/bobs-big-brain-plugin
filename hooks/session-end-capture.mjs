@@ -30,7 +30,7 @@
  * deliberately NOT a plugin-declared hook, so installing the plugin does not enable it.
  */
 import { spawn } from 'node:child_process';
-import { existsSync, mkdirSync, openSync } from 'node:fs';
+import { existsSync, mkdirSync, openSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
@@ -47,6 +47,34 @@ function noop(reason) {
   process.exit(0);
 }
 
+/**
+ * Resolve team-mode config the SAME way the plugin does (src/team-config.ts):
+ * real env wins per-key, else ~/.teamkb/team.json fills the gap. A teammate who
+ * configured team mode via team.json (GUI/Dock launch, no shell env) would
+ * otherwise have this hook silently no-op — team.json is the documented onboarding
+ * path, so the hook must honor it too.
+ */
+function resolveTeamConfig() {
+  let file = {};
+  try {
+    const parsed = JSON.parse(readFileSync(join(TEAMKB_HOME, 'team.json'), 'utf8'));
+    if (parsed !== null && typeof parsed === 'object') file = parsed;
+  } catch {
+    /* absent / unreadable / malformed → env-only */
+  }
+  const pick = (envKey, fileKey) => {
+    const e = process.env[envKey]?.trim();
+    if (e) return e;
+    const f = typeof file[fileKey] === 'string' ? file[fileKey].trim() : '';
+    return f || undefined;
+  };
+  return {
+    apiUrl: pick('TEAMKB_API_URL', 'apiUrl'),
+    apiToken: pick('TEAMKB_API_TOKEN', 'apiToken'),
+    tenantId: pick('TEAMKB_TENANT_ID', 'tenantId') || 'intent-solutions',
+  };
+}
+
 // ── Guard 3: never recurse (the distiller is itself a claude session). ──
 if (process.env['TEAMKB_AUTOCAPTURE_CHILD'] === '1') noop('recursive child');
 
@@ -55,22 +83,28 @@ if (!existsSync(MARKER) && process.env['TEAMKB_AUTOCAPTURE'] !== '1') {
   noop('not enabled (no ~/.teamkb/autocapture.enabled marker)');
 }
 
-// ── Guard 2: team mode only. ──
-const API_URL = process.env['TEAMKB_API_URL']?.trim();
-const API_TOKEN = process.env['TEAMKB_API_TOKEN']?.trim();
-if (!API_URL || !API_TOKEN) noop('team mode not configured (need TEAMKB_API_URL + TEAMKB_API_TOKEN)');
+// ── Guard 2: team mode only (env OR team.json — parity with the plugin). ──
+const TEAM = resolveTeamConfig();
+const API_URL = TEAM.apiUrl;
+const API_TOKEN = TEAM.apiToken;
+if (!API_URL || !API_TOKEN) noop('team mode not configured (need TEAMKB_API_URL + TEAMKB_API_TOKEN, via env or ~/.teamkb/team.json)');
 
 // ── Read the hook payload from stdin (Claude Code passes JSON). ──
+// No fixed timeout (that could truncate a large payload — a stdin read can exceed
+// any fixed budget under load). A manual run has no piped stdin, detected via
+// isTTY, and resolves empty immediately; a real hook always sends JSON then closes
+// the stream, so we wait for 'end'.
 let raw = '';
 try {
-  raw = await new Promise((resolve) => {
-    let buf = '';
-    process.stdin.setEncoding('utf8');
-    process.stdin.on('data', (c) => (buf += c));
-    process.stdin.on('end', () => resolve(buf));
-    // A hook with no stdin (manual run) resolves empty after a tick.
-    setTimeout(() => resolve(buf), 200);
-  });
+  raw = process.stdin.isTTY
+    ? ''
+    : await new Promise((resolve) => {
+        let buf = '';
+        process.stdin.setEncoding('utf8');
+        process.stdin.on('data', (c) => (buf += c));
+        process.stdin.on('end', () => resolve(buf));
+        process.stdin.on('error', () => resolve(buf));
+      });
 } catch {
   raw = '';
 }
@@ -116,7 +150,7 @@ const mcpConfig = JSON.stringify({
       env: {
         TEAMKB_API_URL: API_URL,
         TEAMKB_API_TOKEN: API_TOKEN,
-        TEAMKB_TENANT_ID: process.env['TEAMKB_TENANT_ID']?.trim() || 'intent-solutions',
+        TEAMKB_TENANT_ID: TEAM.tenantId,
       },
     },
   },
@@ -144,11 +178,14 @@ try {
     {
       detached: true,
       stdio: ['ignore', logFd, logFd],
+      // On Windows, `claude` is a .cmd shim that spawn can't exec without a shell.
+      shell: process.platform === 'win32',
       env: {
         ...process.env,
         TEAMKB_AUTOCAPTURE_CHILD: '1', // Guard 3: the child must not re-fire the hook.
         TEAMKB_API_URL: API_URL,
         TEAMKB_API_TOKEN: API_TOKEN,
+        TEAMKB_TENANT_ID: TEAM.tenantId,
       },
     },
   );

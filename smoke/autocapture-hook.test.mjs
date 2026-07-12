@@ -25,9 +25,10 @@ function stubClaudeBin() {
 const HOOK = join(fileURLToPath(new URL('..', import.meta.url)), 'hooks', 'session-end-capture.mjs');
 
 /** Run the hook with a throwaway TEAMKB_HOME + env + stdin; return {code, logsDir, attempted}. */
-function runHook({ enabled = false, teamMode = false, child = false, transcript = null, env = {} } = {}) {
+function runHook({ enabled = false, teamMode = false, child = false, transcript = null, teamJson = null, env = {} } = {}) {
   const home = mkdtempSync(join(tmpdir(), 'tkb-ac-'));
   if (enabled) writeFileSync(join(home, 'autocapture.enabled'), 'enabled\n');
+  if (teamJson) writeFileSync(join(home, 'team.json'), JSON.stringify(teamJson));
   const stdin = transcript ? JSON.stringify({ transcript_path: transcript }) : '{}';
   const res = spawnSync('node', [HOOK], {
     input: stdin,
@@ -46,6 +47,26 @@ function runHook({ enabled = false, teamMode = false, child = false, transcript 
   rmSync(home, { recursive: true, force: true });
   return { code: res.status, attempted };
 }
+
+test('resolves team mode from ~/.teamkb/team.json when the env is unset (parity with the plugin)', () => {
+  if (platform() === 'win32') return;
+  const bin = stubClaudeBin();
+  const tdir = mkdtempSync(join(tmpdir(), 'tkb-t-'));
+  const tf = join(tdir, 'transcript.jsonl');
+  writeFileSync(tf, '{"role":"user","content":"hi"}\n');
+  // NO team env vars — only a team.json file. The hook must still activate.
+  const r = runHook({
+    enabled: true,
+    teamMode: false,
+    transcript: tf,
+    teamJson: { apiUrl: 'http://127.0.0.1:1/never', apiToken: 'tok', tenantId: 'intent-solutions' },
+    env: { PATH: `${bin}${delimiter}${process.env.PATH}` },
+  });
+  rmSync(tdir, { recursive: true, force: true });
+  rmSync(bin, { recursive: true, force: true });
+  assert.equal(r.code, 0);
+  assert.equal(r.attempted, true); // team.json alone was enough to configure team mode
+});
 
 test('no-op when NOT enabled (no marker) — the default', () => {
   const r = runHook({ enabled: false, teamMode: true, transcript: '/etc/hostname' });
