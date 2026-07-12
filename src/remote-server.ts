@@ -22,7 +22,10 @@
  *   TEAMKB_API_URL    — brain API base (e.g. http://team-server:3847). Required for results.
  *   TEAMKB_API_TOKEN  — per-user bearer token (sent as Authorization: Bearer).
  */
-import { randomUUID } from 'node:crypto';
+import { createHash } from 'node:crypto';
+import { existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
@@ -86,6 +89,112 @@ export async function errorResult(res: Response): Promise<ReturnType<typeof json
           ? `the brain declined it: ${detail}`
           : `request failed (${res.status})${detail ? ': ' + detail : ''}`;
   return jsonResult({ ok: false, status: res.status, error: msg });
+}
+
+// ─── IDEMPOTENCY + DURABLE OUTBOX (jfv.9) ─────────────────────────────────────
+// An automated/hook-driven capture must neither DUPLICATE (a re-run mints a second
+// inbox row) nor SILENTLY LOSE (a fetch throw drops the proposal — team mode has no
+// local spool, unlike local mode). Two guards:
+//  • the candidate id is a UUIDv5 over (tenant, title, content) — a re-send of the
+//    same proposal is the SAME id, so it can't fan out into duplicate rows. Pairs
+//    with the server's content-hash dedup (candidate-service intake).
+//  • a fetch throw / 5xx queues the candidate to a flat ~/.teamkb-outbox/ dir; the
+//    next SUCCESSFUL capture drains it. So an unattended hook under a network blip
+//    keeps the proposal instead of dropping it.
+
+// Fixed namespace UUID for candidate-id derivation (RFC-4122 §4.3 UUIDv5 seed).
+const CANDIDATE_ID_NAMESPACE = '6ba7b8f0-9dad-11d1-80b4-00c04fd430c8';
+
+/** RFC-4122 UUIDv5 (SHA-1) — dependency-free (team mode pulls no uuid package). */
+function uuidv5(name: string, namespace: string): string {
+  const ns = Buffer.from(namespace.replace(/-/g, ''), 'hex');
+  const h = createHash('sha1').update(ns).update(name, 'utf8').digest().subarray(0, 16);
+  h[6] = (h[6]! & 0x0f) | 0x50; // version 5
+  h[8] = (h[8]! & 0x3f) | 0x80; // RFC-4122 variant
+  const x = h.toString('hex');
+  return `${x.slice(0, 8)}-${x.slice(8, 12)}-${x.slice(12, 16)}-${x.slice(16, 20)}-${x.slice(20, 32)}`;
+}
+
+/** Deterministic candidate id — same (tenant,title,content) → same id, so a retry can't duplicate. */
+export function deriveCandidateId(tenant: string, title: string, content: string): string {
+  return uuidv5(`${tenant}\n${title}\n${content}`, CANDIDATE_ID_NAMESPACE);
+}
+
+/** The durable-outbox directory (env-overridable for tests). */
+export function outboxDir(): string {
+  const o = process.env['TEAMKB_OUTBOX_DIR']?.trim();
+  return o !== undefined && o !== '' ? o : join(homedir(), '.teamkb-outbox');
+}
+
+/** Queue a candidate that could not be delivered (network throw / 5xx). Best-effort. */
+function enqueueOutbox(candidate: { id: string }): void {
+  const dir = outboxDir();
+  try {
+    mkdirSync(dir, { recursive: true, mode: 0o700 });
+    writeFileSync(join(dir, `${candidate.id}.json`), JSON.stringify(candidate), { mode: 0o600 });
+  } catch (e) {
+    process.stderr.write(
+      `[governed-brain:team] outbox enqueue failed: ${e instanceof Error ? e.message : String(e)}\n`,
+    );
+  }
+}
+
+/**
+ * Drain the outbox: re-POST each queued candidate. Remove on a definitive response
+ * (2xx delivered, or 4xx permanent reject — logged), STOP on a 5xx or a network
+ * throw (still down — keep the rest queued for a later drain). Returns the count
+ * delivered/cleared. Never throws — a drain failure must not fail the capture.
+ */
+export async function drainOutbox(): Promise<number> {
+  if (API_URL === undefined || API_URL === '') return 0;
+  const dir = outboxDir();
+  if (!existsSync(dir)) return 0;
+  let files: string[];
+  try {
+    files = readdirSync(dir).filter((f) => f.endsWith('.json'));
+  } catch {
+    return 0;
+  }
+  let cleared = 0;
+  for (const f of files) {
+    const path = join(dir, f);
+    let body: string;
+    try {
+      body = readFileSync(path, 'utf8');
+      JSON.parse(body); // validate — a corrupt file is dropped below, not retried forever
+    } catch {
+      try {
+        unlinkSync(path);
+      } catch {
+        /* ignore */
+      }
+      continue;
+    }
+    let res: Response;
+    try {
+      res = await fetch(`${API_URL.replace(/\/+$/, '')}/api/candidates`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body,
+      });
+    } catch {
+      break; // still offline — keep this + the rest queued
+    }
+    if (res.ok || (res.status >= 400 && res.status < 500)) {
+      if (!res.ok) {
+        process.stderr.write(`[governed-brain:team] outbox: dropping ${f} on ${res.status} (permanent)\n`);
+      }
+      try {
+        unlinkSync(path);
+        cleared++;
+      } catch {
+        /* ignore */
+      }
+    } else {
+      break; // 5xx — server error, retry on a later drain
+    }
+  }
+  return cleared;
 }
 
 interface CitedHit {
@@ -223,6 +332,87 @@ server.tool(
 
 // ─── WRITE (team mode: member proposes, the server disposes) ──────────────────
 
+/**
+ * Propose a candidate to the team brain (exported for unit testing). Idempotent +
+ * durable (jfv.9): the id is a UUIDv5 over (tenant,title,content) so a retry can't
+ * duplicate; a network throw / 5xx queues to the durable outbox instead of dropping,
+ * and a successful send drains any backlog.
+ */
+export async function capture(
+  title: string,
+  content: string,
+  category: string | undefined,
+  filePaths: string[] | undefined,
+): Promise<ReturnType<typeof jsonResult>> {
+  if (API_URL === undefined || API_URL === '') {
+    return jsonResult({ ok: false, error: 'unconfigured — set TEAMKB_API_URL to your team brain' });
+  }
+  // Build the FULL MemoryCandidate client-side (the server safeParses it with no
+  // defaults) — identical shape to local mode, tenant-scoped to TENANT_ID. The id
+  // is a UUIDv5 over (tenant, title, content), NOT random (jfv.9): a re-send of the
+  // same proposal is the SAME id, so a retried/hook-driven capture can't fan out
+  // into duplicate inbox rows.
+  const candidate = {
+    id: deriveCandidateId(TENANT_ID, title, content),
+    status: 'inbox',
+    source: 'mcp',
+    content,
+    title,
+    category: category ?? 'reference',
+    trustLevel: 'medium',
+    author: { type: 'ai', id: 'governed-brain' },
+    tenantId: TENANT_ID,
+    metadata: { filePaths: filePaths ?? [], tags: [] as string[] },
+    prePolicyFlags: { potentialSecret: false, lowConfidence: false, duplicateSuspect: false },
+    capturedAt: new Date().toISOString(),
+  };
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL.replace(/\/+$/, '')}/api/candidates`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify(candidate),
+    });
+  } catch (e) {
+    // API unreachable (dead / off-tailnet). DON'T drop it — queue to the durable
+    // outbox and report queued (not an error): the next successful capture drains it.
+    enqueueOutbox(candidate);
+    return jsonResult({
+      ok: true,
+      queued: true,
+      candidateId: candidate.id,
+      tenantId: TENANT_ID,
+      message: `Could not reach the brain (${e instanceof Error ? e.message : String(e)}). Queued to the durable outbox — it will be sent on the next successful capture. Nothing was lost.`,
+    });
+  }
+  if (!res.ok) {
+    // 5xx = transient server error → queue (retry later). 4xx = a real rejection
+    // (validation/auth/disclosure) → surface it; queuing would just loop.
+    if (res.status >= 500) {
+      enqueueOutbox(candidate);
+      return jsonResult({
+        ok: true,
+        queued: true,
+        candidateId: candidate.id,
+        tenantId: TENANT_ID,
+        message: `The brain returned ${res.status}. Queued to the durable outbox — it will be retried on the next successful capture. Nothing was lost.`,
+      });
+    }
+    return errorResult(res);
+  }
+  // Delivered — opportunistically drain any previously-queued proposals now that
+  // connectivity is confirmed. Best-effort: a drain failure never fails this capture.
+  const drained = await drainOutbox();
+  return jsonResult({
+    ok: true,
+    candidateId: candidate.id,
+    tenantId: TENANT_ID,
+    ...(drained > 0 ? { outboxDrained: drained } : {}),
+    message:
+      'Proposed to the team brain inbox. This is a PROPOSAL — the deterministic govern pipeline decides if/when it is promoted (an admin governs, or auto-govern once enabled). It is not durable memory yet.',
+  });
+}
+
 server.tool(
   'brain_capture',
   "Propose a fact, decision, pattern, or convention to your team's governed brain — a PROPOSAL, not a promotion. Member-allowed: the server queues it as a candidate and the deterministic govern pipeline disposes; it is not durable memory until promoted. Proxies to the brain over the tailnet (team mode).",
@@ -232,45 +422,7 @@ server.tool(
     category: z.enum(CATEGORIES).optional().describe('Memory category (default: reference)'),
     filePaths: z.array(z.string()).optional().describe('Related file paths, if any'),
   },
-  async (params) => {
-    if (API_URL === undefined || API_URL === '') {
-      return jsonResult({ ok: false, error: 'unconfigured — set TEAMKB_API_URL to your team brain' });
-    }
-    // Build the FULL MemoryCandidate client-side (the server safeParses it with
-    // no defaults) — identical shape to local mode, but tenant-scoped to TENANT_ID.
-    const candidate = {
-      id: randomUUID(),
-      status: 'inbox',
-      source: 'mcp',
-      content: params.content,
-      title: params.title,
-      category: params.category ?? 'reference',
-      trustLevel: 'medium',
-      author: { type: 'ai', id: 'governed-brain' },
-      tenantId: TENANT_ID,
-      metadata: { filePaths: params.filePaths ?? [], tags: [] as string[] },
-      prePolicyFlags: { potentialSecret: false, lowConfidence: false, duplicateSuspect: false },
-      capturedAt: new Date().toISOString(),
-    };
-    let res: Response;
-    try {
-      res = await fetch(`${API_URL.replace(/\/+$/, '')}/api/candidates`, {
-        method: 'POST',
-        headers: authHeaders(),
-        body: JSON.stringify(candidate),
-      });
-    } catch (e) {
-      return jsonResult({ ok: false, error: `could not reach the brain API: ${e instanceof Error ? e.message : String(e)}` });
-    }
-    if (!res.ok) return errorResult(res);
-    return jsonResult({
-      ok: true,
-      candidateId: candidate.id,
-      tenantId: TENANT_ID,
-      message:
-        'Proposed to the team brain inbox. This is a PROPOSAL — the deterministic govern pipeline decides if/when it is promoted (an admin governs, or auto-govern once enabled). It is not durable memory yet.',
-    });
-  },
+  async (params) => capture(params.title, params.content, params.category, params.filePaths),
 );
 
 server.tool(
