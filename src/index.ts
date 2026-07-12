@@ -21,11 +21,38 @@
  */
 
 import { resolveMode } from './mode.js';
+import { applyTeamConfig, loadTeamConfig, teamConfigPath, TeamConfigError } from './team-config.js';
 
 async function main(): Promise<void> {
-  // Team mode iff TEAMKB_API_URL is genuinely set — an empty value or an
-  // unexpanded "${TEAMKB_API_URL}" placeholder both mean local mode. The exact
-  // predicate lives in (and is unit-tested through) src/mode.ts.
+  // Config-file fallback + fail-closed gate (the onboarding fix). A GUI/Dock launch
+  // never sources ~/.zshrc, so team env vars set there are absent; ~/.teamkb/team.json
+  // (written 0600 by the double-click installer) supplies them regardless of the
+  // launching shell. A present-but-broken team.json REFUSES loudly here rather than
+  // silently running the wrong (empty local) brain — a teammate who dropped the file
+  // clearly wants team mode. This MUST run before resolveMode + the dynamic import so
+  // the merged values are in process.env when the selected mode reads them.
+  let filled: string[] = [];
+  try {
+    filled = applyTeamConfig(process.env, loadTeamConfig(process.env));
+  } catch (e) {
+    const msg = e instanceof TeamConfigError || e instanceof Error ? e.message : String(e);
+    process.stderr.write(
+      `[governed-brain] REFUSING TO START — ${teamConfigPath(process.env)} is present but unusable:\n` +
+        `  ${msg}\n` +
+        `  Fix the file (or remove it to run the local brain). Refusing to silently run the wrong brain.\n`,
+    );
+    process.exit(1);
+  }
+  if (filled.length > 0) {
+    process.stderr.write(
+      `[governed-brain] team.json supplied: ${filled.join(', ')} (real env took precedence for the rest)\n`,
+    );
+  }
+
+  // Team mode iff TEAMKB_API_URL is genuinely set — from real env, or filled from
+  // team.json above. An empty value or an unexpanded "${TEAMKB_API_URL}" placeholder
+  // both mean local mode. The exact predicate lives in (and is unit-tested through)
+  // src/mode.ts.
   const { mode } = resolveMode(process.env['TEAMKB_API_URL']);
 
   if (mode === 'team') {

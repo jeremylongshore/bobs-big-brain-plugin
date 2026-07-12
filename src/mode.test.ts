@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { resolveMode } from './mode.js';
+import { isConfigured, resolveMode } from './mode.js';
 
 /**
  * The local-vs-team dispatch predicate (the seam the 6-engineer review flagged as
@@ -45,5 +45,20 @@ describe('resolveMode — local-vs-team dispatch', () => {
   it('never leaks an apiUrl in local mode', () => {
     expect(resolveMode(undefined).apiUrl).toBeUndefined();
     expect(resolveMode('').apiUrl).toBeUndefined();
+  });
+});
+
+describe('isConfigured — the shared "genuinely set vs absent" predicate', () => {
+  it('is FALSE for the three absent sentinels', () => {
+    expect(isConfigured(undefined)).toBe(false);
+    expect(isConfigured('')).toBe(false);
+    expect(isConfigured('   ')).toBe(false);
+    expect(isConfigured('${TEAMKB_API_URL}')).toBe(false);
+    expect(isConfigured('  ${TEAMKB_API_TOKEN}  ')).toBe(false);
+  });
+
+  it('is TRUE for a genuinely-set value', () => {
+    expect(isConfigured('http://team-server:3847')).toBe(true);
+    expect(isConfigured('  a-token  ')).toBe(true);
   });
 });

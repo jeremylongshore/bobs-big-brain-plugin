@@ -21,7 +21,7 @@ export default defineConfig({
     environment: 'node',
     coverage: {
       provider: 'v8',
-      include: ['src/mode.ts', 'src/remote-server.ts'],
+      include: ['src/mode.ts', 'src/remote-server.ts', 'src/team-config.ts'],
       reporter: ['text', 'lcov'],
       // Honest floor just under the current measured numbers (lines 57 / stmts 54
       // / funcs 50 / branch 49). The pure helpers (resolveMode, errorResult,

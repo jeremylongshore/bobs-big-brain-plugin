@@ -27,9 +27,31 @@ export interface ResolvedMode {
   apiUrl?: string;
 }
 
+/**
+ * Is a raw env value GENUINELY set, or an "absent" sentinel?
+ *
+ * Three things count as absent (all mean "the user did not set this"):
+ *   - undefined / unset
+ *   - '' or whitespace-only
+ *   - an unexpanded '${...}' shell placeholder — what a host passes verbatim for a
+ *     manifest env entry whose variable is not set in the launching environment.
+ *     A GUI/Dock launch never sources ~/.zshrc, so team vars set there arrive as the
+ *     literal placeholder; treating it as absent is what stops a misconfigured host
+ *     from silently running the WRONG brain.
+ *
+ * This is the ONE predicate shared by `resolveMode` (below) and the team.json loader
+ * (src/team-config.ts), where the question "should team.json fill this key?" is
+ * exactly "is the env value absent?". Extracting it keeps the two call sites from
+ * drifting apart on what "set" means.
+ */
+export function isConfigured(rawValue: string | undefined): boolean {
+  const v = rawValue?.trim();
+  return v !== undefined && v !== '' && !v.startsWith('${');
+}
+
 /** Resolve the runtime mode from a raw TEAMKB_API_URL env value (untrimmed). */
 export function resolveMode(rawTeamkbApiUrl: string | undefined): ResolvedMode {
-  const raw = rawTeamkbApiUrl?.trim();
-  const apiUrl = raw !== undefined && raw !== '' && !raw.startsWith('${') ? raw : undefined;
-  return apiUrl !== undefined ? { mode: 'team', apiUrl } : { mode: 'local' };
+  return isConfigured(rawTeamkbApiUrl)
+    ? { mode: 'team', apiUrl: (rawTeamkbApiUrl as string).trim() }
+    : { mode: 'local' };
 }
