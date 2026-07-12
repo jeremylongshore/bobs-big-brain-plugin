@@ -35633,7 +35633,7 @@ var init_remote_server = __esm({
     init_mcp();
     init_stdio2();
     import_zod2 = __toESM(require_zod(), 1);
-    VERSION = "1.0.0";
+    VERSION = "1.1.0";
     API_URL = process.env["TEAMKB_API_URL"];
     API_TOKEN = process.env["TEAMKB_API_TOKEN"];
     TENANT_ID = process.env["TEAMKB_TENANT_ID"]?.trim() || "intent-solutions";
@@ -36056,14 +36056,14 @@ CREATE INDEX IF NOT EXISTS idx_candidates_status_tenant ON candidates(status, te
 function ensureSecureDirectory(dbPath) {
   if (dbPath === ":memory:")
     return;
-  const dir = (0, import_node_path.dirname)(dbPath);
-  (0, import_node_fs.mkdirSync)(dir, { recursive: true, mode: 448 });
+  const dir = (0, import_node_path2.dirname)(dbPath);
+  (0, import_node_fs2.mkdirSync)(dir, { recursive: true, mode: 448 });
 }
 function secureDbFile(dbPath) {
   if (dbPath === ":memory:")
     return;
   try {
-    (0, import_node_fs.chmodSync)(dbPath, 384);
+    (0, import_node_fs2.chmodSync)(dbPath, 384);
   } catch {
   }
 }
@@ -36100,12 +36100,12 @@ function runMigrations(db) {
   });
   applyAll();
 }
-var import_node_fs, import_node_path, import_better_sqlite3;
+var import_node_fs2, import_node_path2, import_better_sqlite3;
 var init_database = __esm({
   "../qmd-team-intent-kb/packages/store/dist/database.js"() {
     "use strict";
-    import_node_fs = require("node:fs");
-    import_node_path = require("node:path");
+    import_node_fs2 = require("node:fs");
+    import_node_path2 = require("node:path");
     import_better_sqlite3 = __toESM(require("better-sqlite3"), 1);
     init_schema();
   }
@@ -36567,15 +36567,15 @@ function getTeamKbBasePath() {
   return DEFAULT_TEAMKB_BASE;
 }
 function resolveTeamKbPath(subdir) {
-  return (0, import_node_path2.join)(getTeamKbBasePath(), subdir);
+  return (0, import_node_path3.join)(getTeamKbBasePath(), subdir);
 }
-var import_node_path2, import_node_os, DEFAULT_TEAMKB_BASE;
+var import_node_path3, import_node_os2, DEFAULT_TEAMKB_BASE;
 var init_paths = __esm({
   "../qmd-team-intent-kb/packages/common/dist/paths.js"() {
     "use strict";
-    import_node_path2 = require("node:path");
-    import_node_os = require("node:os");
-    DEFAULT_TEAMKB_BASE = (0, import_node_path2.join)((0, import_node_os.homedir)(), ".teamkb");
+    import_node_path3 = require("node:path");
+    import_node_os2 = require("node:os");
+    DEFAULT_TEAMKB_BASE = (0, import_node_path3.join)((0, import_node_os2.homedir)(), ".teamkb");
   }
 });
 
@@ -38110,9 +38110,9 @@ function chainedRowsOf(repo) {
   return repo.findAllChronological().filter((r) => r.entry_hash !== null);
 }
 function readAnchors(anchorPath) {
-  if (!(0, import_node_fs2.existsSync)(anchorPath))
+  if (!(0, import_node_fs3.existsSync)(anchorPath))
     return [];
-  return (0, import_node_fs2.readFileSync)(anchorPath, "utf8").split("\n").filter((l) => l.trim().length > 0).map((l) => JSON.parse(l));
+  return (0, import_node_fs3.readFileSync)(anchorPath, "utf8").split("\n").filter((l) => l.trim().length > 0).map((l) => JSON.parse(l));
 }
 function appendAnchor(repo, anchorPath, opts) {
   const now = opts.nowFn ?? (() => (/* @__PURE__ */ new Date()).toISOString());
@@ -38129,7 +38129,7 @@ function appendAnchor(repo, anchorPath, opts) {
     prevAnchorHash
   };
   const record2 = { ...body, anchorHash: computeAnchorHash(body) };
-  (0, import_node_fs2.appendFileSync)(anchorPath, JSON.stringify(record2) + "\n", { mode: 384 });
+  (0, import_node_fs3.appendFileSync)(anchorPath, JSON.stringify(record2) + "\n", { mode: 384 });
   return record2;
 }
 function verifyAnchors(repo, anchorPath) {
@@ -38191,12 +38191,12 @@ function verifyAnchors(repo, anchorPath) {
     ok: chain.breaks.length === 0 && anchorBreaks.length === 0
   };
 }
-var import_node_crypto5, import_node_fs2;
+var import_node_crypto5, import_node_fs3;
 var init_audit_anchor = __esm({
   "../qmd-team-intent-kb/packages/store/dist/audit-anchor.js"() {
     "use strict";
     import_node_crypto5 = require("node:crypto");
-    import_node_fs2 = require("node:fs");
+    import_node_fs3 = require("node:fs");
     init_audit_verify();
   }
 });
@@ -38231,7 +38231,7 @@ function computeManifestHash(body) {
 function readManifest(path) {
   let raw;
   try {
-    raw = (0, import_node_fs3.readFileSync)(path, "utf8");
+    raw = (0, import_node_fs4.readFileSync)(path, "utf8");
   } catch (e) {
     throw new ExceptionManifestError(`cannot read manifest at ${path}: ${String(e)}`);
   }
@@ -38300,12 +38300,12 @@ function classifyChainBreaks(breaks, manifest, rowsById) {
     chainForks
   };
 }
-var import_node_crypto6, import_node_fs3, import_zod15, TAMPER_REASONS, TAMPER_REASON_SET, ExceptionManifestEntrySchema, ExceptionManifestSchema, ExceptionManifestError;
+var import_node_crypto6, import_node_fs4, import_zod15, TAMPER_REASONS, TAMPER_REASON_SET, ExceptionManifestEntrySchema, ExceptionManifestSchema, ExceptionManifestError;
 var init_exception_manifest = __esm({
   "../qmd-team-intent-kb/packages/store/dist/exception-manifest.js"() {
     "use strict";
     import_node_crypto6 = require("node:crypto");
-    import_node_fs3 = require("node:fs");
+    import_node_fs4 = require("node:fs");
     import_zod15 = __toESM(require_zod(), 1);
     TAMPER_REASONS = [
       "ENTRY_HASH_MISMATCH",
@@ -38473,15 +38473,15 @@ function getQmdTenantIndexPath(tenantId) {
 function getQmdTenantEnv(tenantId) {
   const base = getQmdTenantIndexPath(tenantId);
   return {
-    XDG_CONFIG_HOME: (0, import_node_path3.join)(base, "config"),
-    XDG_CACHE_HOME: (0, import_node_path3.join)(base, "cache")
+    XDG_CONFIG_HOME: (0, import_node_path4.join)(base, "config"),
+    XDG_CACHE_HOME: (0, import_node_path4.join)(base, "cache")
   };
 }
-var import_node_path3, QMD_INDEX_DIR, DEFAULT_QMD_BINARY, DEFAULT_TIMEOUT;
+var import_node_path4, QMD_INDEX_DIR, DEFAULT_QMD_BINARY, DEFAULT_TIMEOUT;
 var init_config = __esm({
   "../qmd-team-intent-kb/packages/qmd-adapter/dist/config.js"() {
     "use strict";
-    import_node_path3 = require("node:path");
+    import_node_path4 = require("node:path");
     init_dist2();
     QMD_INDEX_DIR = "qmd-index";
     DEFAULT_QMD_BINARY = "qmd";
@@ -38603,11 +38603,11 @@ var init_collection_registry = __esm({
 });
 
 // ../qmd-team-intent-kb/packages/qmd-adapter/dist/collections/collection-manager.js
-var import_node_path4, CollectionManager;
+var import_node_path5, CollectionManager;
 var init_collection_manager = __esm({
   "../qmd-team-intent-kb/packages/qmd-adapter/dist/collections/collection-manager.js"() {
     "use strict";
-    import_node_path4 = require("node:path");
+    import_node_path5 = require("node:path");
     init_collection_registry();
     CollectionManager = class {
       executor;
@@ -38679,7 +38679,7 @@ var init_collection_manager = __esm({
         const created = [];
         for (const def of getExportableCollections()) {
           if (!existing.some((e) => e.includes(def.name))) {
-            const path = (0, import_node_path4.join)(exportBaseDir, def.sourceSubdir);
+            const path = (0, import_node_path5.join)(exportBaseDir, def.sourceSubdir);
             const addResult = await this.addCollection(def.name, path);
             if (!addResult.ok)
               return { ok: false, error: addResult.error };
@@ -38908,12 +38908,12 @@ var init_health_check = __esm({
 });
 
 // ../qmd-team-intent-kb/packages/qmd-adapter/dist/adapter.js
-var import_node_fs4, import_node_path5, QmdAdapter;
+var import_node_fs5, import_node_path6, QmdAdapter;
 var init_adapter = __esm({
   "../qmd-team-intent-kb/packages/qmd-adapter/dist/adapter.js"() {
     "use strict";
-    import_node_fs4 = require("node:fs");
-    import_node_path5 = require("node:path");
+    import_node_fs5 = require("node:fs");
+    import_node_path6 = require("node:path");
     init_real_executor();
     init_collection_manager();
     init_collection_registry();
@@ -38983,7 +38983,7 @@ var init_adapter = __esm({
        */
       async ensureCollections() {
         for (const def of getExportableCollections()) {
-          (0, import_node_fs4.mkdirSync)((0, import_node_path5.join)(this.exportDir, def.sourceSubdir), { recursive: true });
+          (0, import_node_fs5.mkdirSync)((0, import_node_path6.join)(this.exportDir, def.sourceSubdir), { recursive: true });
         }
         return this.collections.ensureCollections(this.exportDir);
       }
@@ -39744,8 +39744,8 @@ var init_context_provider = __esm({
 async function writeToSpool(candidate, spoolDir, agentId) {
   const dir = spoolDir ?? getSpoolPath();
   const filename = agentId ? `spool-${agentId}.jsonl` : getSpoolFilename();
-  const filepath = (0, import_node_path6.resolve)(dir, filename);
-  const resolvedDir = (0, import_node_path6.resolve)(dir);
+  const filepath = (0, import_node_path7.resolve)(dir, filename);
+  const resolvedDir = (0, import_node_path7.resolve)(dir);
   if (!filepath.startsWith(resolvedDir + "/") && filepath !== resolvedDir) {
     return { ok: false, error: `Path traversal rejected: ${filename}` };
   }
@@ -39767,12 +39767,12 @@ async function writeToSpool(candidate, spoolDir, agentId) {
     return { ok: false, error: `Failed to write to spool: ${msg}` };
   }
 }
-var import_promises, import_node_path6;
+var import_promises, import_node_path7;
 var init_spool_writer = __esm({
   "../qmd-team-intent-kb/packages/claude-runtime/dist/spool/spool-writer.js"() {
     "use strict";
     import_promises = require("node:fs/promises");
-    import_node_path6 = require("node:path");
+    import_node_path7 = require("node:path");
     init_dist2();
     init_config2();
   }
@@ -39835,20 +39835,20 @@ async function listSpoolFiles(spoolDir) {
   const dir = spoolDir ?? getSpoolPath();
   try {
     const files = await (0, import_promises2.readdir)(dir);
-    const spoolFiles = files.filter((f) => f.startsWith("spool-") && f.endsWith(".jsonl")).sort().map((f) => (0, import_node_path7.join)(dir, f));
+    const spoolFiles = files.filter((f) => f.startsWith("spool-") && f.endsWith(".jsonl")).sort().map((f) => (0, import_node_path8.join)(dir, f));
     return { ok: true, value: spoolFiles };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return { ok: false, error: `Failed to list spool files: ${msg}` };
   }
 }
-var import_node_crypto7, import_promises2, import_node_path7;
+var import_node_crypto7, import_promises2, import_node_path8;
 var init_spool_reader = __esm({
   "../qmd-team-intent-kb/packages/claude-runtime/dist/spool/spool-reader.js"() {
     "use strict";
     import_node_crypto7 = require("node:crypto");
     import_promises2 = require("node:fs/promises");
-    import_node_path7 = require("node:path");
+    import_node_path8 = require("node:path");
     init_dist();
     init_config2();
   }
@@ -39921,17 +39921,17 @@ function resolveConfig() {
   return {
     tenantId,
     basePath,
-    spoolPath: (0, import_node_path8.join)(basePath, "spool"),
-    dbPath: (0, import_node_path8.join)(basePath, "teamkb.db"),
-    feedbackPath: (0, import_node_path8.join)(basePath, "feedback"),
-    exportDir: envExport && envExport.length > 0 ? envExport : (0, import_node_path8.join)(basePath, "kb-export")
+    spoolPath: (0, import_node_path9.join)(basePath, "spool"),
+    dbPath: (0, import_node_path9.join)(basePath, "teamkb.db"),
+    feedbackPath: (0, import_node_path9.join)(basePath, "feedback"),
+    exportDir: envExport && envExport.length > 0 ? envExport : (0, import_node_path9.join)(basePath, "kb-export")
   };
 }
-var import_node_path8;
+var import_node_path9;
 var init_config3 = __esm({
   "src/config.ts"() {
     "use strict";
-    import_node_path8 = require("node:path");
+    import_node_path9 = require("node:path");
     init_dist2();
   }
 });
@@ -40880,23 +40880,23 @@ async function ingestFromSpoolDetailed(candidateRepo, spoolDir, opts) {
 async function archiveIngestedFile(spoolFilePath, archiveDir) {
   try {
     await (0, import_promises3.mkdir)(archiveDir, { recursive: true });
-    const dest = (0, import_node_path9.join)(archiveDir, (0, import_node_path9.basename)(spoolFilePath));
+    const dest = (0, import_node_path10.join)(archiveDir, (0, import_node_path10.basename)(spoolFilePath));
     await (0, import_promises3.rename)(spoolFilePath, dest);
     try {
       await (0, import_promises3.rename)(`${spoolFilePath}.manifest.json`, `${dest}.manifest.json`);
     } catch {
     }
   } catch (e) {
-    process.stderr.write(`[spool-intake] archive skipped for ${(0, import_node_path9.basename)(spoolFilePath)}: ${e instanceof Error ? e.message : String(e)}
+    process.stderr.write(`[spool-intake] archive skipped for ${(0, import_node_path10.basename)(spoolFilePath)}: ${e instanceof Error ? e.message : String(e)}
 `);
   }
 }
 async function quarantineTamperedFile(spoolFilePath, spoolDir, quarantineDirOverride, expected, actual) {
   try {
-    const baseDir = quarantineDirOverride ?? (0, import_node_path9.join)(spoolDir ?? ".", "quarantine");
+    const baseDir = quarantineDirOverride ?? (0, import_node_path10.join)(spoolDir ?? ".", "quarantine");
     await (0, import_promises3.mkdir)(baseDir, { recursive: true });
-    const name = (0, import_node_path9.basename)(spoolFilePath);
-    const dest = (0, import_node_path9.join)(baseDir, name);
+    const name = (0, import_node_path10.basename)(spoolFilePath);
+    const dest = (0, import_node_path10.join)(baseDir, name);
     const evidence = {
       spoolFile: name,
       detectedAt: (/* @__PURE__ */ new Date()).toISOString(),
@@ -40915,12 +40915,12 @@ async function quarantineTamperedFile(spoolFilePath, spoolDir, quarantineDirOver
     return null;
   }
 }
-var import_promises3, import_node_path9;
+var import_promises3, import_node_path10;
 var init_spool_intake = __esm({
   "../qmd-team-intent-kb/apps/curator/dist/intake/spool-intake.js"() {
     "use strict";
     import_promises3 = require("node:fs/promises");
-    import_node_path9 = require("node:path");
+    import_node_path10 = require("node:path");
     init_dist6();
     init_dist2();
   }
@@ -41127,22 +41127,22 @@ function detectChanges(memoryRepo, exportStateRepo, config2) {
   for (const memory of memories) {
     if (memory.lifecycle === "archived" || memory.lifecycle === "superseded") {
       const categoryDir = getCategoryDirectory(memory.category);
-      const fromPath = (0, import_node_path10.join)(config2.outputDir, categoryDir, `${memory.id}.md`);
-      const toPath = (0, import_node_path10.join)(config2.outputDir, getRelativePath2(memory));
+      const fromPath = (0, import_node_path11.join)(config2.outputDir, categoryDir, `${memory.id}.md`);
+      const toPath = (0, import_node_path11.join)(config2.outputDir, getRelativePath2(memory));
       toArchive.push({ memory, fromPath, toPath });
     } else {
-      const filePath = (0, import_node_path10.join)(config2.outputDir, getRelativePath2(memory));
+      const filePath = (0, import_node_path11.join)(config2.outputDir, getRelativePath2(memory));
       toWrite.push({ memory, filePath });
     }
   }
   return { toWrite, toArchive, toRemove: [] };
 }
-var import_node_path10;
+var import_node_path11;
 var init_change_detector = __esm({
   "../qmd-team-intent-kb/apps/git-exporter/dist/diff/change-detector.js"() {
     "use strict";
     init_directory_mapper();
-    import_node_path10 = require("node:path");
+    import_node_path11 = require("node:path");
   }
 });
 
@@ -41156,8 +41156,8 @@ function assertPathSafe(filePath, allowedRoot) {
     throw new Error("Unsafe file path: Path contains directory traversal (..)");
   }
   if (allowedRoot !== void 0) {
-    const resolved = (0, import_node_path11.resolve)(filePath);
-    const resolvedRoot = (0, import_node_path11.resolve)(allowedRoot);
+    const resolved = (0, import_node_path12.resolve)(filePath);
+    const resolvedRoot = (0, import_node_path12.resolve)(allowedRoot);
     if (!resolved.startsWith(resolvedRoot + "/") && resolved !== resolvedRoot) {
       throw new Error(`Path traversal rejected: ${filePath} is outside ${allowedRoot}`);
     }
@@ -41165,36 +41165,36 @@ function assertPathSafe(filePath, allowedRoot) {
 }
 function writeFile2(filePath, content, exportRoot) {
   assertPathSafe(filePath, exportRoot);
-  (0, import_node_fs5.mkdirSync)((0, import_node_path11.dirname)(filePath), { recursive: true });
-  (0, import_node_fs5.writeFileSync)(filePath, content, "utf8");
+  (0, import_node_fs6.mkdirSync)((0, import_node_path12.dirname)(filePath), { recursive: true });
+  (0, import_node_fs6.writeFileSync)(filePath, content, "utf8");
 }
 function archiveFile(fromPath, toPath, content, exportRoot) {
   assertPathSafe(toPath, exportRoot);
   if (exportRoot !== void 0) {
     assertPathSafe(fromPath, exportRoot);
   }
-  (0, import_node_fs5.mkdirSync)((0, import_node_path11.dirname)(toPath), { recursive: true });
-  if ((0, import_node_fs5.existsSync)(fromPath)) {
-    (0, import_node_fs5.unlinkSync)(fromPath);
+  (0, import_node_fs6.mkdirSync)((0, import_node_path12.dirname)(toPath), { recursive: true });
+  if ((0, import_node_fs6.existsSync)(fromPath)) {
+    (0, import_node_fs6.unlinkSync)(fromPath);
   }
-  (0, import_node_fs5.writeFileSync)(toPath, content, "utf8");
+  (0, import_node_fs6.writeFileSync)(toPath, content, "utf8");
 }
 function removeFile(filePath, exportRoot) {
   if (exportRoot !== void 0) {
     assertPathSafe(filePath, exportRoot);
   }
-  if ((0, import_node_fs5.existsSync)(filePath)) {
-    (0, import_node_fs5.unlinkSync)(filePath);
+  if ((0, import_node_fs6.existsSync)(filePath)) {
+    (0, import_node_fs6.unlinkSync)(filePath);
     return true;
   }
   return false;
 }
-var import_node_fs5, import_node_path11;
+var import_node_fs6, import_node_path12;
 var init_file_writer = __esm({
   "../qmd-team-intent-kb/apps/git-exporter/dist/writer/file-writer.js"() {
     "use strict";
-    import_node_fs5 = require("node:fs");
-    import_node_path11 = require("node:path");
+    import_node_fs6 = require("node:fs");
+    import_node_path12 = require("node:path");
   }
 });
 
@@ -41216,8 +41216,8 @@ function runExport(memoryRepo, exportStateRepo, config2, nowFn = () => (/* @__PU
       continue;
     }
     const content = formatMemoryAsMarkdown(item.memory);
-    if ((0, import_node_fs6.existsSync)(item.filePath)) {
-      const existing = (0, import_node_fs6.readFileSync)(item.filePath, "utf8");
+    if ((0, import_node_fs7.existsSync)(item.filePath)) {
+      const existing = (0, import_node_fs7.readFileSync)(item.filePath, "utf8");
       if (existing === content) {
         unchanged++;
         continue;
@@ -41250,7 +41250,7 @@ function runExport(memoryRepo, exportStateRepo, config2, nowFn = () => (/* @__PU
     totalProcessed: changeset.toWrite.length + changeset.toArchive.length + changeset.toRemove.length
   };
 }
-var import_node_fs6, CONFIDENTIAL_INDEX;
+var import_node_fs7, CONFIDENTIAL_INDEX;
 var init_exporter = __esm({
   "../qmd-team-intent-kb/apps/git-exporter/dist/exporter.js"() {
     "use strict";
@@ -41258,7 +41258,7 @@ var init_exporter = __esm({
     init_change_detector();
     init_markdown_formatter();
     init_file_writer();
-    import_node_fs6 = require("node:fs");
+    import_node_fs7 = require("node:fs");
     CONFIDENTIAL_INDEX = Sensitivity.options.indexOf("confidential");
   }
 });
@@ -41345,7 +41345,7 @@ function commitAnchor(auditDir) {
   };
   const git = (args) => (0, import_node_child_process3.execFileSync)("git", args, { cwd: auditDir, stdio: "ignore", env });
   try {
-    if (!(0, import_node_fs7.existsSync)((0, import_node_path12.join)(auditDir, ".git"))) git(["init", "-q"]);
+    if (!(0, import_node_fs8.existsSync)((0, import_node_path13.join)(auditDir, ".git"))) git(["init", "-q"]);
     git(["add", "anchors.jsonl"]);
     git(["commit", "-q", "-m", `anchor ${(/* @__PURE__ */ new Date()).toISOString()}`]);
     try {
@@ -41361,9 +41361,9 @@ function commitAnchor(auditDir) {
 }
 function anchorChainHead(auditRepo, basePath, tenantId) {
   try {
-    const auditDir = (0, import_node_path12.join)(basePath, "audit");
-    (0, import_node_fs7.mkdirSync)(auditDir, { recursive: true });
-    const rec = appendAnchor(auditRepo, (0, import_node_path12.join)(auditDir, "anchors.jsonl"), { tenantId });
+    const auditDir = (0, import_node_path13.join)(basePath, "audit");
+    (0, import_node_fs8.mkdirSync)(auditDir, { recursive: true });
+    const rec = appendAnchor(auditRepo, (0, import_node_path13.join)(auditDir, "anchors.jsonl"), { tenantId });
     return {
       chainHead: rec.chainHead,
       chainedRows: rec.chainedRows,
@@ -41373,14 +41373,14 @@ function anchorChainHead(auditRepo, basePath, tenantId) {
     return void 0;
   }
 }
-var import_node_child_process3, import_node_fs7, import_node_path12;
+var import_node_child_process3, import_node_fs8, import_node_path13;
 var init_anchor = __esm({
   "src/anchor.ts"() {
     "use strict";
     init_dist3();
     import_node_child_process3 = require("node:child_process");
-    import_node_fs7 = require("node:fs");
-    import_node_path12 = require("node:path");
+    import_node_fs8 = require("node:fs");
+    import_node_path13 = require("node:path");
   }
 });
 
@@ -41398,9 +41398,9 @@ function isContention(err2) {
   return err2.code === "EAGAIN" || err2.code === "EWOULDBLOCK";
 }
 async function acquireWriteLock(basePath, timeoutMs = DEFAULT_TIMEOUT_MS) {
-  (0, import_node_fs8.mkdirSync)(basePath, { recursive: true });
-  const lockPath = (0, import_node_path13.join)(basePath, LOCK_FILENAME);
-  const fd = (0, import_node_fs8.openSync)(lockPath, "a");
+  (0, import_node_fs9.mkdirSync)(basePath, { recursive: true });
+  const lockPath = (0, import_node_path14.join)(basePath, LOCK_FILENAME);
+  const fd = (0, import_node_fs9.openSync)(lockPath, "a");
   const deadline = Date.now() + Math.max(0, timeoutMs);
   for (; ; ) {
     const err2 = await tryFlockExclusive(fd);
@@ -41412,7 +41412,7 @@ async function acquireWriteLock(basePath, timeoutMs = DEFAULT_TIMEOUT_MS) {
           } catch {
           } finally {
             try {
-              (0, import_node_fs8.closeSync)(fd);
+              (0, import_node_fs9.closeSync)(fd);
             } catch {
             }
           }
@@ -41421,14 +41421,14 @@ async function acquireWriteLock(basePath, timeoutMs = DEFAULT_TIMEOUT_MS) {
     }
     if (!isContention(err2)) {
       try {
-        (0, import_node_fs8.closeSync)(fd);
+        (0, import_node_fs9.closeSync)(fd);
       } catch {
       }
       throw err2;
     }
     if (Date.now() >= deadline) {
       try {
-        (0, import_node_fs8.closeSync)(fd);
+        (0, import_node_fs9.closeSync)(fd);
       } catch {
       }
       throw new WriteLockBusyError();
@@ -41436,12 +41436,12 @@ async function acquireWriteLock(basePath, timeoutMs = DEFAULT_TIMEOUT_MS) {
     await sleep(RETRY_INTERVAL_MS);
   }
 }
-var import_node_fs8, import_node_path13, import_fs_ext, LOCK_FILENAME, DEFAULT_TIMEOUT_MS, RETRY_INTERVAL_MS, WriteLockBusyError, sleep;
+var import_node_fs9, import_node_path14, import_fs_ext, LOCK_FILENAME, DEFAULT_TIMEOUT_MS, RETRY_INTERVAL_MS, WriteLockBusyError, sleep;
 var init_write_lock = __esm({
   "src/write-lock.ts"() {
     "use strict";
-    import_node_fs8 = require("node:fs");
-    import_node_path13 = require("node:path");
+    import_node_fs9 = require("node:fs");
+    import_node_path14 = require("node:path");
     import_fs_ext = require("fs-ext");
     LOCK_FILENAME = ".write.lock";
     DEFAULT_TIMEOUT_MS = 8e3;
@@ -41482,7 +41482,7 @@ async function runGovernLocked(config2) {
       );
     }
     const ingestResult = await ingestFromSpool(candidateRepo, config2.spoolPath, {
-      archiveIngestedDir: (0, import_node_path14.join)(config2.spoolPath, "ingested")
+      archiveIngestedDir: (0, import_node_path15.join)(config2.spoolPath, "ingested")
     });
     const ingested = ingestResult.ok ? ingestResult.value.length : 0;
     const curation = sweepInbox(config2, { candidateRepo, memoryRepo, policyRepo, auditRepo });
@@ -41627,12 +41627,12 @@ function sweepInbox(config2, deps) {
 function isMemberAuthored(candidate) {
   return candidate.metadata?.proposedByRole === "member";
 }
-var import_node_crypto10, import_node_path14, SWEEP_RECEIPT_MEMORY_ID;
+var import_node_crypto10, import_node_path15, SWEEP_RECEIPT_MEMORY_ID;
 var init_govern = __esm({
   "src/govern.ts"() {
     "use strict";
     import_node_crypto10 = require("node:crypto");
-    import_node_path14 = require("node:path");
+    import_node_path15 = require("node:path");
     init_dist8();
     init_dist9();
     init_dist2();
@@ -41661,11 +41661,11 @@ function isMissingNativeDep(e) {
   );
 }
 function manifestPath(basePath) {
-  return (0, import_node_path15.join)(basePath, "audit", "exceptions.manifest.json");
+  return (0, import_node_path16.join)(basePath, "audit", "exceptions.manifest.json");
 }
 function loadExceptionManifest(basePath) {
   const p = manifestPath(basePath);
-  if (!(0, import_node_fs9.existsSync)(p)) return null;
+  if (!(0, import_node_fs10.existsSync)(p)) return null;
   try {
     return readManifest(p);
   } catch (e) {
@@ -41715,16 +41715,16 @@ async function startLocalServer() {
 `
   );
 }
-var import_node_crypto11, import_node_fs9, import_zod18, import_node_path15, VERSION2, config, CATEGORIES2, NATIVE_DEP_HINT, server2;
+var import_node_crypto11, import_node_fs10, import_zod18, import_node_path16, VERSION2, config, CATEGORIES2, NATIVE_DEP_HINT, server2;
 var init_local_server = __esm({
   "src/local-server.ts"() {
     "use strict";
     import_node_crypto11 = require("node:crypto");
-    import_node_fs9 = require("node:fs");
+    import_node_fs10 = require("node:fs");
     init_mcp();
     init_stdio2();
     import_zod18 = __toESM(require_zod(), 1);
-    import_node_path15 = require("node:path");
+    import_node_path16 = require("node:path");
     init_dist3();
     init_dist4();
     init_dist6();
@@ -41733,7 +41733,7 @@ var init_local_server = __esm({
     init_govern();
     init_anchor();
     init_write_lock();
-    VERSION2 = "1.0.0";
+    VERSION2 = "1.1.0";
     config = resolveConfig();
     CATEGORIES2 = [
       "decision",
@@ -41825,7 +41825,7 @@ var init_local_server = __esm({
         }
         try {
           const auditRepo = new AuditRepository(db);
-          const result = verifyAnchors(auditRepo, (0, import_node_path15.join)(config.basePath, "audit", "anchors.jsonl"));
+          const result = verifyAnchors(auditRepo, (0, import_node_path16.join)(config.basePath, "audit", "anchors.jsonl"));
           const manifest = loadExceptionManifest(config.basePath);
           const rowsById = buildRowsById(auditRepo);
           const classified = classifyChainBreaks(result.chain.breaks, manifest, rowsById);
@@ -42001,15 +42001,136 @@ var init_local_server = __esm({
 });
 
 // src/mode.ts
+function isConfigured(rawValue) {
+  const v = rawValue?.trim();
+  return v !== void 0 && v !== "" && !v.startsWith("${");
+}
 function resolveMode(rawTeamkbApiUrl) {
-  const raw = rawTeamkbApiUrl?.trim();
-  const apiUrl = raw !== void 0 && raw !== "" && !raw.startsWith("${") ? raw : void 0;
-  return apiUrl !== void 0 ? { mode: "team", apiUrl } : { mode: "local" };
+  return isConfigured(rawTeamkbApiUrl) ? { mode: "team", apiUrl: rawTeamkbApiUrl.trim() } : { mode: "local" };
+}
+
+// src/team-config.ts
+var import_node_fs = require("node:fs");
+var import_node_os = require("node:os");
+var import_node_path = require("node:path");
+var KEY_TO_ENV = {
+  apiUrl: "TEAMKB_API_URL",
+  apiToken: "TEAMKB_API_TOKEN",
+  tenantId: "TEAMKB_TENANT_ID"
+};
+var TeamConfigError = class extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "TeamConfigError";
+  }
+};
+function teamKbBasePath(env) {
+  const base = env["TEAMKB_BASE_PATH"]?.trim();
+  if (base) return base;
+  const home = env["TEAMKB_HOME"]?.trim();
+  if (home) return home;
+  return (0, import_node_path.join)((0, import_node_os.homedir)(), ".teamkb");
+}
+function teamConfigPath(env = process.env) {
+  return (0, import_node_path.join)(teamKbBasePath(env), "team.json");
+}
+function loadTeamConfig(env = process.env) {
+  const path = teamConfigPath(env);
+  let mode;
+  try {
+    mode = (0, import_node_fs.statSync)(path).mode;
+  } catch (e) {
+    if (e.code === "ENOENT") return { present: false, path };
+    throw new TeamConfigError(`cannot stat ${path}: ${e.message}`);
+  }
+  if ((mode & 63) !== 0) {
+    const octal = (mode & 511).toString(8).padStart(3, "0");
+    throw new TeamConfigError(
+      `${path} is group/world-readable (mode ${octal}) \u2014 it holds a bearer token and must be 0600. Run: chmod 600 ${path}`
+    );
+  }
+  let text;
+  try {
+    text = (0, import_node_fs.readFileSync)(path, "utf8");
+  } catch (e) {
+    throw new TeamConfigError(`cannot read ${path}: ${e.message}`);
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    throw new TeamConfigError(
+      `${path} is not valid JSON \u2014 could not parse it. Check for a trailing comma or an unquoted value.`
+    );
+  }
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    throw new TeamConfigError(
+      `${path} must be a JSON object like { "apiUrl": "...", "apiToken": "..." }`
+    );
+  }
+  const obj = parsed;
+  const config2 = {};
+  for (const key of Object.keys(KEY_TO_ENV)) {
+    if (!(key in obj)) continue;
+    const v = obj[key];
+    if (typeof v !== "string" || v.trim() === "") {
+      throw new TeamConfigError(
+        `${path}: "${key}" must be a non-empty string. Fix the value, or remove the key.`
+      );
+    }
+    config2[key] = v.trim();
+  }
+  if (config2.apiUrl === void 0) {
+    const found = Object.keys(obj);
+    throw new TeamConfigError(
+      `${path} has no usable "apiUrl" \u2014 a team config must set at least { "apiUrl": "http://..." } (camelCase). Found keys: ${found.length ? found.join(", ") : "(none)"}. Fix the spelling, or remove the file to run the local brain.`
+    );
+  }
+  return { present: true, config: config2, path };
+}
+function applyTeamConfig(env, result) {
+  if (!result.present || result.config === void 0) return [];
+  const filled = [];
+  for (const key of Object.keys(KEY_TO_ENV)) {
+    const envName = KEY_TO_ENV[key];
+    const fileVal = result.config[key];
+    if (fileVal !== void 0 && !isConfigured(env[envName])) {
+      env[envName] = fileVal;
+      filled.push(envName);
+    }
+  }
+  return filled;
 }
 
 // src/index.ts
 async function main() {
+  let filled = [];
+  try {
+    filled = applyTeamConfig(process.env, loadTeamConfig(process.env));
+  } catch (e) {
+    const msg = e instanceof TeamConfigError || e instanceof Error ? e.message : String(e);
+    process.stderr.write(
+      `[governed-brain] REFUSING TO START \u2014 ${teamConfigPath(process.env)} is present but unusable:
+  ${msg}
+  Fix the file (or remove it to run the local brain). Refusing to silently run the wrong brain.
+`
+    );
+    process.exit(1);
+  }
+  if (filled.length > 0) {
+    process.stderr.write(
+      `[governed-brain] team.json supplied: ${filled.join(", ")} (real env took precedence for the rest)
+`
+    );
+  }
   const { mode } = resolveMode(process.env["TEAMKB_API_URL"]);
+  if (mode === "team" && !isConfigured(process.env["TEAMKB_API_TOKEN"])) {
+    process.stderr.write(
+      `[governed-brain] REFUSING TO START \u2014 team mode is configured (TEAMKB_API_URL is set) but no TEAMKB_API_TOKEN is available. Set your per-user token in ${teamConfigPath(process.env)} (the "apiToken" field) or the environment. Refusing to run team mode without a token.
+`
+    );
+    process.exit(1);
+  }
   if (mode === "team") {
     const { startRemoteServer: startRemoteServer2 } = await Promise.resolve().then(() => (init_remote_server(), remote_server_exports));
     await startRemoteServer2();
