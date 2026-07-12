@@ -352,13 +352,19 @@ export async function listInbox(
     return jsonResult({ ok: false, error: `could not reach the brain API: ${e instanceof Error ? e.message : String(e)}` });
   }
   if (!res.ok) return errorResult(res);
-  const rows = (await res.json()) as Array<{
+  let rows: Array<{
     id?: string;
     title?: string;
     category?: string;
     author?: { id?: string } | string;
     capturedAt?: string;
   }>;
+  try {
+    // A 2xx with an unreadable (non-JSON) body must not crash the tool — surface it.
+    rows = (await res.json()) as typeof rows;
+  } catch {
+    return jsonResult({ ok: false, error: 'the brain returned an unreadable (non-JSON) inbox response' });
+  }
   const candidates = (Array.isArray(rows) ? rows : [])
     .filter((r) => typeof r.id === 'string' && r.id.length > 0)
     .slice(0, limit)
@@ -400,11 +406,18 @@ export async function approveCandidate(
     return jsonResult({ ok: false, error: `could not reach the brain API: ${e instanceof Error ? e.message : String(e)}` });
   }
   if (!res.ok) return errorResult(res);
-  const memory = (await res.json()) as { id?: string };
+  // The promotion already SUCCEEDED (2xx). An unreadable/null body must not turn a
+  // real promotion into an error — just report ok without the memory id.
+  let memory: { id?: string } | null = null;
+  try {
+    memory = (await res.json()) as { id?: string } | null;
+  } catch {
+    memory = null;
+  }
   return jsonResult({
     ok: true,
     candidateId,
-    memoryId: memory.id,
+    memoryId: memory?.id,
     tenantId: tenant,
     message:
       'Promoted to durable team memory — it passed the deterministic govern rules and a hash-chained receipt names you as the approving actor.',

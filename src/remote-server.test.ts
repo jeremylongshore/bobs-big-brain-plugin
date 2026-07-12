@@ -294,4 +294,22 @@ describe('brain_inbox / brain_approve / brain_reject — the admin review surfac
     expect(out['ok']).toBe(false);
     expect(String(out['error'])).toContain('could not reach the brain API');
   });
+
+  it('brain_inbox surfaces (not crashes) an unreadable non-JSON 2xx body', async () => {
+    const { listInbox } = await load({ TEAMKB_API_URL: 'http://brain:3847', TEAMKB_API_TOKEN: 'admin-tok' });
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('<html>not json</html>', { status: 200 })));
+    const out = payload(await listInbox(undefined, 50));
+    expect(out['ok']).toBe(false);
+    expect(String(out['error'])).toMatch(/unreadable/i);
+    expect(out['candidates']).toBeUndefined();
+  });
+
+  it('brain_approve keeps a SUCCEEDED promotion ok even if the 2xx body is unreadable', async () => {
+    const { approveCandidate } = await load({ TEAMKB_API_URL: 'http://brain:3847', TEAMKB_API_TOKEN: 'admin-tok' });
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('not json', { status: 200 })));
+    const out = payload(await approveCandidate('cand-1', 'team-alpha', 'ok'));
+    // The 2xx means it was promoted — don't turn that into an error over a bad body.
+    expect(out['ok']).toBe(true);
+    expect(out['memoryId']).toBeUndefined();
+  });
 });

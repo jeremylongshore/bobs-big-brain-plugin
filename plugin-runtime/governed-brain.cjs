@@ -35629,7 +35629,12 @@ async function listInbox(tenantId, limit) {
     return jsonResult({ ok: false, error: `could not reach the brain API: ${e instanceof Error ? e.message : String(e)}` });
   }
   if (!res.ok) return errorResult(res);
-  const rows = await res.json();
+  let rows;
+  try {
+    rows = await res.json();
+  } catch {
+    return jsonResult({ ok: false, error: "the brain returned an unreadable (non-JSON) inbox response" });
+  }
   const candidates = (Array.isArray(rows) ? rows : []).filter((r) => typeof r.id === "string" && r.id.length > 0).slice(0, limit).map((r) => ({
     id: r.id,
     title: typeof r.title === "string" ? r.title : "",
@@ -35660,11 +35665,16 @@ async function approveCandidate(candidateId, tenantId, reason) {
     return jsonResult({ ok: false, error: `could not reach the brain API: ${e instanceof Error ? e.message : String(e)}` });
   }
   if (!res.ok) return errorResult(res);
-  const memory = await res.json();
+  let memory = null;
+  try {
+    memory = await res.json();
+  } catch {
+    memory = null;
+  }
   return jsonResult({
     ok: true,
     candidateId,
-    memoryId: memory.id,
+    memoryId: memory?.id,
     tenantId: tenant,
     message: "Promoted to durable team memory \u2014 it passed the deterministic govern rules and a hash-chained receipt names you as the approving actor."
   });
@@ -37114,6 +37124,7 @@ var init_candidate_repository = __esm({
       stmtFindByTenant;
       stmtFindByStatus;
       stmtFindByHash;
+      stmtFindByHashAndTenant;
       stmtCount;
       stmtCountByTenant;
       stmtDeleteByBatch;
@@ -37143,6 +37154,9 @@ var init_candidate_repository = __esm({
     `);
         this.stmtFindByHash = db.prepare(`
       SELECT * FROM candidates WHERE content_hash = ? LIMIT 1
+    `);
+        this.stmtFindByHashAndTenant = db.prepare(`
+      SELECT * FROM candidates WHERE content_hash = ? AND tenant_id = ? LIMIT 1
     `);
         this.stmtUpdateStatus = db.prepare(`
       UPDATE candidates SET status = @status WHERE id = @id AND tenant_id = @tenantId
@@ -37265,6 +37279,16 @@ var init_candidate_repository = __esm({
        */
       findByContentHash(hash) {
         const row = this.stmtFindByHash.get(hash);
+        return row !== void 0 ? rowToCandidate(row) : null;
+      }
+      /**
+       * Return the first candidate with the given content hash FOR A TENANT, or null —
+       * the tenant-scoped dedup the idempotent intake path uses (jfv.9). Prefer this
+       * over {@link findByContentHash} on any per-tenant write path: the unscoped
+       * variant can return another tenant's row.
+       */
+      findByContentHashAndTenant(hash, tenantId) {
+        const row = this.stmtFindByHashAndTenant.get(hash, tenantId);
         return row !== void 0 ? rowToCandidate(row) : null;
       }
       /** Return the total number of candidates in the store. */
@@ -38236,6 +38260,10 @@ function appendAnchor(repo, anchorPath, opts) {
   const rows = chainedRowsOf(repo);
   const head = rows.length > 0 ? rows[rows.length - 1].entry_hash ?? "" : "";
   const existing = readAnchors(anchorPath);
+  const lastAnchor = existing.length > 0 ? existing[existing.length - 1] : null;
+  if (lastAnchor !== null && lastAnchor.chainHead === head && lastAnchor.chainedRows === rows.length) {
+    return lastAnchor;
+  }
   const prevAnchorHash = existing.length > 0 ? existing[existing.length - 1].anchorHash : null;
   const body = {
     schemaVersion: 1,
