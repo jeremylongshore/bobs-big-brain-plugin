@@ -8,10 +8,20 @@
     {
       "name": "governed-second-brain",
       "source": ".",
-      "description": "Bob's Big Brain — the governed team brain: cited recall, hash-chained receipts. ONE plugin, two modes. Local (default): turn your own files into cited (qmd://) memory with deterministic governance and a tamper-evident SHA-256 hash-chained audit trail, in-process, no network. Team (set TEAMKB_API_URL): query your team's single governed brain over the tailnet.",
-      "version": "1.1.0",
+      "description": "Bob's Big Brain \u2014 the governed team brain: cited recall, hash-chained receipts. ONE plugin, two modes. Local (default): turn your own files into cited (qmd://) memory with deterministic governance and a tamper-evident SHA-256 hash-chained audit trail, in-process, no network. Team (set TEAMKB_API_URL): query your team's single governed brain over the tailnet.",
+      "version": "1.1.1",
       "category": "productivity",
-      "keywords": ["memory", "knowledge", "governance", "qmd", "citations", "local-first", "team", "tailnet", "second-brain"],
+      "keywords": [
+        "memory",
+        "knowledge",
+        "governance",
+        "qmd",
+        "citations",
+        "local-first",
+        "team",
+        "tailnet",
+        "second-brain"
+      ],
       "author": "Jeremy Longshore",
       "license": "Apache-2.0"
     }

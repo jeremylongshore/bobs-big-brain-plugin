@@ -8,6 +8,28 @@ installable Claude Code + Cowork plugin (a local stdio MCP server); the engines 
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-07-13
+
+### Fixed
+
+- **Team-mode search returned zero results for every teammate.** `brain_search` never sent the tenant
+  to `/api/search`, but the API scopes qmd by `tenantId` — so a fully-connected teammate got empty
+  results (auth worked, queries came back blank). Now sends `tenantId: TENANT_ID` (defaults to the
+  shared `intent-solutions`); the server-side tenancy guard still validates a scoped token.
+- **Root `.mcp.json` would not launch in project scope.** It used the marketplace-only
+  `${CLAUDE_PLUGIN_ROOT}` (unresolved when the repo is opened as a project). Switched to a repo-relative
+  runtime path and added a `TEAMKB_TENANT_ID` passthrough (also added to `.claude-plugin/plugin.json`).
+
+### Changed
+
+- **Public name is now "Bob's Big Brain"** across the README, skills, installer, code headers, and the
+  marketplace/plugin descriptions. Technical ids (repo, package `name`, plugin id) are unchanged.
+
+### Added (internal)
+
+- Standalone anchor-verifier re-hash-forward test + a store↔standalone anchor **conformance** gate
+  (a new required CI job that provisions the sibling store).
+
 ## [1.1.0] - 2026-07-11
 
 ### Added
