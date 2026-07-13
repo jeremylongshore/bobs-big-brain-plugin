@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "name": "gsb.lock",
   "description": "Known-good version tuple for the Governed Second Brain stack \u2014 Compile (ICO) x Govern (INTKB) x Retrieve (qmd) x the plugin. The installer pins to these; CI (.github/workflows/smoke.yml) drives the full chain against them before release. Bump deliberately: never drift one component without re-running the smoke over the whole chain.",
-  "generatedFor": "governed-second-brain@1.1.0",
+  "generatedFor": "governed-second-brain@1.1.1",
   "stack": {
     "plugin": {
       "name": "governed-second-brain",
