@@ -20,7 +20,7 @@
 | | Repo | What it is |
 |---|---|---|
 | **Landing / thesis** | **[intent-solutions-io/governed-second-brain](https://github.com/intent-solutions-io/governed-second-brain)** | The umbrella — *why* this exists, the competitive teardown, the "Compile, Then Govern" thesis, the receipts argument. Start here for the **story**. |
-| **The plugin** (you are here) | **[jeremylongshore/governed-second-brain-plugin](https://github.com/jeremylongshore/governed-second-brain-plugin)** | The installable code — the local stdio MCP server + skills. Start here to **run it**. |
+| **The plugin** (you are here) | **[jeremylongshore/bobs-big-brain-plugin](https://github.com/jeremylongshore/bobs-big-brain-plugin)** | The installable code — the local stdio MCP server + skills. Start here to **run it**. |
 
 It stacks on three engines:
 
@@ -142,7 +142,7 @@ network); **Claude Desktop** can, via a manual `mcpServers` config (see below). 
 2. **Add the plugin** — in Claude Code or Cowork. It's a public repo, so no org membership or `gh`
    login is needed:
    ```
-   /plugin marketplace add jeremylongshore/governed-second-brain-plugin
+   /plugin marketplace add jeremylongshore/bobs-big-brain-plugin
    /plugin install governed-second-brain@governed-second-brain
    ```
 3. **Save your connection** to `~/.teamkb/team.json` (Windows: `%USERPROFILE%\.teamkb\team.json`) at

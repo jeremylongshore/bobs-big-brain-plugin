@@ -106,13 +106,13 @@ green "  ✓ Saved to $TEAM_JSON"
 say ""
 say "  4) Installing the Bob's Big Brain plugin…"
 if command -v claude >/dev/null 2>&1; then
-  claude plugin marketplace add jeremylongshore/governed-second-brain-plugin >/dev/null 2>&1 || true
+  claude plugin marketplace add jeremylongshore/bobs-big-brain-plugin >/dev/null 2>&1 || true
   if claude plugin install governed-second-brain@governed-second-brain >/dev/null 2>&1; then
     green "  ✓ Plugin installed."
   else
     say "  • Couldn't auto-install the plugin. Your connection is already saved. In"
     say "    Claude Code you can finish it yourself with these two commands:"
-    say "        /plugin marketplace add jeremylongshore/governed-second-brain-plugin"
+    say "        /plugin marketplace add jeremylongshore/bobs-big-brain-plugin"
     say "        /plugin install governed-second-brain@governed-second-brain"
     say "    …or ask Jeremy to finish it."
   fi

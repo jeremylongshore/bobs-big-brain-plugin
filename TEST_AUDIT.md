@@ -1,4 +1,4 @@
-# TEST_AUDIT.md — governed-second-brain-plugin
+# TEST_AUDIT.md — bobs-big-brain-plugin
 
 > Diagnostic produced by the `/audit-tests` 7-layer + gate sweep. Date: 2026-07-13.
 > Scope: the installable **Bob's Big Brain** plugin — a Claude Code + Cowork MCP

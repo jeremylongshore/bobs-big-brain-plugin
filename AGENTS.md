@@ -16,7 +16,7 @@ This is the *installable code*; the *landing/thesis* lives in the company umbrel
 
 | | Repo | Role |
 |---|---|---|
-| **This repo** | `jeremylongshore/governed-second-brain-plugin` (personal, public) | the plugin: MCP runtime (local + team) + skills |
+| **This repo** | `jeremylongshore/bobs-big-brain-plugin` (personal, public) | the plugin: MCP runtime (local + team) + skills |
 | **Umbrella** | `intent-solutions-io/governed-second-brain` (company) | landing page, thesis, competitive teardown — points here |
 | **Engines** | `jeremylongshore/{intentional-cognition-os, qmd-team-intent-kb}` | ICO (compile) + INTKB (govern) — separate repos |
 | **Team marketplace** | `intent-solutions-io/team-intent-claude-plugins` (private) | publishes **this** plugin (team mode) for the internal team |

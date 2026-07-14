@@ -25,7 +25,7 @@ do it by hand, use the manual steps below.)
 
 1. **Add the plugin** — in Claude Code or Cowork. Public repo, so no org membership or `gh` login:
    ```
-   /plugin marketplace add jeremylongshore/governed-second-brain-plugin
+   /plugin marketplace add jeremylongshore/bobs-big-brain-plugin
    /plugin install governed-second-brain@governed-second-brain
    ```
 2. **Write `team.json`** — `~/.teamkb/team.json` (Windows: `%USERPROFILE%\.teamkb\team.json`) at
@@ -92,7 +92,7 @@ message — it does *not* silently fall back to the local brain. A teammate who 
 ## For the admin (Jeremy)
 
 - **Auth-free install.** The installer adds **this public repo as its own marketplace**
-  (`claude plugin marketplace add jeremylongshore/governed-second-brain-plugin` →
+  (`claude plugin marketplace add jeremylongshore/bobs-big-brain-plugin` →
   `claude plugin install governed-second-brain@governed-second-brain`), so a teammate needs **no**
   `intent-solutions-io` org membership, no private-repo access, and no `gh` login — the earlier
   "repository not found" Prereq-0 is gone.
