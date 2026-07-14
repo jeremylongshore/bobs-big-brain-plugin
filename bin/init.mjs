@@ -300,14 +300,14 @@ function printNextSteps(args, qmdOk, registered) {
     log('  ' + C.dim('Start a new Claude Code session to load it.'));
     log('');
     log('  For the /brain and /brain-save skills too, install the full plugin:');
-    log(C.cyan('    claude plugin marketplace add jeremylongshore/governed-second-brain-plugin'));
+    log(C.cyan('    claude plugin marketplace add jeremylongshore/bobs-big-brain-plugin'));
     log(C.cyan('    claude plugin install governed-second-brain'));
   } else {
     log('  ' + C.yellow('Register the MCP server with Claude Code:'));
     log(C.cyan(`    claude mcp add governed-brain -s ${args.scope} \\`));
     log(C.cyan(`      -e TEAMKB_TENANT_ID=${args.tenant} -e TEAMKB_BASE_PATH=${args.base} \\`));
     log(C.cyan(`      -- node ${RUNTIME}`));
-    log('  …or, for the skills too: ' + C.cyan('claude plugin marketplace add jeremylongshore/governed-second-brain-plugin'));
+    log('  …or, for the skills too: ' + C.cyan('claude plugin marketplace add jeremylongshore/bobs-big-brain-plugin'));
   }
   log('');
   log(C.bold('  Then try'));

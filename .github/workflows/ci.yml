@@ -82,7 +82,7 @@ jobs:
       - name: Checkout the plugin
         uses: actions/checkout@v4
         with:
-          path: governed-second-brain-plugin
+          path: bobs-big-brain-plugin
       - name: Checkout the sibling store (public)
         uses: actions/checkout@v4
         with:
@@ -103,10 +103,10 @@ jobs:
           pnpm install --frozen-lockfile
           pnpm build
       - name: Install the plugin with pnpm (npm can't do link:; pnpm resolves it → built sibling)
-        working-directory: governed-second-brain-plugin
+        working-directory: bobs-big-brain-plugin
         run: pnpm install --no-frozen-lockfile
       - name: Anchor conformance (store present → all cases enforced, 0 skipped)
-        working-directory: governed-second-brain-plugin
+        working-directory: bobs-big-brain-plugin
         run: |
           out=$(node --test scripts/anchor-conformance.test.mjs 2>&1) || { echo "$out"; exit 1; }
           echo "$out" | tail -12

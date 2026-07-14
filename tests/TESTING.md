@@ -1,4 +1,4 @@
-# Testing — governed-second-brain-plugin
+# Testing — bobs-big-brain-plugin
 
 The installable Claude Code / Cowork plugin. **One plugin, two modes** dispatched by
 `TEAMKB_API_URL`: `local` (in-process brain over `~/.teamkb`, native `better-sqlite3` +

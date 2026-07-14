@@ -18,10 +18,10 @@
   ],
   "license": "Apache-2.0",
   "author": "Jeremy Longshore <jeremy@intentsolutions.io>",
-  "homepage": "https://github.com/jeremylongshore/governed-second-brain-plugin",
+  "homepage": "https://github.com/jeremylongshore/bobs-big-brain-plugin",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/jeremylongshore/governed-second-brain-plugin.git"
+    "url": "git+https://github.com/jeremylongshore/bobs-big-brain-plugin.git"
   },
   "type": "module",
   "files": [

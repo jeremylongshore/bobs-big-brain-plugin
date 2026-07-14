@@ -8,7 +8,7 @@ itself (the MCP server, its tools, the install/packaging path, docs) are welcome
 
 | Change | Repo |
 |---|---|
-| Plugin MCP server, its tools, packaging, install flow | **here** (`governed-second-brain-plugin`) |
+| Plugin MCP server, its tools, packaging, install flow | **here** (`bobs-big-brain-plugin`) |
 | The compiler (passes, kernel, `ico` CLI) | [intentional-cognition-os](https://github.com/jeremylongshore/intentional-cognition-os) (ICO) |
 | The governance control plane (dedupe / policy / promotion / audit) | [qmd-team-intent-kb](https://github.com/jeremylongshore/qmd-team-intent-kb) (INTKB) |
 | On-device retrieval | upstream [qmd](https://github.com/tobi/qmd) (pinned dependency) |
