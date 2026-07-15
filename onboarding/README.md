@@ -1,39 +1,41 @@
-# Onboarding — plug a teammate into Bob's Big Brain
+# Onboarding — Bob's Big Brain
 
-The brain is a **plugin**, so it runs inside a **desktop** Claude — never a website.
+The brain is a **plugin** inside a **desktop** Claude (Claude Code or Cowork) — never a website.
 
-| Where you run Claude | Works? | How |
-|---|---|---|
-| **Claude Code** or **Cowork** | ✅ recommended | Same install path on every OS: paste one prompt to Claude (below). |
-| **Claude Desktop** (standalone chat app) | ⚙️ manual | Add a custom `mcpServers` entry by hand (below). |
-| **claude.ai in a browser**, phone apps | ⛔ no | A browser tab can't reach a local plugin or a private network. Install Claude Code and use that. |
+**Live walkthrough (copy-paste prompts, dual path):** https://demos.intentsolutions.io/bbb/
 
-Every teammate needs two things: a **desktop Claude** (Claude Code is quickest) and **Tailscale**
-(so their machine can reach the brain over the private network — the one genuinely-manual
-prerequisite; the GUI *Allow* dialogs can't be automated).
+| Path | Who | Needs | Mode |
+|---|---|---|---|
+| **Team** | Intent Solutions teammates | Tailscale (`@intentsolutions.io`) + personal token from Jeremy + desktop Claude | Remote team brain via `~/.teamkb/team.json` |
+| **Local (public)** | Anyone | Desktop Claude only | In-process personal brain on your machine — no Tailscale, no token |
 
-**Full walkthrough (live):** https://demos.intentsolutions.io/bbb/
+| Where you run Claude | Works? |
+|---|---|
+| **Claude Code** or **Cowork** | Yes — recommended. Same paste prompts on Mac, Windows, Linux. |
+| **Claude Desktop** | Manual MCP config (see live page Advanced). |
+| **claude.ai web / phone** | No. |
 
-That page covers: Tailscale → desktop Claude → install + `team.json` → proof `/brain` query → **optional Step 5** (teach Claude when to search the brain via a short standing order in `~/.claude/CLAUDE.md` / `AGENTS.md`). Installing the plugin connects the brain; it does **not** by itself make the agent look there first.
+---
 
-## Claude Code or Cowork (recommended) — one path for every OS
+## Team path (invite-only)
 
-There is **no separate Windows or Mac installer.** Plugin install and writing `team.json` both work
-the same way everywhere: paste a short prompt to Claude and let it run the steps.
+1. Tailscale + `@intentsolutions.io`
+2. Desktop Claude
+3. **One paste** — full install + `team.json` (token + **required** `tenantId: intent-solutions`)
+4. Proof: `/brain shipped this week` → `qmd://` citations
+5. Optional: standing order in `~/.claude/CLAUDE.md` / `AGENTS.md` so Claude searches first
 
-### Paste this to Claude
-
-Replace `PASTE-YOUR-TOKEN-HERE` with the per-user token (or let Claude ask for it):
+### Paste to Claude (team)
 
 ```
-Install and connect me to Bob's Big Brain (the team brain). Run these steps in order. Stop and tell me if any step errors.
+Install and connect me to Bob's Big Brain (the Intent Solutions team brain). Run these steps in order. Stop and tell me if any step errors.
 
 1) Add and install the plugin from the public marketplace (no GitHub login needed):
    claude plugin marketplace add jeremylongshore/bobs-big-brain-plugin
    claude plugin marketplace update governed-second-brain
    claude plugin install governed-second-brain@governed-second-brain
 
-2) Write my team connection file at ~/.teamkb/team.json (Windows: %USERPROFILE%\.teamkb\team.json) with restrictive permissions (mode 600). Use exactly this JSON, and replace PASTE-YOUR-TOKEN-HERE with the token I give you — or ask me for the token if I have not pasted it yet. Do NOT invent or change a token. Keep tenantId exactly as written; without it, searches return empty results even with a good token:
+2) Write my team connection file at ~/.teamkb/team.json (Windows: %USERPROFILE%\.teamkb\team.json · Linux: ~/.teamkb/team.json) with restrictive permissions (mode 600). Use exactly this JSON. Replace PASTE-YOUR-TOKEN-HERE with the token I give you — or ask me for the token if I have not pasted it yet. Do NOT invent or change a token. Keep tenantId exactly as written; without it, searches return empty results even with a good token:
 
 {
   "apiUrl": "http://100.109.119.103:3847",
@@ -43,94 +45,87 @@ Install and connect me to Bob's Big Brain (the team brain). Run these steps in o
 
 3) Tell me to fully quit and reopen Claude Code or Cowork. After I restart I will run: /brain shipped this week and I should get an answer with qmd:// citations.
 
-Do not rewrite the plugin manifest. Do not hunt for a newer CLI. Use only the public marketplace above.
+Prereqs: Tailscale with @intentsolutions.io, desktop Claude. Do not rewrite the plugin manifest. Public marketplace only.
 ```
 
-### Or by hand (three short parts)
+**Health check (optional):** `curl -sS -m 8 http://100.109.119.103:3847/api/health` → `"status":"healthy"`.
 
-1. **Add the plugin** — in Claude Code or Cowork. Public repo, so no org membership or `gh` login:
-   ```
-   /plugin marketplace add jeremylongshore/bobs-big-brain-plugin
-   /plugin install governed-second-brain@governed-second-brain
-   ```
-2. **Write `team.json`** — `~/.teamkb/team.json` (Windows: `%USERPROFILE%\.teamkb\team.json`) at
-   mode `600`, using the shape below. **`tenantId` is required** — without it you get empty
-   results even with a good token.
-3. **Restart the app**, then ask with **keywords**: `/brain shipped this week` → a cited `qmd://`
-   answer means you're connected. (Retrieval is keyword-based — strong words beat a full sentence;
-   0 hits usually means the query, not the setup — try a topic like `backup` or `deploy`.)
+---
 
-> **Legacy note:** [`install-bobs-big-brain.command`](install-bobs-big-brain.command) is a macOS
-> double-click script kept in-tree for operators who still want it. The page and the recommended
-> path no longer lead with OS installers.
+## Local path (public / personal)
 
-## Claude Desktop (advanced — manual MCP config)
+No Tailscale. No token. Same plugin, in-process over `~/.teamkb` on your machine.
 
-Claude Desktop can run the brain but doesn't use the `/plugin` system — register it as a custom MCP
-server. Put the plugin's `governed-brain.cjs` on disk (from your Claude Code plugin install, or
-`npm install -g governed-second-brain`), then add to the Desktop config file — `%APPDATA%\Claude\claude_desktop_config.json`
-on Windows, `~/Library/Application Support/Claude/claude_desktop_config.json` on macOS:
+### Paste to Claude (local)
 
-```json
-{
-  "mcpServers": {
-    "governed-brain": {
-      "command": "node",
-      "args": ["/full/path/to/plugin-runtime/governed-brain.cjs"],
-      "env": {
-        "TEAMKB_API_URL": "http://<brain-host>:3847",
-        "TEAMKB_API_TOKEN": "<your per-user token>",
-        "TEAMKB_TENANT_ID": "<your tenant>"
-      }
-    }
-  }
-}
+```
+Install Bob's Big Brain (Governed Second Brain) for me as a LOCAL personal brain on this machine. Run these steps in order. Stop and tell me if any step errors.
+
+1) Add and install the plugin from the public marketplace (no GitHub login needed):
+   claude plugin marketplace add jeremylongshore/bobs-big-brain-plugin
+   claude plugin marketplace update governed-second-brain
+   claude plugin install governed-second-brain@governed-second-brain
+
+2) Keep me in LOCAL mode only:
+   - Do NOT create ~/.teamkb/team.json
+   - Do NOT set TEAMKB_API_URL, TEAMKB_API_TOKEN, or TEAMKB_TENANT_ID
+   - If team.json already exists and I want local-only, tell me how to rename or remove it (do not delete without my confirmation)
+
+3) Tell me to fully quit and reopen Claude Code or Cowork.
+
+4) After restart, help me verify the governed-brain tools are available (brain_status or /brain). An empty local brain is normal on first install — I will feed it with /brain-save.
+
+Do not rewrite the plugin manifest. Do not invent tokens. Do not connect me to any remote team API.
 ```
 
-Fully quit and reopen Claude Desktop; `brain_search` will be available.
+Empty brain on first install is **normal**. Capture with `/brain-save`, then search with keywords.
 
-## How the connection actually works
+---
 
-The plugin (`src/index.ts`) resolves its mode at startup with this precedence,
-**per key**:
+## Day to day
+
+- **`/brain …`** — read (keywords, not full sentences)
+- **`/brain-save …`** — write (team: governed for everyone; local: stays on your machine)
+
+Installing the plugin **connects** the brain. A short standing order in `~/.claude/CLAUDE.md` / `AGENTS.md` / `~/.grok/AGENTS.md` is what makes Claude **look there first** without being asked. Copy-paste blocks for both team and local standing orders are on the live page (Step 5 / Step 4).
+
+---
+
+## How mode resolution works
 
 ```
 real environment variable  →  ~/.teamkb/team.json  →  (absent → local mode)
 ```
 
-`team.json` is the fix for the day-one failure where a teammate set
-`TEAMKB_API_URL` in `~/.zshrc`, but a **GUI/Dock-launched Claude never sources
-`~/.zshrc`**, so the vars were absent and the plugin silently ran an empty *local*
-brain. A file on disk doesn't depend on the launching shell, so it works from a
-double-click or a Claude-written file the same way.
-
-`team.json` shape (mode `600`):
+`team.json` shape (team only, mode `600`):
 
 ```json
 {
   "apiUrl": "http://100.109.119.103:3847",
-  "apiToken": "<the teammate's per-user bearer token>",
+  "apiToken": "<per-user bearer token>",
   "tenantId": "intent-solutions"
 }
 ```
 
-**Fail-closed, by design:** a `team.json` that is present but group/world-readable,
-unreadable, or not valid JSON makes the plugin **refuse to start** with a clear
-message — it does *not* silently fall back to the local brain. A teammate who has a
-`team.json` wants team mode; a broken one is an error worth surfacing, not laundering.
+**Fail-closed:** present-but-broken `team.json` refuses to start — it does not silently fall back to local.
 
-## For the admin (Jeremy)
+---
 
-- **Auth-free install.** The path adds **this public repo as its own marketplace**
-  (`claude plugin marketplace add jeremylongshore/bobs-big-brain-plugin` →
-  `claude plugin install governed-second-brain@governed-second-brain`), so a teammate needs **no**
-  `intent-solutions-io` org membership, no private-repo access, and no `gh` login.
-- **Merge-gated.** The marketplace source tracks this repo's `main` branch unpinned, so
-  `claude plugin install` pulls the `main` bundle — only tell teammates to install after the
-  behaviour they need is merged to `main`.
-- Mint the per-user token, then hand the teammate **the token + the paste prompt** (or the live
-  page) over a trusted channel. Prefer leaving the token out of any script file entirely.
-- The token **never** lands in `~/.claude.json`, shell history, argv, or a chat
-  transcript — only in `~/.teamkb/team.json` at mode `600`.
-- Live page source of truth for the dogfood run: `~/demos/bbb/index.html` →
-  https://demos.intentsolutions.io/bbb/
+## Troubleshooting (paste to Claude)
+
+Team and local diagnostic prompts live on the live page under **Troubleshooting**. Real team-mode causes we have already hit:
+
+- **Rotated token** → ask Jeremy for reissue
+- **Missing `tenantId`** → empty search results with a “valid” token
+- **Off Tailscale** → API unreachable
+- **Full-sentence queries** → 0 hits; use keywords
+
+---
+
+## Admin notes (Jeremy)
+
+- Public marketplace: `jeremylongshore/bobs-big-brain-plugin` → no org membership / `gh` login required
+- Hand teammates: **token + page link** (or the team paste block). Prefer token not embedded in scripts
+- Token only in `team.json` mode `600` — never `~/.claude.json` / shell history / chat if avoidable
+- Live page source: `~/demos/bbb/index.html` → https://demos.intentsolutions.io/bbb/
+- Legacy macOS `.command` kept in-tree; page no longer leads with OS installers
