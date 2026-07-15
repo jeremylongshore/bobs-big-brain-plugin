@@ -10,6 +10,16 @@ installable Claude Code + Cowork plugin (a local stdio MCP server); the engines 
 
 ### Fixed
 
+- **Session-stable capture idempotency + frozen outbox contract (Property 1/2 seam).**
+  `deriveCandidateId` uses `(tenant, sessionId, "session-end")` when `sessionId` is provided so
+  re-distilled SessionEnd retries cannot mint a new id; without `sessionId` keeps content-hash
+  UUIDv5 for manual `/brain-save`. Outbox documents and tests that drain POSTs frozen file bytes
+  only (never rebuilds). `brain_capture` accepts optional `sessionId` and surfaces
+  `intake` / `alreadyExists` when the server reports created vs collapsed. Addresses the
+  Dev.to review on fire-and-forget writer safety.
+
+### Fixed
+
 - **`/brain` now retries with keywords when a full-sentence question returns nothing.** Retrieval is
   keyword-AND, so a natural question ("what did the team ship this week?") could return zero even when
   the topic is well covered — a new user running the suggested proof query saw an empty result and
