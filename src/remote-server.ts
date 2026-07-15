@@ -91,16 +91,20 @@ export async function errorResult(res: Response): Promise<ReturnType<typeof json
   return jsonResult({ ok: false, status: res.status, error: msg });
 }
 
-// ─── IDEMPOTENCY + DURABLE OUTBOX (jfv.9) ─────────────────────────────────────
-// An automated/hook-driven capture must neither DUPLICATE (a re-run mints a second
-// inbox row) nor SILENTLY LOSE (a fetch throw drops the proposal — team mode has no
-// local spool, unlike local mode). Two guards:
-//  • the candidate id is a UUIDv5 over (tenant, title, content) — a re-send of the
-//    same proposal is the SAME id, so it can't fan out into duplicate rows. Pairs
-//    with the server's content-hash dedup (candidate-service intake).
-//  • a fetch throw / 5xx queues the candidate to a flat ~/.teamkb-outbox/ dir; the
-//    next SUCCESSFUL capture drains it. So an unattended hook under a network blip
-//    keeps the proposal instead of dropping it.
+// ─── IDEMPOTENCY + DURABLE OUTBOX (jfv.9 + session-stable seam) ───────────────
+// An automated/hook-driven capture must neither DUPLICATE nor SILENTLY LOSE.
+//
+// Identity (Property 1):
+//  • When sessionId is present: UUIDv5 over (tenant, sessionId, "session-end") so
+//    the key exists BEFORE content. Re-distillation / re-serialization cannot mint
+//    a second id for the same session (Alex Spinov seam review).
+//  • When sessionId is absent (manual /brain-save): fall back to
+//    (tenant, title, content) for content-stable ad-hoc captures.
+//
+// Outbox (Property 2): stores the FINAL serialized POST body bytes (not a rebuild
+// recipe). Drain POSTs that file verbatim — never re-derives id or re-builds the
+// candidate from title/content args. A durable outbox that stored "intent" and
+// rebuilt on drain would quietly reintroduce the Property 1 failure mode.
 
 // Fixed namespace UUID for candidate-id derivation (RFC-4122 §4.3 UUIDv5 seed).
 const CANDIDATE_ID_NAMESPACE = '6ba7b8f0-9dad-11d1-80b4-00c04fd430c8';
@@ -115,8 +119,21 @@ function uuidv5(name: string, namespace: string): string {
   return `${x.slice(0, 8)}-${x.slice(8, 12)}-${x.slice(12, 16)}-${x.slice(16, 20)}-${x.slice(20, 32)}`;
 }
 
-/** Deterministic candidate id — same (tenant,title,content) → same id, so a retry can't duplicate. */
-export function deriveCandidateId(tenant: string, title: string, content: string): string {
+/**
+ * Deterministic candidate id.
+ * - With sessionId: stable before content (session-end / unattended path).
+ * - Without: content-derived (manual captures; backward compatible).
+ */
+export function deriveCandidateId(
+  tenant: string,
+  title: string,
+  content: string,
+  sessionId?: string,
+): string {
+  const sid = sessionId?.trim();
+  if (sid !== undefined && sid !== '') {
+    return uuidv5(`${tenant}\n${sid}\nsession-end`, CANDIDATE_ID_NAMESPACE);
+  }
   return uuidv5(`${tenant}\n${title}\n${content}`, CANDIDATE_ID_NAMESPACE);
 }
 
@@ -127,16 +144,17 @@ export function outboxDir(): string {
 }
 
 /**
- * Queue a candidate that could not be delivered (network throw / 5xx). Async +
- * non-blocking (this is a long-running MCP server — sync FS would block the event
- * loop). Returns true iff it was durably written, so the caller can report an honest
- * outcome when even the outbox write failed (the capture would otherwise be lost).
+ * Queue a candidate that could not be delivered (network throw / 5xx).
+ * FREEZES the final JSON body that would have been POSTed — drain replays these
+ * bytes, it does not rebuild the candidate. Async + non-blocking.
  */
 async function enqueueOutbox(candidate: { id: string }): Promise<boolean> {
   const dir = outboxDir();
   try {
     await mkdir(dir, { recursive: true, mode: 0o700 });
-    await writeFile(join(dir, `${candidate.id}.json`), JSON.stringify(candidate), { mode: 0o600 });
+    // Freeze exact POST body (not args-to-rebuild). Filename is advisory; body is authority.
+    const body = JSON.stringify(candidate);
+    await writeFile(join(dir, `${candidate.id}.json`), body, { mode: 0o600 });
     return true;
   } catch (e) {
     process.stderr.write(
@@ -354,26 +372,24 @@ server.tool(
 
 /**
  * Propose a candidate to the team brain (exported for unit testing). Idempotent +
- * durable (jfv.9): the id is a UUIDv5 over (tenant,title,content) so a retry can't
- * duplicate; a network throw / 5xx queues to the durable outbox instead of dropping,
- * and a successful send drains any backlog.
+ * durable: session-stable id when sessionId is set; content-derived otherwise.
+ * Network throw / 5xx freezes the POST body in the durable outbox; success drains.
+ * Response includes `intake` when the server reports created vs already_exists.
  */
 export async function capture(
   title: string,
   content: string,
   category: string | undefined,
   filePaths: string[] | undefined,
+  sessionId?: string,
 ): Promise<ReturnType<typeof jsonResult>> {
   if (API_URL === undefined || API_URL === '') {
     return jsonResult({ ok: false, error: 'unconfigured — set TEAMKB_API_URL to your team brain' });
   }
-  // Build the FULL MemoryCandidate client-side (the server safeParses it with no
-  // defaults) — identical shape to local mode, tenant-scoped to TENANT_ID. The id
-  // is a UUIDv5 over (tenant, title, content), NOT random (jfv.9): a re-send of the
-  // same proposal is the SAME id, so a retried/hook-driven capture can't fan out
-  // into duplicate inbox rows.
+  // Build the FULL MemoryCandidate client-side once. This object (serialized) is
+  // what gets POSTed and, on failure, FROZEN in the outbox — drain never rebuilds it.
   const candidate = {
-    id: deriveCandidateId(TENANT_ID, title, content),
+    id: deriveCandidateId(TENANT_ID, title, content, sessionId),
     status: 'inbox',
     source: 'mcp',
     content,
@@ -382,21 +398,24 @@ export async function capture(
     trustLevel: 'medium',
     author: { type: 'ai', id: 'governed-brain' },
     tenantId: TENANT_ID,
-    metadata: { filePaths: filePaths ?? [], tags: [] as string[] },
+    metadata: {
+      filePaths: filePaths ?? [],
+      tags: [] as string[],
+      ...(sessionId?.trim() ? { sessionId: sessionId.trim() } : {}),
+    },
     prePolicyFlags: { potentialSecret: false, lowConfidence: false, duplicateSuspect: false },
     capturedAt: new Date().toISOString(),
   };
+  const body = JSON.stringify(candidate);
   let res: Response;
   try {
     res = await fetch(`${API_URL.replace(/\/+$/, '')}/api/candidates`, {
       method: 'POST',
       headers: authHeaders(),
-      body: JSON.stringify(candidate),
+      body,
     });
   } catch (e) {
-    // API unreachable (dead / off-tailnet). DON'T drop it — queue to the durable
-    // outbox; the next successful capture drains it. If even the queue write fails,
-    // report honestly (ok:false) — the capture would otherwise be silently lost.
+    // API unreachable (dead / off-tailnet). DON'T drop it — freeze body in outbox.
     const queued = await enqueueOutbox(candidate);
     return jsonResult({
       ok: queued,
@@ -411,6 +430,7 @@ export async function capture(
   if (!res.ok) {
     // 5xx = transient server error → queue (retry later). 4xx = a real rejection
     // (validation/auth/disclosure) → surface it; queuing would just loop.
+    // Note: 200 already_exists is res.ok — handled below.
     if (res.status >= 500) {
       const queued = await enqueueOutbox(candidate);
       return jsonResult({
@@ -425,29 +445,51 @@ export async function capture(
     }
     return errorResult(res);
   }
-  // Delivered — opportunistically drain any previously-queued proposals now that
-  // connectivity is confirmed. Best-effort: a drain failure never fails this capture.
+  // Delivered (201 created or 200 already_exists). Read body once, then drain.
+  let intake: string | undefined;
+  try {
+    const text = await res.text();
+    try {
+      const parsed = JSON.parse(text) as { intake?: string };
+      if (typeof parsed.intake === 'string') intake = parsed.intake;
+    } catch {
+      /* non-JSON body — still ok */
+    }
+  } catch {
+    intake = undefined;
+  }
   const drained = await drainOutbox();
+  const already = intake === 'already_exists' || res.status === 200;
   return jsonResult({
     ok: true,
     candidateId: candidate.id,
     tenantId: TENANT_ID,
+    intake: intake ?? (already ? 'already_exists' : 'created'),
+    alreadyExists: already,
     ...(drained > 0 ? { outboxDrained: drained } : {}),
-    message:
-      'Proposed to the team brain inbox. This is a PROPOSAL — the deterministic govern pipeline decides if/when it is promoted (an admin governs, or auto-govern once enabled). It is not durable memory yet.',
+    message: already
+      ? 'Idempotent: this proposal already exists in the team brain inbox (same session id or same content). Safe to retry; not a new capture.'
+      : 'Proposed to the team brain inbox. This is a PROPOSAL — the deterministic govern pipeline decides if/when it is promoted (an admin governs, or auto-govern once enabled). It is not durable memory yet.',
   });
 }
 
 server.tool(
   'brain_capture',
-  "Propose a fact, decision, pattern, or convention to your team's governed brain — a PROPOSAL, not a promotion. Member-allowed: the server queues it as a candidate and the deterministic govern pipeline disposes; it is not durable memory until promoted. Proxies to the brain over the tailnet (team mode).",
+  "Propose a fact, decision, pattern, or convention to your team's governed brain — a PROPOSAL, not a promotion. Member-allowed: the server queues it as a candidate and the deterministic govern pipeline disposes; it is not durable memory until promoted. Proxies to the brain over the tailnet (team mode). Pass sessionId for unattended/SessionEnd captures so retries collapse even if distillation text changes.",
   {
     title: z.string().min(1).describe('Short, specific title for the memory'),
     content: z.string().min(1).describe('The fact to remember, in full'),
     category: z.enum(CATEGORIES).optional().describe('Memory category (default: reference)'),
     filePaths: z.array(z.string()).optional().describe('Related file paths, if any'),
+    sessionId: z
+      .string()
+      .optional()
+      .describe(
+        'Stable session id (e.g. Claude Code session). When set, candidate id is derived from tenant+session so re-distilled retries do not create duplicates.',
+      ),
   },
-  async (params) => capture(params.title, params.content, params.category, params.filePaths),
+  async (params) =>
+    capture(params.title, params.content, params.category, params.filePaths, params.sessionId),
 );
 
 server.tool(

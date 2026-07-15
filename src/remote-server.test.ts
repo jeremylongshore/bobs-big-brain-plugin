@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -334,16 +334,79 @@ describe('capture — idempotency + durable outbox (jfv.9)', () => {
     const b = deriveCandidateId('t', 'Title', 'the body');
     const c = deriveCandidateId('t', 'Title', 'a different body');
     expect(a).toBe(b); // idempotent
-    expect(a).not.toBe(c); // content-sensitive
+    expect(a).not.toBe(c); // content-sensitive without sessionId
     expect(a).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+  });
+
+  it('deriveCandidateId with sessionId is stable across different content (re-distill seam)', async () => {
+    const { deriveCandidateId } = await load();
+    const a = deriveCandidateId('t', 'Title A', 'first distillation', 'sess-1');
+    const b = deriveCandidateId('t', 'Title B', 're-distilled wording entirely different', 'sess-1');
+    const c = deriveCandidateId('t', 'Title A', 'first distillation', 'sess-2');
+    expect(a).toBe(b);
+    expect(a).not.toBe(c);
   });
 
   it('capture derives the SAME candidateId for the same proposal (no duplicate rows on retry)', async () => {
     const { capture } = await load({ TEAMKB_API_URL: 'http://brain:3847', TEAMKB_TENANT_ID: 't1' });
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 201 })));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(JSON.stringify({ intake: 'created' }), { status: 201 })),
+    );
     const one = payload(await capture('T', 'same content here', undefined, undefined));
     const two = payload(await capture('T', 'same content here', undefined, undefined));
     expect(one['candidateId']).toBe(two['candidateId']);
+  });
+
+  it('capture with sessionId keeps the same id when distillation text changes', async () => {
+    const { capture } = await load({ TEAMKB_API_URL: 'http://brain:3847', TEAMKB_TENANT_ID: 't1' });
+    const bodies = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_url, init) => {
+        bodies.push(JSON.parse(init.body));
+        return new Response(JSON.stringify({ intake: 'created' }), { status: 201 });
+      }),
+    );
+    const one = payload(await capture('T1', 'first distill', undefined, undefined, 'session-xyz'));
+    const two = payload(
+      await capture('T2', 'second distill different bytes', undefined, undefined, 'session-xyz'),
+    );
+    expect(one['candidateId']).toBe(two['candidateId']);
+    expect(bodies[0].id).toBe(bodies[1].id);
+    expect(bodies[0].content).not.toBe(bodies[1].content);
+  });
+
+  it('outbox freezes POST body bytes — drain replays the file, does not rebuild', async () => {
+    const box = mkbox();
+    const { capture, drainOutbox } = await load({
+      TEAMKB_API_URL: 'http://brain:3847',
+      TEAMKB_OUTBOX_DIR: box,
+    });
+    // First attempt: network throw → freeze in outbox.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new Error('ECONNREFUSED');
+      }),
+    );
+    const out = payload(await capture('Freeze', 'frozen body content', undefined, undefined, 's1'));
+    expect(out['queued']).toBe(true);
+    const file = readdirSync(box)[0];
+    const frozen = readFileSync(join(box, file), 'utf8');
+    const frozenObj = JSON.parse(frozen);
+    // Mutate would-be rebuild inputs are irrelevant: drain POSTs frozen file only.
+    const drainedBodies = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_url, init) => {
+        drainedBodies.push(init.body);
+        return new Response(JSON.stringify({ intake: 'created' }), { status: 201 });
+      }),
+    );
+    await drainOutbox();
+    expect(drainedBodies).toEqual([frozen]);
+    expect(JSON.parse(drainedBodies[0]).content).toBe(frozenObj.content);
   });
 
   it('queues to the durable outbox on a network throw (never drops), reports queued not error', async () => {
