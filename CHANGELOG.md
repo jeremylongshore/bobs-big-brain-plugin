@@ -8,6 +8,8 @@ installable Claude Code + Cowork plugin (a local stdio MCP server); the engines 
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-07-18
+
 ### Changed
 
 - **Local-mode `brain_search` now runs the full retrieval stack.** After rebundling the in-process
