@@ -70,7 +70,9 @@ behavior at runtime; a stray native import will break a marketplace install.
 
 ### Team-mode server contract (the Registrar's `apps/api`)
 - `POST /api/candidates` — member-allowed; body = a full `MemoryCandidate` built client-side (the
-  server `safeParse`s with no defaults — provide every field, like `local-server.ts` does).
+  server `safeParse`s with no defaults — provide every field, like `local-server.ts` does). Optional
+  `origin { tokenHmac, channel, mintedAt }` (H1): sent only when `TEAMKB_ORIGIN_SECRET` is set; a
+  claimed channel outside the server allowlist gets a 422 with code `unrecognized_channel`.
 - `POST /api/memories/:id/transition` — admin; body `{ to, reason, actor: <Author OBJECT>, supersededBy? }`
   (an Author **object** `{type:'human',id}`, **not** local mode's `actor` string).
 - `POST /api/search` — read. Bearer token in `Authorization`. Writes must send `tenantId` explicitly
@@ -107,6 +109,32 @@ Build hard-facts:
 The chain is tamper-**evident** (detection of edits/reordering), **not** tamper-proof: a local writer
 can edit an event *and* re-hash forward. Keep the "What the receipt does *not* do" framing honest.
 **Forbidden words:** tamper-proof, immutable, non-repudiation (for local mode), blockchain.
+
+## Write-time provenance (origin tokens) — what they do and do NOT prove
+
+Every `brain_capture` mints an **origin token**: HMAC-SHA256 over `(candidateId, tenantId, capturedAt)`
+keyed by a per-installation secret; the Registrar's govern path verifies it BEFORE promotion and
+rejects a forged claim with a receipted `origin_token_invalid`. Missing origin = accepted, receipted
+as channel `unattested` (backward compatibility with every pre-H1 capture/spool). Wiring:
+
+- **Local mode** (`local-server.ts` + `govern.ts`): mints with `~/.teamkb/origin-secret`
+  (auto-created 0600 on first capture; env `TEAMKB_ORIGIN_SECRET` overrides), channel `local-mcp`.
+  The local govern pass verifies with the same file. **Channel attestation is OUT OF SCOPE in local
+  mode (v1):** the box is one trust domain — any process that can read the secret can claim any
+  channel, so the channel value is self-asserted. Canonical decision record: the Registrar's
+  `000-docs/049-AT-DECR-write-time-provenance-origin-tokens.md`.
+- **Team mode** (`remote-server.ts`): mints ONLY when the admin explicitly distributed
+  `TEAMKB_ORIGIN_SECRET` (env; never a file fallback, never auto-generated — a client-invented secret
+  would mint tokens the server rejects at promotion). Channel `team-mcp`, checked against the server's
+  intake allowlist (unknown channel → stable 422 `unrecognized_channel`). No secret → the capture is
+  sent WITHOUT `origin` and governs as unattested, exactly like pre-H1.
+
+**The residual, named honestly (do not soften this):** an **authenticated insider** — anyone holding a
+valid member/admin token and/or the origin secret — can still poison L2/L3 content with
+validly-attested captures. Origin tokens prove **where a capture came from, not that it is true**. The
+mitigations for content poisoning are the deterministic govern policy, human review of the
+inbox/quarantine queues, and supersession — not the token. Receipts carry only the channel + a
+truncated SHA-256 of the token (never the token; no verify-arbitrary-token oracle exists).
 
 ## Retrieval roadmap
 `brain_search` runs **lexical fusion** today — the `qmd search` BM25 results fused with a native

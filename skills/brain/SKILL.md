@@ -138,6 +138,10 @@ Sources:
 - Never invent a qmd:// URI. Cite only URIs returned by `brain_search`.
 - Prefer fewer, well-cited claims over a broad answer that cannot be anchored.
 - Do not conflate this product with IRSB / Moat / Scout (separate stack).
+- **Provenance ≠ truth.** Promotion receipts record each memory's capture channel (or `unattested`)
+  and an origin-token hash — that proves WHERE a capture came from, not that its content is true. An
+  authenticated insider can still have saved poisoned content with a valid origin; weigh cited answers
+  accordingly and rely on govern policy, human review, and supersession as the content-quality gates.
 
 ## Resources
 

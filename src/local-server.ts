@@ -29,7 +29,7 @@ import {
   type StoredRowTuple,
 } from '@qmd-team-intent-kb/store';
 import { QmdAdapter } from '@qmd-team-intent-kb/qmd-adapter';
-import { rerankCitedHits } from '@qmd-team-intent-kb/common';
+import { loadOrCreateOriginSecret, mintOriginToken, rerankCitedHits } from '@qmd-team-intent-kb/common';
 import { writeToSpool } from '@qmd-team-intent-kb/claude-runtime';
 import { validateTransition } from '@qmd-team-intent-kb/schema';
 import type { MemoryCandidate } from '@qmd-team-intent-kb/schema';
@@ -368,8 +368,34 @@ server.tool(
     filePaths: z.array(z.string()).optional().describe('Related file paths, if any'),
   },
   async (params) => {
+    const id = randomUUID();
+    const capturedAt = new Date().toISOString();
+    // H1 write-time provenance: mint the origin token over (id, tenantId,
+    // capturedAt) with the per-installation secret (~/.teamkb/origin-secret,
+    // auto-created 0600 on first capture; TEAMKB_ORIGIN_SECRET overrides). The
+    // local govern pass verifies it with the SAME file before promotion.
+    // Best-effort: an unwritable base dir degrades to an UNATTESTED capture
+    // (governs exactly like a pre-H1 candidate) rather than losing the capture.
+    // Channel `local-mcp` is self-asserted — local mode is one trust domain
+    // (H4; see the Registrar's 049-AT-DECR).
+    let origin: MemoryCandidate['origin'];
+    try {
+      const secret = loadOrCreateOriginSecret(config.basePath);
+      origin = {
+        tokenHmac: mintOriginToken(secret, {
+          candidateId: id,
+          tenantId: config.tenantId,
+          capturedAt,
+        }),
+        channel: 'local-mcp',
+        mintedAt: capturedAt,
+      };
+    } catch {
+      origin = undefined;
+    }
     const candidate: MemoryCandidate = {
-      id: randomUUID(),
+      schemaVersion: '1',
+      id,
       status: 'inbox',
       source: 'mcp',
       content: params.content,
@@ -380,7 +406,8 @@ server.tool(
       tenantId: config.tenantId,
       metadata: { filePaths: params.filePaths ?? [], tags: [] },
       prePolicyFlags: { potentialSecret: false, lowConfidence: false, duplicateSuspect: false },
-      capturedAt: new Date().toISOString(),
+      capturedAt,
+      ...(origin !== undefined ? { origin } : {}),
     };
     const res = await writeToSpool(candidate, config.spoolPath);
     if (!res.ok) {

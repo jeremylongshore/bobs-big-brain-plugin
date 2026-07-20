@@ -500,3 +500,120 @@ describe('capture — idempotency + durable outbox (jfv.9)', () => {
     expect(readdirSync(box).length).toBe(0);
   });
 });
+
+describe('origin tokens — H1 write-time provenance (team capture)', () => {
+  const SECRET = 'a1'.repeat(32);
+
+  it('mintOriginToken is a deterministic HMAC-SHA256 hex over the NUL-joined identity tuple', async () => {
+    const { mintOriginToken } = await load();
+    const a = mintOriginToken(SECRET, 'id-1', 't1', '2026-07-19T00:00:00.000Z');
+    const b = mintOriginToken(SECRET, 'id-1', 't1', '2026-07-19T00:00:00.000Z');
+    expect(a).toBe(b);
+    expect(a).toMatch(/^[0-9a-f]{64}$/);
+    // Any identity-field change or secret change yields a different token.
+    expect(mintOriginToken(SECRET, 'id-2', 't1', '2026-07-19T00:00:00.000Z')).not.toBe(a);
+    expect(mintOriginToken(SECRET, 'id-1', 't2', '2026-07-19T00:00:00.000Z')).not.toBe(a);
+    expect(mintOriginToken(SECRET, 'id-1', 't1', '2026-07-19T00:00:00.001Z')).not.toBe(a);
+    expect(mintOriginToken('b2'.repeat(32), 'id-1', 't1', '2026-07-19T00:00:00.000Z')).not.toBe(a);
+    // Field boundaries are injective (NUL join, mirrors the Registrar helper).
+    expect(mintOriginToken(SECRET, 'ab', 'c', 'x')).not.toBe(mintOriginToken(SECRET, 'a', 'bc', 'x'));
+  });
+
+  it('capture WITH TEAMKB_ORIGIN_SECRET sends origin { tokenHmac, channel: team-mcp, mintedAt } bound to the POSTed identity', async () => {
+    const { capture, mintOriginToken } = await load({
+      TEAMKB_API_URL: 'http://brain:3847',
+      TEAMKB_TENANT_ID: 't1',
+      TEAMKB_ORIGIN_SECRET: SECRET,
+    });
+    const bodies = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_url, init) => {
+        bodies.push(JSON.parse(init.body));
+        return new Response(JSON.stringify({ intake: 'created' }), { status: 201 });
+      }),
+    );
+    const out = payload(await capture('T', 'attested capture content', undefined, undefined));
+    expect(out['ok']).toBe(true);
+    const sent = bodies[0];
+    expect(sent.origin).toBeDefined();
+    expect(sent.origin.channel).toBe('team-mcp');
+    expect(sent.origin.mintedAt).toBe(sent.capturedAt);
+    // The token verifies against exactly the identity tuple that was POSTed.
+    expect(sent.origin.tokenHmac).toBe(
+      mintOriginToken(SECRET, sent.id, sent.tenantId, sent.capturedAt),
+    );
+  });
+
+  it('capture WITHOUT the secret sends NO origin field (unattested — pre-H1 wire shape, never auto-generates)', async () => {
+    const { capture } = await load({
+      TEAMKB_API_URL: 'http://brain:3847',
+      TEAMKB_TENANT_ID: 't1',
+      TEAMKB_ORIGIN_SECRET: undefined,
+    });
+    const bodies = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_url, init) => {
+        bodies.push(JSON.parse(init.body));
+        return new Response(JSON.stringify({ intake: 'created' }), { status: 201 });
+      }),
+    );
+    const out = payload(await capture('T', 'unattested capture content', undefined, undefined));
+    expect(out['ok']).toBe(true);
+    expect('origin' in bodies[0]).toBe(false);
+  });
+
+  it('a server 422 rejecting the channel claim surfaces as a visible error (H3), not a silent success', async () => {
+    const { capture } = await load({
+      TEAMKB_API_URL: 'http://brain:3847',
+      TEAMKB_TENANT_ID: 't1',
+      TEAMKB_ORIGIN_SECRET: SECRET,
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              error: "origin channel 'team-mcp' is not an authorized capture channel",
+              code: 'unrecognized_channel',
+            }),
+            { status: 422 },
+          ),
+      ),
+    );
+    const out = payload(await capture('T', 'channel-refused content', undefined, undefined));
+    expect(out['ok']).toBe(false);
+    expect(out['status']).toBe(422);
+    expect(String(out['error'])).toMatch(/not an authorized capture channel/);
+  });
+});
+
+describe('origin tokens — byte-equality with the Registrar helper (frozen vector)', () => {
+  it('mints the exact HMAC the Registrar mintOriginToken produces for a frozen known vector', async () => {
+    // FROZEN KNOWN VECTOR — generated ONCE from the Registrar's
+    // @qmd-team-intent-kb/common mintOriginToken (packages/common/src/
+    // origin-token.ts, branch feat/h1-h5-origin-token-schema) via:
+    //   mintOriginToken('9f'.repeat(32), {
+    //     candidateId: '0f0e0d0c-0b0a-5910-8807-060504030201',
+    //     tenantId: 'vector-tenant',
+    //     capturedAt: '2026-07-19T12:34:56.789Z',
+    //   })
+    // and frozen here. If this test ever fails, the plugin's hand-rolled
+    // team-mode mint has drifted from the Registrar's canonical derivation
+    // (NUL-joined (candidateId, tenantId, capturedAt), HMAC-SHA256, lowercase
+    // hex) — the server would reject every token this client mints. Fix the
+    // mint, never the vector.
+    const EXPECTED = '40dc2c6e3284e4c8ecf5bb5f10eaa0195c6491e33877dd1cb7d6d2435fb85ef4';
+    const { mintOriginToken } = await load();
+    expect(
+      mintOriginToken(
+        '9f'.repeat(32),
+        '0f0e0d0c-0b0a-5910-8807-060504030201',
+        'vector-tenant',
+        '2026-07-19T12:34:56.789Z',
+      ),
+    ).toBe(EXPECTED);
+  });
+});

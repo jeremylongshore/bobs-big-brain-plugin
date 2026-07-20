@@ -4208,10 +4208,10 @@ var require_v3 = __commonJS({
     };
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.z = void 0;
-    var z19 = __importStar(require_external());
-    exports2.z = z19;
+    var z20 = __importStar(require_external());
+    exports2.z = z20;
     __exportStar(require_external(), exports2);
-    exports2.default = z19;
+    exports2.default = z20;
   }
 });
 
@@ -20023,8 +20023,8 @@ var require_v4_mini = __commonJS({
     };
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.z = void 0;
-    var z19 = __importStar(require_external2());
-    exports2.z = z19;
+    var z20 = __importStar(require_external2());
+    exports2.z = z20;
     __exportStar(require_external2(), exports2);
   }
 });
@@ -22009,7 +22009,7 @@ var require_from_json_schema = __commonJS({
     var _checks = __importStar(require_checks3());
     var _iso = __importStar(require_iso2());
     var _schemas = __importStar(require_schemas3());
-    var z19 = {
+    var z20 = {
       ..._schemas,
       ..._checks,
       iso: _iso
@@ -22119,7 +22119,7 @@ var require_from_json_schema = __commonJS({
     function convertBaseSchema(schema, ctx) {
       if (schema.not !== void 0) {
         if (typeof schema.not === "object" && Object.keys(schema.not).length === 0) {
-          return z19.never();
+          return z20.never();
         }
         throw new Error("not is not supported in Zod (except { not: {} } for never)");
       }
@@ -22141,7 +22141,7 @@ var require_from_json_schema = __commonJS({
           return ctx.refs.get(refPath);
         }
         if (ctx.processing.has(refPath)) {
-          return z19.lazy(() => {
+          return z20.lazy(() => {
             if (!ctx.refs.has(refPath)) {
               throw new Error(`Circular reference not resolved: ${refPath}`);
             }
@@ -22158,25 +22158,25 @@ var require_from_json_schema = __commonJS({
       if (schema.enum !== void 0) {
         const enumValues = schema.enum;
         if (ctx.version === "openapi-3.0" && schema.nullable === true && enumValues.length === 1 && enumValues[0] === null) {
-          return z19.null();
+          return z20.null();
         }
         if (enumValues.length === 0) {
-          return z19.never();
+          return z20.never();
         }
         if (enumValues.length === 1) {
-          return z19.literal(enumValues[0]);
+          return z20.literal(enumValues[0]);
         }
         if (enumValues.every((v) => typeof v === "string")) {
-          return z19.enum(enumValues);
+          return z20.enum(enumValues);
         }
-        const literalSchemas = enumValues.map((v) => z19.literal(v));
+        const literalSchemas = enumValues.map((v) => z20.literal(v));
         if (literalSchemas.length < 2) {
           return literalSchemas[0];
         }
-        return z19.union([literalSchemas[0], literalSchemas[1], ...literalSchemas.slice(2)]);
+        return z20.union([literalSchemas[0], literalSchemas[1], ...literalSchemas.slice(2)]);
       }
       if (schema.const !== void 0) {
-        return z19.literal(schema.const);
+        return z20.literal(schema.const);
       }
       const type = schema.type;
       if (Array.isArray(type)) {
@@ -22185,68 +22185,68 @@ var require_from_json_schema = __commonJS({
           return convertBaseSchema(typeSchema, ctx);
         });
         if (typeSchemas.length === 0) {
-          return z19.never();
+          return z20.never();
         }
         if (typeSchemas.length === 1) {
           return typeSchemas[0];
         }
-        return z19.union(typeSchemas);
+        return z20.union(typeSchemas);
       }
       if (!type) {
-        return z19.any();
+        return z20.any();
       }
       let zodSchema;
       switch (type) {
         case "string": {
-          let stringSchema = z19.string();
+          let stringSchema = z20.string();
           if (schema.format) {
             const format = schema.format;
             if (format === "email") {
-              stringSchema = stringSchema.check(z19.email());
+              stringSchema = stringSchema.check(z20.email());
             } else if (format === "uri" || format === "uri-reference") {
-              stringSchema = stringSchema.check(z19.url());
+              stringSchema = stringSchema.check(z20.url());
             } else if (format === "uuid" || format === "guid") {
-              stringSchema = stringSchema.check(z19.uuid());
+              stringSchema = stringSchema.check(z20.uuid());
             } else if (format === "date-time") {
-              stringSchema = stringSchema.check(z19.iso.datetime());
+              stringSchema = stringSchema.check(z20.iso.datetime());
             } else if (format === "date") {
-              stringSchema = stringSchema.check(z19.iso.date());
+              stringSchema = stringSchema.check(z20.iso.date());
             } else if (format === "time") {
-              stringSchema = stringSchema.check(z19.iso.time());
+              stringSchema = stringSchema.check(z20.iso.time());
             } else if (format === "duration") {
-              stringSchema = stringSchema.check(z19.iso.duration());
+              stringSchema = stringSchema.check(z20.iso.duration());
             } else if (format === "ipv4") {
-              stringSchema = stringSchema.check(z19.ipv4());
+              stringSchema = stringSchema.check(z20.ipv4());
             } else if (format === "ipv6") {
-              stringSchema = stringSchema.check(z19.ipv6());
+              stringSchema = stringSchema.check(z20.ipv6());
             } else if (format === "mac") {
-              stringSchema = stringSchema.check(z19.mac());
+              stringSchema = stringSchema.check(z20.mac());
             } else if (format === "cidr") {
-              stringSchema = stringSchema.check(z19.cidrv4());
+              stringSchema = stringSchema.check(z20.cidrv4());
             } else if (format === "cidr-v6") {
-              stringSchema = stringSchema.check(z19.cidrv6());
+              stringSchema = stringSchema.check(z20.cidrv6());
             } else if (format === "base64") {
-              stringSchema = stringSchema.check(z19.base64());
+              stringSchema = stringSchema.check(z20.base64());
             } else if (format === "base64url") {
-              stringSchema = stringSchema.check(z19.base64url());
+              stringSchema = stringSchema.check(z20.base64url());
             } else if (format === "e164") {
-              stringSchema = stringSchema.check(z19.e164());
+              stringSchema = stringSchema.check(z20.e164());
             } else if (format === "jwt") {
-              stringSchema = stringSchema.check(z19.jwt());
+              stringSchema = stringSchema.check(z20.jwt());
             } else if (format === "emoji") {
-              stringSchema = stringSchema.check(z19.emoji());
+              stringSchema = stringSchema.check(z20.emoji());
             } else if (format === "nanoid") {
-              stringSchema = stringSchema.check(z19.nanoid());
+              stringSchema = stringSchema.check(z20.nanoid());
             } else if (format === "cuid") {
-              stringSchema = stringSchema.check(z19.cuid());
+              stringSchema = stringSchema.check(z20.cuid());
             } else if (format === "cuid2") {
-              stringSchema = stringSchema.check(z19.cuid2());
+              stringSchema = stringSchema.check(z20.cuid2());
             } else if (format === "ulid") {
-              stringSchema = stringSchema.check(z19.ulid());
+              stringSchema = stringSchema.check(z20.ulid());
             } else if (format === "xid") {
-              stringSchema = stringSchema.check(z19.xid());
+              stringSchema = stringSchema.check(z20.xid());
             } else if (format === "ksuid") {
-              stringSchema = stringSchema.check(z19.ksuid());
+              stringSchema = stringSchema.check(z20.ksuid());
             }
           }
           if (typeof schema.minLength === "number") {
@@ -22263,7 +22263,7 @@ var require_from_json_schema = __commonJS({
         }
         case "number":
         case "integer": {
-          let numberSchema = type === "integer" ? z19.number().int() : z19.number();
+          let numberSchema = type === "integer" ? z20.number().int() : z20.number();
           if (typeof schema.minimum === "number") {
             numberSchema = numberSchema.min(schema.minimum);
           }
@@ -22287,11 +22287,11 @@ var require_from_json_schema = __commonJS({
           break;
         }
         case "boolean": {
-          zodSchema = z19.boolean();
+          zodSchema = z20.boolean();
           break;
         }
         case "null": {
-          zodSchema = z19.null();
+          zodSchema = z20.null();
           break;
         }
         case "object": {
@@ -22304,14 +22304,14 @@ var require_from_json_schema = __commonJS({
           }
           if (schema.propertyNames) {
             const keySchema = convertSchema(schema.propertyNames, ctx);
-            const valueSchema = schema.additionalProperties && typeof schema.additionalProperties === "object" ? convertSchema(schema.additionalProperties, ctx) : z19.any();
+            const valueSchema = schema.additionalProperties && typeof schema.additionalProperties === "object" ? convertSchema(schema.additionalProperties, ctx) : z20.any();
             if (Object.keys(shape).length === 0) {
-              zodSchema = z19.record(keySchema, valueSchema);
+              zodSchema = z20.record(keySchema, valueSchema);
               break;
             }
-            const objectSchema2 = z19.object(shape).passthrough();
-            const recordSchema = z19.looseRecord(keySchema, valueSchema);
-            zodSchema = z19.intersection(objectSchema2, recordSchema);
+            const objectSchema2 = z20.object(shape).passthrough();
+            const recordSchema = z20.looseRecord(keySchema, valueSchema);
+            zodSchema = z20.intersection(objectSchema2, recordSchema);
             break;
           }
           if (schema.patternProperties) {
@@ -22320,28 +22320,28 @@ var require_from_json_schema = __commonJS({
             const looseRecords = [];
             for (const pattern of patternKeys) {
               const patternValue = convertSchema(patternProps[pattern], ctx);
-              const keySchema = z19.string().regex(new RegExp(pattern));
-              looseRecords.push(z19.looseRecord(keySchema, patternValue));
+              const keySchema = z20.string().regex(new RegExp(pattern));
+              looseRecords.push(z20.looseRecord(keySchema, patternValue));
             }
             const schemasToIntersect = [];
             if (Object.keys(shape).length > 0) {
-              schemasToIntersect.push(z19.object(shape).passthrough());
+              schemasToIntersect.push(z20.object(shape).passthrough());
             }
             schemasToIntersect.push(...looseRecords);
             if (schemasToIntersect.length === 0) {
-              zodSchema = z19.object({}).passthrough();
+              zodSchema = z20.object({}).passthrough();
             } else if (schemasToIntersect.length === 1) {
               zodSchema = schemasToIntersect[0];
             } else {
-              let result = z19.intersection(schemasToIntersect[0], schemasToIntersect[1]);
+              let result = z20.intersection(schemasToIntersect[0], schemasToIntersect[1]);
               for (let i = 2; i < schemasToIntersect.length; i++) {
-                result = z19.intersection(result, schemasToIntersect[i]);
+                result = z20.intersection(result, schemasToIntersect[i]);
               }
               zodSchema = result;
             }
             break;
           }
-          const objectSchema = z19.object(shape);
+          const objectSchema = z20.object(shape);
           if (schema.additionalProperties === false) {
             zodSchema = objectSchema.strict();
           } else if (typeof schema.additionalProperties === "object") {
@@ -22358,33 +22358,33 @@ var require_from_json_schema = __commonJS({
             const tupleItems = prefixItems.map((item) => convertSchema(item, ctx));
             const rest = items && typeof items === "object" && !Array.isArray(items) ? convertSchema(items, ctx) : void 0;
             if (rest) {
-              zodSchema = z19.tuple(tupleItems).rest(rest);
+              zodSchema = z20.tuple(tupleItems).rest(rest);
             } else {
-              zodSchema = z19.tuple(tupleItems);
+              zodSchema = z20.tuple(tupleItems);
             }
             if (typeof schema.minItems === "number") {
-              zodSchema = zodSchema.check(z19.minLength(schema.minItems));
+              zodSchema = zodSchema.check(z20.minLength(schema.minItems));
             }
             if (typeof schema.maxItems === "number") {
-              zodSchema = zodSchema.check(z19.maxLength(schema.maxItems));
+              zodSchema = zodSchema.check(z20.maxLength(schema.maxItems));
             }
           } else if (Array.isArray(items)) {
             const tupleItems = items.map((item) => convertSchema(item, ctx));
             const rest = schema.additionalItems && typeof schema.additionalItems === "object" ? convertSchema(schema.additionalItems, ctx) : void 0;
             if (rest) {
-              zodSchema = z19.tuple(tupleItems).rest(rest);
+              zodSchema = z20.tuple(tupleItems).rest(rest);
             } else {
-              zodSchema = z19.tuple(tupleItems);
+              zodSchema = z20.tuple(tupleItems);
             }
             if (typeof schema.minItems === "number") {
-              zodSchema = zodSchema.check(z19.minLength(schema.minItems));
+              zodSchema = zodSchema.check(z20.minLength(schema.minItems));
             }
             if (typeof schema.maxItems === "number") {
-              zodSchema = zodSchema.check(z19.maxLength(schema.maxItems));
+              zodSchema = zodSchema.check(z20.maxLength(schema.maxItems));
             }
           } else if (items !== void 0) {
             const element = convertSchema(items, ctx);
-            let arraySchema = z19.array(element);
+            let arraySchema = z20.array(element);
             if (typeof schema.minItems === "number") {
               arraySchema = arraySchema.min(schema.minItems);
             }
@@ -22393,7 +22393,7 @@ var require_from_json_schema = __commonJS({
             }
             zodSchema = arraySchema;
           } else {
-            zodSchema = z19.array(z19.any());
+            zodSchema = z20.array(z20.any());
           }
           break;
         }
@@ -22404,37 +22404,37 @@ var require_from_json_schema = __commonJS({
     }
     function convertSchema(schema, ctx) {
       if (typeof schema === "boolean") {
-        return schema ? z19.any() : z19.never();
+        return schema ? z20.any() : z20.never();
       }
       let baseSchema = convertBaseSchema(schema, ctx);
       const hasExplicitType = schema.type || schema.enum !== void 0 || schema.const !== void 0;
       if (schema.anyOf && Array.isArray(schema.anyOf)) {
         const options = schema.anyOf.map((s) => convertSchema(s, ctx));
-        const anyOfUnion = z19.union(options);
-        baseSchema = hasExplicitType ? z19.intersection(baseSchema, anyOfUnion) : anyOfUnion;
+        const anyOfUnion = z20.union(options);
+        baseSchema = hasExplicitType ? z20.intersection(baseSchema, anyOfUnion) : anyOfUnion;
       }
       if (schema.oneOf && Array.isArray(schema.oneOf)) {
         const options = schema.oneOf.map((s) => convertSchema(s, ctx));
-        const oneOfUnion = z19.xor(options);
-        baseSchema = hasExplicitType ? z19.intersection(baseSchema, oneOfUnion) : oneOfUnion;
+        const oneOfUnion = z20.xor(options);
+        baseSchema = hasExplicitType ? z20.intersection(baseSchema, oneOfUnion) : oneOfUnion;
       }
       if (schema.allOf && Array.isArray(schema.allOf)) {
         if (schema.allOf.length === 0) {
-          baseSchema = hasExplicitType ? baseSchema : z19.any();
+          baseSchema = hasExplicitType ? baseSchema : z20.any();
         } else {
           let result = hasExplicitType ? baseSchema : convertSchema(schema.allOf[0], ctx);
           const startIdx = hasExplicitType ? 0 : 1;
           for (let i = startIdx; i < schema.allOf.length; i++) {
-            result = z19.intersection(result, convertSchema(schema.allOf[i], ctx));
+            result = z20.intersection(result, convertSchema(schema.allOf[i], ctx));
           }
           baseSchema = result;
         }
       }
       if (schema.nullable === true && ctx.version === "openapi-3.0") {
-        baseSchema = z19.nullable(baseSchema);
+        baseSchema = z20.nullable(baseSchema);
       }
       if (schema.readOnly === true) {
-        baseSchema = z19.readonly(baseSchema);
+        baseSchema = z20.readonly(baseSchema);
       }
       if (schema.default !== void 0) {
         baseSchema = baseSchema.default(schema.default);
@@ -22467,7 +22467,7 @@ var require_from_json_schema = __commonJS({
     }
     function fromJSONSchema(schema, params) {
       if (typeof schema === "boolean") {
-        return schema ? z19.any() : z19.never();
+        return schema ? z20.any() : z20.never();
       }
       let normalized;
       try {
@@ -22704,10 +22704,10 @@ var require_classic = __commonJS({
     };
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.z = void 0;
-    var z19 = __importStar(require_external3());
-    exports2.z = z19;
+    var z20 = __importStar(require_external3());
+    exports2.z = z20;
     __exportStar(require_external3(), exports2);
-    exports2.default = z19;
+    exports2.default = z20;
   }
 });
 
@@ -34595,10 +34595,10 @@ var require_zod = __commonJS({
     };
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.z = void 0;
-    var z19 = __importStar(require_external3());
-    exports2.z = z19;
+    var z20 = __importStar(require_external3());
+    exports2.z = z20;
     __exportStar(require_external3(), exports2);
-    exports2.default = z19;
+    exports2.default = z20;
   }
 });
 
@@ -35520,12 +35520,17 @@ __export(remote_server_exports, {
   drainOutbox: () => drainOutbox,
   errorResult: () => errorResult,
   listInbox: () => listInbox,
+  mintOriginToken: () => mintOriginToken,
   outboxDir: () => outboxDir,
   rejectCandidate: () => rejectCandidate,
   search: () => search,
   startRemoteServer: () => startRemoteServer,
   status: () => status
 });
+function mintOriginToken(secret, candidateId, tenantId, capturedAt) {
+  const payload = [candidateId, tenantId, capturedAt].join(String.fromCharCode(0));
+  return (0, import_node_crypto.createHmac)("sha256", secret).update(payload, "utf8").digest("hex");
+}
 function jsonResult(obj) {
   return { content: [{ type: "text", text: JSON.stringify(obj, null, 2) }] };
 }
@@ -35679,12 +35684,12 @@ async function search(query, scope, limit) {
   return jsonResult({ source: "brain-api", query, scope, count: results.length, results });
 }
 async function status() {
-  const tokenSet = API_TOKEN !== void 0 && API_TOKEN !== "";
+  const tokenSet2 = API_TOKEN !== void 0 && API_TOKEN !== "";
   if (API_URL === void 0 || API_URL === "") {
     return jsonResult({
       mode: "team",
       apiUrl: null,
-      tokenSet,
+      tokenSet: tokenSet2,
       healthy: false,
       version: null,
       error: "unconfigured \u2014 set TEAMKB_API_URL to your team brain"
@@ -35698,7 +35703,7 @@ async function status() {
     return jsonResult({
       mode: "team",
       apiUrl,
-      tokenSet,
+      tokenSet: tokenSet2,
       healthy: false,
       version: null,
       error: `could not reach the brain API: ${e instanceof Error ? e.message : String(e)}`
@@ -35711,14 +35716,16 @@ async function status() {
   } catch {
     version = null;
   }
-  return jsonResult({ mode: "team", apiUrl, tokenSet, healthy: res.ok, version });
+  return jsonResult({ mode: "team", apiUrl, tokenSet: tokenSet2, healthy: res.ok, version });
 }
 async function capture(title, content, category, filePaths, sessionId, learningIndex) {
   if (API_URL === void 0 || API_URL === "") {
     return jsonResult({ ok: false, error: "unconfigured \u2014 set TEAMKB_API_URL to your team brain" });
   }
+  const candidateId = deriveCandidateId(TENANT_ID, title, content, sessionId, learningIndex);
+  const capturedAt = (/* @__PURE__ */ new Date()).toISOString();
   const candidate = {
-    id: deriveCandidateId(TENANT_ID, title, content, sessionId, learningIndex),
+    id: candidateId,
     status: "inbox",
     source: "mcp",
     content,
@@ -35734,7 +35741,16 @@ async function capture(title, content, category, filePaths, sessionId, learningI
       ...typeof learningIndex === "number" && Number.isInteger(learningIndex) ? { learningIndex } : {}
     },
     prePolicyFlags: { potentialSecret: false, lowConfidence: false, duplicateSuspect: false },
-    capturedAt: (/* @__PURE__ */ new Date()).toISOString()
+    capturedAt,
+    // H1 write-time provenance — only when the admin distributed the secret.
+    // Unset → no origin field at all (unattested; identical to pre-H1 bodies).
+    ...ORIGIN_SECRET !== void 0 ? {
+      origin: {
+        tokenHmac: mintOriginToken(ORIGIN_SECRET, candidateId, TENANT_ID, capturedAt),
+        channel: TEAM_ORIGIN_CHANNEL,
+        mintedAt: capturedAt
+      }
+    } : {}
   };
   const body = JSON.stringify(candidate);
   let res;
@@ -35900,7 +35916,7 @@ async function startRemoteServer() {
 `
   );
 }
-var import_node_crypto, import_promises, import_node_os2, import_node_path2, import_zod2, VERSION, API_URL, API_TOKEN, TENANT_ID, CATEGORIES, CANDIDATE_ID_NAMESPACE, draining, server;
+var import_node_crypto, import_promises, import_node_os2, import_node_path2, import_zod2, VERSION, API_URL, API_TOKEN, TENANT_ID, ORIGIN_SECRET, TEAM_ORIGIN_CHANNEL, CATEGORIES, CANDIDATE_ID_NAMESPACE, draining, server;
 var init_remote_server = __esm({
   "src/remote-server.ts"() {
     "use strict";
@@ -35915,6 +35931,8 @@ var init_remote_server = __esm({
     API_URL = process.env["TEAMKB_API_URL"];
     API_TOKEN = process.env["TEAMKB_API_TOKEN"];
     TENANT_ID = process.env["TEAMKB_TENANT_ID"]?.trim() || "intent-solutions";
+    ORIGIN_SECRET = process.env["TEAMKB_ORIGIN_SECRET"]?.trim() || void 0;
+    TEAM_ORIGIN_CHANNEL = "team-mcp";
     CATEGORIES = [
       "decision",
       "pattern",
@@ -36038,10 +36056,18 @@ var init_remote_server = __esm({
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/store/dist/schema.js
-var CANDIDATES_DDL, CURATED_MEMORIES_DDL, GOVERNANCE_POLICIES_DDL, AUDIT_EVENTS_DDL, EXPORT_STATE_DDL, SCHEMA_MIGRATIONS_DDL, TABLE_DDL, MIGRATIONS;
+// ../gsb-h1-reg/packages/store/dist/schema.js
+function applyCheckConstraintBackfill(db) {
+  const row = db.prepare("SELECT sql FROM sqlite_schema WHERE type = 'table' AND name = 'curated_memories'").get();
+  if (row !== void 0 && /CHECK\s*\(\s*category\s+IN/i.test(row.sql)) {
+    return;
+  }
+  db.exec(CURATED_MEMORIES_V9_REBUILD);
+  db.exec("INSERT INTO curated_memories_fts(curated_memories_fts) VALUES ('rebuild');");
+}
+var CANDIDATES_DDL, CURATED_MEMORIES_DDL, GOVERNANCE_POLICIES_DDL, AUDIT_EVENTS_DDL, EXPORT_STATE_DDL, SCHEMA_MIGRATIONS_DDL, TABLE_DDL, CURATED_MEMORIES_V9_REBUILD, MIGRATIONS;
 var init_schema = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/store/dist/schema.js"() {
+  "../gsb-h1-reg/packages/store/dist/schema.js"() {
     "use strict";
     CANDIDATES_DDL = `
 CREATE TABLE IF NOT EXISTS candidates (
@@ -36067,16 +36093,16 @@ CREATE INDEX IF NOT EXISTS idx_candidates_hash ON candidates(content_hash);
 CREATE TABLE IF NOT EXISTS curated_memories (
   id TEXT PRIMARY KEY,
   candidate_id TEXT NOT NULL,
-  source TEXT NOT NULL,
+  source TEXT NOT NULL CHECK (source IN ('claude_session', 'manual', 'import', 'mcp', 'bulk_import')),
   content TEXT NOT NULL,
   title TEXT NOT NULL,
-  category TEXT NOT NULL,
-  trust_level TEXT NOT NULL,
-  sensitivity TEXT NOT NULL DEFAULT 'internal',
+  category TEXT NOT NULL CHECK (category IN ('decision', 'pattern', 'convention', 'architecture', 'troubleshooting', 'reference', 'onboarding')),
+  trust_level TEXT NOT NULL CHECK (trust_level IN ('high', 'medium', 'low', 'untrusted')),
+  sensitivity TEXT NOT NULL DEFAULT 'internal' CHECK (sensitivity IN ('public', 'internal', 'confidential', 'restricted')),
   author_json TEXT NOT NULL,
   tenant_id TEXT NOT NULL,
   metadata_json TEXT NOT NULL DEFAULT '{}',
-  lifecycle TEXT NOT NULL DEFAULT 'active',
+  lifecycle TEXT NOT NULL DEFAULT 'active' CHECK (lifecycle IN ('active', 'deprecated', 'superseded', 'archived')),
   content_hash TEXT NOT NULL,
   policy_evaluations_json TEXT NOT NULL DEFAULT '[]',
   supersession_json TEXT,
@@ -36144,6 +36170,65 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
       EXPORT_STATE_DDL,
       SCHEMA_MIGRATIONS_DDL
     ];
+    CURATED_MEMORIES_V9_REBUILD = `
+CREATE TABLE curated_memories_v9_new (
+  id TEXT PRIMARY KEY,
+  candidate_id TEXT NOT NULL,
+  source TEXT NOT NULL CHECK (source IN ('claude_session', 'manual', 'import', 'mcp', 'bulk_import')),
+  content TEXT NOT NULL,
+  title TEXT NOT NULL,
+  category TEXT NOT NULL CHECK (category IN ('decision', 'pattern', 'convention', 'architecture', 'troubleshooting', 'reference', 'onboarding')),
+  trust_level TEXT NOT NULL CHECK (trust_level IN ('high', 'medium', 'low', 'untrusted')),
+  sensitivity TEXT NOT NULL DEFAULT 'internal' CHECK (sensitivity IN ('public', 'internal', 'confidential', 'restricted')),
+  author_json TEXT NOT NULL,
+  tenant_id TEXT NOT NULL,
+  metadata_json TEXT NOT NULL DEFAULT '{}',
+  lifecycle TEXT NOT NULL DEFAULT 'active' CHECK (lifecycle IN ('active', 'deprecated', 'superseded', 'archived')),
+  content_hash TEXT NOT NULL,
+  policy_evaluations_json TEXT NOT NULL DEFAULT '[]',
+  supersession_json TEXT,
+  promoted_at TEXT NOT NULL,
+  promoted_by_json TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  version INTEGER NOT NULL DEFAULT 1
+);
+INSERT INTO curated_memories_v9_new (
+  rowid, id, candidate_id, source, content, title, category, trust_level, sensitivity,
+  author_json, tenant_id, metadata_json, lifecycle, content_hash, policy_evaluations_json,
+  supersession_json, promoted_at, promoted_by_json, updated_at, version
+)
+SELECT
+  rowid, id, candidate_id, source, content, title, category, trust_level, sensitivity,
+  author_json, tenant_id, metadata_json, lifecycle, content_hash, policy_evaluations_json,
+  supersession_json, promoted_at, promoted_by_json, updated_at, version
+FROM curated_memories;
+DROP TABLE curated_memories;
+ALTER TABLE curated_memories_v9_new RENAME TO curated_memories;
+CREATE INDEX idx_memories_tenant ON curated_memories(tenant_id);
+CREATE INDEX idx_memories_hash ON curated_memories(content_hash);
+CREATE INDEX idx_memories_lifecycle ON curated_memories(lifecycle);
+CREATE INDEX idx_memories_updated ON curated_memories(updated_at);
+CREATE INDEX idx_memories_tenant_lifecycle ON curated_memories(tenant_id, lifecycle);
+CREATE INDEX idx_memories_lifecycle_updated ON curated_memories(lifecycle, updated_at);
+CREATE INDEX idx_memories_tenant_category ON curated_memories(tenant_id, category);
+CREATE TRIGGER curated_memories_fts_insert
+AFTER INSERT ON curated_memories BEGIN
+  INSERT INTO curated_memories_fts(rowid, title, content)
+  VALUES (new.rowid, new.title, new.content);
+END;
+CREATE TRIGGER curated_memories_fts_delete
+AFTER DELETE ON curated_memories BEGIN
+  INSERT INTO curated_memories_fts(curated_memories_fts, rowid, title, content)
+  VALUES ('delete', old.rowid, old.title, old.content);
+END;
+CREATE TRIGGER curated_memories_fts_update
+AFTER UPDATE ON curated_memories BEGIN
+  INSERT INTO curated_memories_fts(curated_memories_fts, rowid, title, content)
+  VALUES ('delete', old.rowid, old.title, old.content);
+  INSERT INTO curated_memories_fts(rowid, title, content)
+  VALUES (new.rowid, new.title, new.content);
+END;
+`.trim();
     MIGRATIONS = [
       {
         version: 1,
@@ -36334,12 +36419,57 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_audit_seq ON audit_events(seq);
         sql: `
 CREATE INDEX IF NOT EXISTS idx_candidates_status_tenant ON candidates(status, tenant_id);
     `.trim()
+      },
+      {
+        version: 9,
+        name: "backfill_curated_memories_enum_check_constraints",
+        apply: applyCheckConstraintBackfill,
+        rebuildsTable: true
+      },
+      {
+        // Index-freshness tracking (D1/D2 — promote→search latency observability).
+        //
+        // One row per tenant recording when the derived search index (kb-export
+        // markdown tree + qmd/FTS5 index) last COMPLETED its export→reindex chain.
+        // The "index dirty" signal is DERIVED, not stored: a tenant is dirty when
+        // any curated_memories.promoted_at is newer than last_indexed_at — see
+        // IndexStateRepository for the rationale (atomic-by-construction with the
+        // promotion transaction; no caller can forget to set it).
+        //
+        // last_indexed_at is an ISO-8601 UTC string written by app code (NOT
+        // datetime('now'), whose 'YYYY-MM-DD HH:MM:SS' shape would break the
+        // lexicographic comparison against promoted_at's toISOString format).
+        version: 10,
+        name: "add_index_state",
+        sql: `
+CREATE TABLE IF NOT EXISTS index_state (
+  tenant_id TEXT PRIMARY KEY,
+  last_indexed_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+    `.trim()
+      },
+      {
+        // Write-time provenance (GSB Wave-2 H1). One nullable JSON column holding
+        // the candidate's optional `origin` attestation ({ tokenHmac, channel,
+        // mintedAt } — validated by the Zod `CandidateOrigin` schema, mirroring the
+        // other *_json columns; no CHECK constraint, so future origin fields need
+        // no further migration). NULL = unattested (every pre-H1 row), which the
+        // govern path accepts for backward compatibility — only a PRESENT-but-
+        // unverifiable origin rejects. Purely additive: no existing row changes, no
+        // index (origin is never a query key; verification reads the row it
+        // already has).
+        version: 11,
+        name: "add_candidates_origin",
+        sql: `
+ALTER TABLE candidates ADD COLUMN origin_json TEXT;
+    `.trim()
       }
     ];
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/store/dist/database.js
+// ../gsb-h1-reg/packages/store/dist/database.js
 function ensureSecureDirectory(dbPath) {
   if (dbPath === ":memory:")
     return;
@@ -36379,17 +36509,39 @@ function runMigrations(db) {
   const pending = MIGRATIONS.filter((m) => m.version > currentVersion.v).sort((a, b) => a.version - b.version);
   if (pending.length === 0)
     return;
+  const needsForeignKeysOff = pending.some((m) => m.rebuildsTable === true);
+  if (needsForeignKeysOff) {
+    db.pragma("foreign_keys = OFF");
+  }
   const applyAll = db.transaction(() => {
     for (const migration of pending) {
-      db.exec(migration.sql);
+      if (migration.apply !== void 0) {
+        migration.apply(db);
+      } else if (migration.sql !== void 0) {
+        db.exec(migration.sql);
+      } else {
+        throw new Error(`Migration ${migration.version} (${migration.name}) has neither sql nor apply`);
+      }
       db.prepare("INSERT INTO schema_migrations (version, name) VALUES (?, ?)").run(migration.version, migration.name);
     }
+    if (needsForeignKeysOff) {
+      const violations = db.pragma("foreign_key_check");
+      if (Array.isArray(violations) && violations.length > 0) {
+        throw new Error(`Migration foreign_key_check found ${violations.length} violation(s): ${JSON.stringify(violations)}`);
+      }
+    }
   });
-  applyAll();
+  try {
+    applyAll();
+  } finally {
+    if (needsForeignKeysOff) {
+      db.pragma("foreign_keys = ON");
+    }
+  }
 }
 var import_node_fs2, import_node_path3, import_better_sqlite3;
 var init_database = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/store/dist/database.js"() {
+  "../gsb-h1-reg/packages/store/dist/database.js"() {
     "use strict";
     import_node_fs2 = require("node:fs");
     import_node_path3 = require("node:path");
@@ -36398,13 +36550,13 @@ var init_database = __esm({
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/schema/dist/enums.js
+// ../gsb-h1-reg/packages/schema/dist/enums.js
 var import_zod3, MemorySource, TrustLevel, MemoryCategory, MemoryLifecycleState, CandidateStatus, SearchScope, PolicyRuleType, PolicyRuleAction, AuditAction, ProposerRole, Confidence, Sensitivity, AuthorType, LinkType, LinkSource, ImportBatchStatus;
 var init_enums = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/schema/dist/enums.js"() {
+  "../gsb-h1-reg/packages/schema/dist/enums.js"() {
     "use strict";
     import_zod3 = __toESM(require_zod(), 1);
-    MemorySource = import_zod3.z.enum(["claude_session", "manual", "import", "mcp"]);
+    MemorySource = import_zod3.z.enum(["claude_session", "manual", "import", "mcp", "bulk_import"]);
     TrustLevel = import_zod3.z.enum(["high", "medium", "low", "untrusted"]);
     MemoryCategory = import_zod3.z.enum([
       "decision",
@@ -36433,7 +36585,8 @@ var init_enums = __esm({
       "source_trust",
       "tenant_match",
       "sensitivity_gate",
-      "content_sanitization"
+      "content_sanitization",
+      "contradiction_check"
     ]);
     PolicyRuleAction = import_zod3.z.enum(["reject", "flag", "approve", "require_review"]);
     AuditAction = import_zod3.z.enum([
@@ -36444,6 +36597,11 @@ var init_enums = __esm({
       "deleted",
       "searched",
       "exported",
+      // Governed in-place category correction (5bm.7). A miscategorized memory —
+      // category is assigned probabilistically at compile time — is corrected with a
+      // receipted audit event carrying {fromCategory, toCategory}, instead of the
+      // supersede-and-recreate path that inflated the superseded-churn the audit found.
+      "recategorized",
       // Evidence Bundle emission on a curation/promotion cycle (IEP unification
       // thesis, DR-010 Q3). Added for the eval-surface emit path (bead tr08.15/.17/.19).
       "eval-result",
@@ -36477,10 +36635,10 @@ var init_enums = __esm({
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/schema/dist/common.js
+// ../gsb-h1-reg/packages/schema/dist/common.js
 var import_zod4, Uuid, Sha256Hash, IsoDatetime, NonEmptyString, SemVer, Tag, Author, TenantId, ContentMetadata;
 var init_common = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/schema/dist/common.js"() {
+  "../gsb-h1-reg/packages/schema/dist/common.js"() {
     "use strict";
     import_zod4 = __toESM(require_zod(), 1);
     init_enums();
@@ -36522,10 +36680,10 @@ var init_common = __esm({
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/schema/dist/memory-candidate.js
-var import_zod5, PrePolicyFlags, MemoryCandidate;
+// ../gsb-h1-reg/packages/schema/dist/memory-candidate.js
+var import_zod5, PrePolicyFlags, MEMORY_CANDIDATE_SCHEMA_VERSION, OriginChannel, CandidateOrigin, MemoryCandidate;
 var init_memory_candidate = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/schema/dist/memory-candidate.js"() {
+  "../gsb-h1-reg/packages/schema/dist/memory-candidate.js"() {
     "use strict";
     import_zod5 = __toESM(require_zod(), 1);
     init_enums();
@@ -36535,7 +36693,21 @@ var init_memory_candidate = __esm({
       lowConfidence: import_zod5.z.boolean().default(false),
       duplicateSuspect: import_zod5.z.boolean().default(false)
     });
+    MEMORY_CANDIDATE_SCHEMA_VERSION = "1";
+    OriginChannel = import_zod5.z.string().regex(/^[a-z0-9][a-z0-9-]*$/).max(64);
+    CandidateOrigin = import_zod5.z.object({
+      /** HMAC-SHA256 of (id, tenantId, capturedAt) under the installation secret — lowercase hex. */
+      tokenHmac: import_zod5.z.string().regex(/^[0-9a-f]{64}$/),
+      /** Which capture surface minted this (e.g. `local-mcp`, `team-mcp`). Self-asserted in local mode (H4). */
+      channel: OriginChannel,
+      /** When the token was minted (ISO-8601). Informational; the HMAC binds `capturedAt`, not this. */
+      mintedAt: IsoDatetime
+    }).refine((o) => o.channel !== "unattested", {
+      message: "origin.channel 'unattested' is reserved receipt vocabulary for candidates without an origin \u2014 a client cannot claim it",
+      path: ["channel"]
+    });
     MemoryCandidate = import_zod5.z.object({
+      schemaVersion: import_zod5.z.literal(MEMORY_CANDIDATE_SCHEMA_VERSION).default(MEMORY_CANDIDATE_SCHEMA_VERSION),
       id: Uuid,
       status: CandidateStatus,
       source: MemorySource,
@@ -36551,15 +36723,17 @@ var init_memory_candidate = __esm({
         lowConfidence: false,
         duplicateSuspect: false
       }),
-      capturedAt: IsoDatetime
+      capturedAt: IsoDatetime,
+      /** Optional write-time provenance attestation (H1) — verified before promotion when present. */
+      origin: CandidateOrigin.optional()
     });
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/schema/dist/curated-memory.js
+// ../gsb-h1-reg/packages/schema/dist/curated-memory.js
 var import_zod6, PolicyEvaluation, SupersessionLink, CuratedMemory;
 var init_curated_memory = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/schema/dist/curated-memory.js"() {
+  "../gsb-h1-reg/packages/schema/dist/curated-memory.js"() {
     "use strict";
     import_zod6 = __toESM(require_zod(), 1);
     init_enums();
@@ -36608,10 +36782,10 @@ var init_curated_memory = __esm({
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/schema/dist/governance-policy.js
+// ../gsb-h1-reg/packages/schema/dist/governance-policy.js
 var import_zod7, PolicyRule, GovernancePolicy;
 var init_governance_policy = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/schema/dist/governance-policy.js"() {
+  "../gsb-h1-reg/packages/schema/dist/governance-policy.js"() {
     "use strict";
     import_zod7 = __toESM(require_zod(), 1);
     init_enums();
@@ -36638,10 +36812,10 @@ var init_governance_policy = __esm({
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/schema/dist/search.js
+// ../gsb-h1-reg/packages/schema/dist/search.js
 var import_zod8, Pagination, SearchQuery, SearchHit, SearchResult;
 var init_search = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/schema/dist/search.js"() {
+  "../gsb-h1-reg/packages/schema/dist/search.js"() {
     "use strict";
     import_zod8 = __toESM(require_zod(), 1);
     init_enums();
@@ -36694,10 +36868,10 @@ var init_search = __esm({
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/schema/dist/audit-event.js
+// ../gsb-h1-reg/packages/schema/dist/audit-event.js
 var import_zod9, AuditEvent;
 var init_audit_event = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/schema/dist/audit-event.js"() {
+  "../gsb-h1-reg/packages/schema/dist/audit-event.js"() {
     "use strict";
     import_zod9 = __toESM(require_zod(), 1);
     init_enums();
@@ -36715,7 +36889,7 @@ var init_audit_event = __esm({
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/schema/dist/lifecycle.js
+// ../gsb-h1-reg/packages/schema/dist/lifecycle.js
 function isTransitionAllowed(from, to) {
   return ALLOWED_TRANSITIONS[from].includes(to);
 }
@@ -36734,16 +36908,22 @@ function validateTransition(from, to, request) {
   }
   return { valid: true };
 }
-var import_zod10, TransitionRequest, ALLOWED_TRANSITIONS;
+var import_zod10, TransitionRequest, RecategorizeRequest, ALLOWED_TRANSITIONS;
 var init_lifecycle = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/schema/dist/lifecycle.js"() {
+  "../gsb-h1-reg/packages/schema/dist/lifecycle.js"() {
     "use strict";
+    init_enums();
     init_common();
     import_zod10 = __toESM(require_zod(), 1);
     TransitionRequest = import_zod10.z.object({
       reason: NonEmptyString,
       actor: Author,
       supersededBy: Uuid.optional()
+    });
+    RecategorizeRequest = import_zod10.z.object({
+      category: MemoryCategory,
+      reason: NonEmptyString,
+      actor: Author
     });
     ALLOWED_TRANSITIONS = {
       active: ["deprecated", "superseded", "archived"],
@@ -36754,9 +36934,9 @@ var init_lifecycle = __esm({
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/schema/dist/index.js
+// ../gsb-h1-reg/packages/schema/dist/index.js
 var init_dist = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/schema/dist/index.js"() {
+  "../gsb-h1-reg/packages/schema/dist/index.js"() {
     "use strict";
     init_enums();
     init_common();
@@ -36769,26 +36949,26 @@ var init_dist = __esm({
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/common/dist/result.js
+// ../gsb-h1-reg/packages/common/dist/result.js
 var init_result = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/common/dist/result.js"() {
+  "../gsb-h1-reg/packages/common/dist/result.js"() {
     "use strict";
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/common/dist/hash.js
+// ../gsb-h1-reg/packages/common/dist/hash.js
 function computeContentHash(content) {
   return (0, import_node_crypto2.createHash)("sha256").update(content, "utf8").digest("hex");
 }
 var import_node_crypto2;
 var init_hash = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/common/dist/hash.js"() {
+  "../gsb-h1-reg/packages/common/dist/hash.js"() {
     "use strict";
     import_node_crypto2 = require("node:crypto");
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/common/dist/uuid-v5.js
+// ../gsb-h1-reg/packages/common/dist/uuid-v5.js
 function uuidStringToBytes(uuid) {
   const hex = uuid.replace(/-/g, "");
   if (hex.length !== 32) {
@@ -36833,7 +37013,7 @@ function deriveLinkId(sourceMemoryId, targetMemoryId, linkType) {
 }
 var import_node_crypto3, SPOOL_UUID_NAMESPACE, NAME_FIELD_SEPARATOR;
 var init_uuid_v5 = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/common/dist/uuid-v5.js"() {
+  "../gsb-h1-reg/packages/common/dist/uuid-v5.js"() {
     "use strict";
     import_node_crypto3 = require("node:crypto");
     SPOOL_UUID_NAMESPACE = ["6c6f6e67-7368-6f72", "6500-69636f73706c"].join("-");
@@ -36841,7 +37021,7 @@ var init_uuid_v5 = __esm({
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/common/dist/paths.js
+// ../gsb-h1-reg/packages/common/dist/paths.js
 function getTeamKbBasePath() {
   const basePath = process.env["TEAMKB_BASE_PATH"];
   if (typeof basePath === "string" && basePath.trim() !== "") {
@@ -36858,7 +37038,7 @@ function resolveTeamKbPath(subdir) {
 }
 var import_node_path4, import_node_os3, DEFAULT_TEAMKB_BASE;
 var init_paths = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/common/dist/paths.js"() {
+  "../gsb-h1-reg/packages/common/dist/paths.js"() {
     "use strict";
     import_node_path4 = require("node:path");
     import_node_os3 = require("node:os");
@@ -36866,7 +37046,85 @@ var init_paths = __esm({
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/common/dist/path-safety.js
+// ../gsb-h1-reg/packages/common/dist/origin-token.js
+function buildOriginTokenPayload(identity) {
+  return [identity.candidateId, identity.tenantId, identity.capturedAt].join(FIELD_SEPARATOR);
+}
+function mintOriginToken2(secret, identity) {
+  return (0, import_node_crypto4.createHmac)("sha256", secret).update(buildOriginTokenPayload(identity), "utf8").digest("hex");
+}
+function verifyOriginToken(secret, identity, tokenHmac) {
+  if (!/^[0-9a-f]{64}$/.test(tokenHmac))
+    return false;
+  const expected = Buffer.from(mintOriginToken2(secret, identity), "hex");
+  const presented = Buffer.from(tokenHmac, "hex");
+  if (expected.length !== presented.length)
+    return false;
+  return (0, import_node_crypto4.timingSafeEqual)(expected, presented);
+}
+function hashOriginToken(tokenHmac) {
+  return (0, import_node_crypto4.createHash)("sha256").update(tokenHmac, "utf8").digest("hex");
+}
+function loadOriginSecret(basePath) {
+  const env = process.env[ORIGIN_SECRET_ENV]?.trim();
+  if (env !== void 0 && env.length > 0)
+    return env;
+  const path = originSecretPath(basePath);
+  try {
+    const secret = (0, import_node_fs3.readFileSync)(path, "utf8").trim();
+    if (secret.length === 0)
+      return void 0;
+    try {
+      if (((0, import_node_fs3.statSync)(path).mode & 511) !== 384)
+        (0, import_node_fs3.chmodSync)(path, 384);
+    } catch {
+    }
+    return secret;
+  } catch {
+    return void 0;
+  }
+}
+function loadOrCreateOriginSecret(basePath) {
+  const env = process.env[ORIGIN_SECRET_ENV]?.trim();
+  if (env !== void 0 && env.length > 0)
+    return env;
+  const path = originSecretPath(basePath);
+  const minted = (0, import_node_crypto4.randomBytes)(32).toString("hex");
+  (0, import_node_fs3.mkdirSync)((0, import_node_path5.dirname)(path), { recursive: true });
+  try {
+    (0, import_node_fs3.writeFileSync)(path, `${minted}
+`, { encoding: "utf8", flag: "wx", mode: 384 });
+    return minted;
+  } catch (e) {
+    if (e.code !== "EEXIST")
+      throw e;
+  }
+  const existing = loadOriginSecret(basePath);
+  if (existing === void 0) {
+    throw new Error(`origin secret file exists but is empty or unreadable: ${path} \u2014 refusing to overwrite a concurrent writer; inspect/remove it and retry`);
+  }
+  return existing;
+}
+function originSecretPath(basePath) {
+  return (0, import_node_path5.join)(basePath ?? getTeamKbBasePath(), ORIGIN_SECRET_FILENAME);
+}
+var import_node_crypto4, import_node_fs3, import_node_path5, ORIGIN_SECRET_FILENAME, ORIGIN_SECRET_ENV, UNATTESTED_CHANNEL, FIELD_SEPARATOR, ORIGIN_TOKEN_HASH_SURFACE_LEN;
+var init_origin_token = __esm({
+  "../gsb-h1-reg/packages/common/dist/origin-token.js"() {
+    "use strict";
+    import_node_crypto4 = require("node:crypto");
+    import_node_fs3 = require("node:fs");
+    import_node_path5 = require("node:path");
+    init_paths();
+    ORIGIN_SECRET_FILENAME = "origin-secret";
+    ORIGIN_SECRET_ENV = "TEAMKB_ORIGIN_SECRET";
+    UNATTESTED_CHANNEL = "unattested";
+    FIELD_SEPARATOR = String.fromCharCode(0);
+    ORIGIN_TOKEN_HASH_SURFACE_LEN = 16;
+  }
+});
+
+// ../gsb-h1-reg/packages/common/dist/path-safety.js
 function isPathSafe(path, allowedRoots) {
   if (path.includes("\0")) {
     return { safe: false, reason: "Path contains null byte" };
@@ -36892,12 +37150,12 @@ function isPathSafe(path, allowedRoots) {
   return { safe: true };
 }
 var init_path_safety = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/common/dist/path-safety.js"() {
+  "../gsb-h1-reg/packages/common/dist/path-safety.js"() {
     "use strict";
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/common/dist/freshness.js
+// ../gsb-h1-reg/packages/common/dist/freshness.js
 function computeFreshnessScore(updatedAt, nowIso, halfLifeDays = 90) {
   const updatedMs = new Date(updatedAt).getTime();
   const nowMs = new Date(nowIso).getTime();
@@ -36927,14 +37185,17 @@ function rerankCitedHits(hits, resolveMetadata, nowIso, halfLifeDays = 90) {
       ...h,
       memoryId: meta === null ? null : id,
       category: meta?.category ?? "",
-      updatedAt: meta?.updatedAt ?? nowIso
+      updatedAt: meta?.updatedAt ?? nowIso,
+      // Unresolvable hit (orphaned citation) is not an identifiable sensitive
+      // memory — treat as public/searchable; a resolved hit carries its real level.
+      sensitivity: meta?.sensitivity ?? "public"
     };
   });
   return rerankSearchHits(enriched, nowIso, halfLifeDays);
 }
 var CATEGORY_BOOST;
 var init_freshness = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/common/dist/freshness.js"() {
+  "../gsb-h1-reg/packages/common/dist/freshness.js"() {
     "use strict";
     CATEGORY_BOOST = {
       decision: 1.2,
@@ -36948,7 +37209,7 @@ var init_freshness = __esm({
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/common/dist/disclosure-filter.js
+// ../gsb-h1-reg/packages/common/dist/disclosure-filter.js
 function foldHomoglyphs(text) {
   let out = "";
   for (const ch of text) {
@@ -37039,7 +37300,7 @@ function assertDisclosureClean(candidate) {
 }
 var COMPENSATION_TERMS_PATTERN, RATIO_SPLIT_PATTERN, COMP_CONTEXT_PATTERN, PII_PATTERN, SECRET_PATTERNS, INVISIBLE_CHARS, HOMOGLYPH_MAP, ENUM_CONSTRAINED_FIELDS, DisclosureRejectedError;
 var init_disclosure_filter = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/common/dist/disclosure-filter.js"() {
+  "../gsb-h1-reg/packages/common/dist/disclosure-filter.js"() {
     "use strict";
     COMPENSATION_TERMS_PATTERN = /\bsalary\b|base pay\b|take[- ]home pay\b|(?:launch|signing|sign[- ]on) bonus|equity\s+(?:stakes?|grants?|granted|options?)\b|equity\s+[0-9]|\bvesting\b|\bRSUs?\b|stock options?\b|revenue[- ]share\s*[0-9]|7[- ]bucket/i;
     RATIO_SPLIT_PATTERN = /[0-9]{1,3}\s*\/\s*[0-9]{1,3}\s*(?:split|share)|[0-9]{1,2}\s*\/\s*[0-9]{1,2}\s*(?:max|→|->)\s*[0-9]{1,2}\s*\/\s*[0-9]{1,2}/i;
@@ -37180,23 +37441,24 @@ var init_disclosure_filter = __esm({
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/common/dist/index.js
+// ../gsb-h1-reg/packages/common/dist/index.js
 var init_dist2 = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/common/dist/index.js"() {
+  "../gsb-h1-reg/packages/common/dist/index.js"() {
     "use strict";
     init_result();
     init_hash();
     init_uuid_v5();
     init_paths();
+    init_origin_token();
     init_path_safety();
     init_freshness();
     init_disclosure_filter();
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/store/dist/repositories/enum-membership.js
+// ../gsb-h1-reg/packages/store/dist/repositories/enum-membership.js
 function assertEnumMembership(candidate) {
-  const checks = [
+  runEnumChecks([
     { field: "status", schema: CandidateStatus, value: candidate.status },
     { field: "source", schema: MemorySource, value: candidate.source },
     { field: "category", schema: MemoryCategory, value: candidate.category },
@@ -37212,7 +37474,19 @@ function assertEnumMembership(candidate) {
       schema: Sensitivity,
       value: candidate.metadata?.sensitivity
     }
-  ];
+  ]);
+}
+function assertMemoryEnumMembership(memory) {
+  runEnumChecks([
+    { field: "source", schema: MemorySource, value: memory.source },
+    { field: "category", schema: MemoryCategory, value: memory.category },
+    { field: "trustLevel", schema: TrustLevel, value: memory.trustLevel },
+    { field: "sensitivity", schema: Sensitivity, value: memory.sensitivity },
+    { field: "lifecycle", schema: MemoryLifecycleState, value: memory.lifecycle },
+    { field: "author.type", schema: AuthorType, value: memory.author?.type }
+  ]);
+}
+function runEnumChecks(checks) {
   for (const { field, schema, value } of checks) {
     if (value === void 0)
       continue;
@@ -37229,7 +37503,7 @@ function assertEnumMembership(candidate) {
 }
 var EnumConstraintViolationError;
 var init_enum_membership = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/store/dist/repositories/enum-membership.js"() {
+  "../gsb-h1-reg/packages/store/dist/repositories/enum-membership.js"() {
     "use strict";
     init_dist();
     init_dist2();
@@ -37244,7 +37518,7 @@ var init_enum_membership = __esm({
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/store/dist/repositories/candidate-repository.js
+// ../gsb-h1-reg/packages/store/dist/repositories/candidate-repository.js
 function rowToCandidate(row) {
   const flatResult = CandidateRowSchema.safeParse(row);
   if (!flatResult.success) {
@@ -37255,6 +37529,7 @@ function rowToCandidate(row) {
   let author;
   let metadata;
   let prePolicyFlags;
+  let origin;
   try {
     author = JSON.parse(flat.author_json);
   } catch (e) {
@@ -37270,6 +37545,11 @@ function rowToCandidate(row) {
   } catch (e) {
     throw new Error(`candidates row id=${flat.id}: pre_policy_flags_json is not valid JSON: ${String(e)}`);
   }
+  try {
+    origin = flat.origin_json === null ? void 0 : JSON.parse(flat.origin_json);
+  } catch (e) {
+    throw new Error(`candidates row id=${flat.id}: origin_json is not valid JSON: ${String(e)}`);
+  }
   const domainResult = MemoryCandidate.safeParse({
     id: flat.id,
     status: flat.status,
@@ -37282,7 +37562,8 @@ function rowToCandidate(row) {
     tenantId: flat.tenant_id,
     metadata,
     prePolicyFlags,
-    capturedAt: flat.captured_at
+    capturedAt: flat.captured_at,
+    origin
   });
   if (!domainResult.success) {
     const issues = domainResult.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`);
@@ -37302,7 +37583,7 @@ function rowToCandidateSafe(row) {
 }
 var import_zod11, CandidateRowSchema, CandidateRepository;
 var init_candidate_repository = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/store/dist/repositories/candidate-repository.js"() {
+  "../gsb-h1-reg/packages/store/dist/repositories/candidate-repository.js"() {
     "use strict";
     import_zod11 = __toESM(require_zod(), 1);
     init_dist();
@@ -37322,7 +37603,9 @@ var init_candidate_repository = __esm({
       pre_policy_flags_json: import_zod11.z.string(),
       content_hash: import_zod11.z.string(),
       captured_at: import_zod11.z.string(),
-      created_at: import_zod11.z.string()
+      created_at: import_zod11.z.string(),
+      /** Optional write-time provenance attestation (H1) — NULL on every pre-H1 row. */
+      origin_json: import_zod11.z.string().nullable()
     });
     CandidateRepository = class {
       stmtInsert;
@@ -37341,12 +37624,12 @@ var init_candidate_repository = __esm({
         id, status, source, content, title, category,
         trust_level, author_json, tenant_id,
         metadata_json, pre_policy_flags_json, content_hash, captured_at,
-        import_batch_id
+        import_batch_id, origin_json
       ) VALUES (
         @id, @status, @source, @content, @title, @category,
         @trust_level, @author_json, @tenant_id,
         @metadata_json, @pre_policy_flags_json, @content_hash, @captured_at,
-        @import_batch_id
+        @import_batch_id, @origin_json
       )
     `);
         this.stmtFindById = db.prepare(`
@@ -37426,7 +37709,8 @@ var init_candidate_repository = __esm({
           pre_policy_flags_json: JSON.stringify(candidate.prePolicyFlags),
           content_hash: contentHash,
           captured_at: candidate.capturedAt,
-          import_batch_id: importBatchId ?? null
+          import_batch_id: importBatchId ?? null,
+          origin_json: candidate.origin !== void 0 ? JSON.stringify(candidate.origin) : null
         });
       }
       /** Find a candidate by its primary key, or return null if not found. */
@@ -37519,7 +37803,23 @@ var init_candidate_repository = __esm({
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/store/dist/repositories/memory-repository.js
+// ../gsb-h1-reg/packages/store/dist/repositories/memory-repository.js
+function deserializeRowsResilient(rows) {
+  const memories = [];
+  const failures = [];
+  for (const row of rows) {
+    try {
+      memories.push(rowToMemory(row));
+    } catch (err2) {
+      const rawId = row?.id;
+      failures.push({
+        id: typeof rawId === "string" ? rawId : "<unknown>",
+        reason: err2 instanceof Error ? err2.message : String(err2)
+      });
+    }
+  }
+  return { memories, failures };
+}
 function rowToMemory(row) {
   const flatResult = MemoryRowSchema.safeParse(row);
   if (!flatResult.success) {
@@ -37599,12 +37899,23 @@ function appendOptionalFilters(conditions, params, tenantId, categories, prefix)
     });
   }
 }
-var import_zod12, MemoryRowSchema, MemoryRepository;
+var import_zod12, InvalidLifecycleTransitionError, MemoryRowSchema, MemoryRepository;
 var init_memory_repository = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/store/dist/repositories/memory-repository.js"() {
+  "../gsb-h1-reg/packages/store/dist/repositories/memory-repository.js"() {
     "use strict";
     import_zod12 = __toESM(require_zod(), 1);
     init_dist();
+    init_enum_membership();
+    InvalidLifecycleTransitionError = class extends Error {
+      from;
+      to;
+      constructor(from, to) {
+        super(`Invalid lifecycle transition: "${from}" -> "${to}" is not allowed`);
+        this.from = from;
+        this.to = to;
+        this.name = "InvalidLifecycleTransitionError";
+      }
+    };
     MemoryRowSchema = import_zod12.z.object({
       id: import_zod12.z.string(),
       candidate_id: import_zod12.z.string(),
@@ -37637,6 +37948,7 @@ var init_memory_repository = __esm({
       stmtTenantHashes;
       stmtFindByLifecycle;
       stmtUpdateLifecycle;
+      stmtGetLifecycle;
       stmtUpdate;
       stmtCount;
       stmtAllHashes;
@@ -37688,6 +38000,9 @@ var init_memory_repository = __esm({
     `);
         this.stmtUpdateLifecycle = db.prepare(`
       UPDATE curated_memories SET lifecycle = @lifecycle, updated_at = @updated_at WHERE id = @id
+    `);
+        this.stmtGetLifecycle = db.prepare(`
+      SELECT lifecycle FROM curated_memories WHERE id = ?
     `);
         this.stmtUpdate = db.prepare(`
       UPDATE curated_memories SET
@@ -37750,6 +38065,7 @@ var init_memory_repository = __esm({
       }
       /** Insert a new curated memory. */
       insert(memory) {
+        assertMemoryEnumMembership(memory);
         this.stmtInsert.run({
           id: memory.id,
           candidate_id: memory.candidateId,
@@ -37796,10 +38112,32 @@ var init_memory_repository = __esm({
         return rows.map(rowToMemory);
       }
       /**
+       * Like {@link findByLifecycle} but isolates per-row deserialization failures
+       * (5bm.12) instead of throwing the whole batch when one row fails domain
+       * validation (e.g. a legacy category later removed from the enum). Used by the
+       * git-exporter so a single corrupt row is quarantined + reported, not allowed
+       * to abort the export of every healthy memory. Strict callers keep using
+       * {@link findByLifecycle}.
+       */
+      findByLifecycleResilient(lifecycle) {
+        return deserializeRowsResilient(this.stmtFindByLifecycle.all(lifecycle));
+      }
+      /** Tenant-scoped counterpart of {@link findByLifecycleResilient} (5bm.12). */
+      findByTenantResilient(tenantId) {
+        return deserializeRowsResilient(this.stmtFindByTenant.all(tenantId));
+      }
+      /**
        * Update only the lifecycle state and updatedAt timestamp.
        * Returns true if a row was modified, false if the id was not found.
        */
       updateLifecycle(id, lifecycle, updatedAt) {
+        const row = this.stmtGetLifecycle.get(id);
+        if (row === void 0)
+          return false;
+        const current = row.lifecycle;
+        if (current !== lifecycle && !isTransitionAllowed(current, lifecycle)) {
+          throw new InvalidLifecycleTransitionError(current, lifecycle);
+        }
         const result = this.stmtUpdateLifecycle.run({ id, lifecycle, updated_at: updatedAt });
         return result.changes > 0;
       }
@@ -37808,6 +38146,7 @@ var init_memory_repository = __esm({
        * Returns true if a row was modified, false if the id was not found.
        */
       update(memory) {
+        assertMemoryEnumMembership(memory);
         const result = this.stmtUpdate.run({
           id: memory.id,
           candidate_id: memory.candidateId,
@@ -37945,7 +38284,7 @@ var init_memory_repository = __esm({
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/store/dist/repositories/policy-repository.js
+// ../gsb-h1-reg/packages/store/dist/repositories/policy-repository.js
 function rowToPolicy(row) {
   const flatResult = PolicyRowSchema.safeParse(row);
   if (!flatResult.success) {
@@ -37977,7 +38316,7 @@ function rowToPolicy(row) {
 }
 var import_zod13, PolicyRowSchema, PolicyRepository;
 var init_policy_repository = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/store/dist/repositories/policy-repository.js"() {
+  "../gsb-h1-reg/packages/store/dist/repositories/policy-repository.js"() {
     "use strict";
     import_zod13 = __toESM(require_zod(), 1);
     init_dist();
@@ -37995,9 +38334,11 @@ var init_policy_repository = __esm({
       stmtInsert;
       stmtFindById;
       stmtFindByTenant;
+      stmtList;
       stmtUpdate;
       stmtDelete;
       constructor(db) {
+        this.stmtList = db.prepare("SELECT * FROM governance_policies");
         this.stmtInsert = db.prepare(`
       INSERT INTO governance_policies (
         id, name, tenant_id, rules_json, enabled, version, created_at, updated_at
@@ -38049,6 +38390,13 @@ var init_policy_repository = __esm({
         return rows.map(rowToPolicy);
       }
       /**
+       * Return every policy across all tenants (5bm.10) — used by the health/status
+       * dormancy check to find policies that leave registered rules unenforced.
+       */
+      list() {
+        return this.stmtList.all().map(rowToPolicy);
+      }
+      /**
        * Perform a full update of an existing policy record.
        * Returns true if a row was modified, false if the id was not found.
        */
@@ -38076,7 +38424,7 @@ var init_policy_repository = __esm({
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/store/dist/audit-chain.js
+// ../gsb-h1-reg/packages/store/dist/audit-chain.js
 function canonicalRowJsonV1(row) {
   return JSON.stringify({
     id: row.id,
@@ -38106,18 +38454,18 @@ function canonicalRowJson(row, hashVersion = CURRENT_AUDIT_HASH_VERSION) {
   return hashVersion === 1 ? canonicalRowJsonV1(row) : canonicalRowJsonV2(row);
 }
 function computeEntryHash(row, hashVersion = CURRENT_AUDIT_HASH_VERSION) {
-  return (0, import_node_crypto4.createHash)("sha256").update(canonicalRowJson(row, hashVersion), "utf8").digest("hex");
+  return (0, import_node_crypto5.createHash)("sha256").update(canonicalRowJson(row, hashVersion), "utf8").digest("hex");
 }
-var import_node_crypto4, CURRENT_AUDIT_HASH_VERSION;
+var import_node_crypto5, CURRENT_AUDIT_HASH_VERSION;
 var init_audit_chain = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/store/dist/audit-chain.js"() {
+  "../gsb-h1-reg/packages/store/dist/audit-chain.js"() {
     "use strict";
-    import_node_crypto4 = require("node:crypto");
+    import_node_crypto5 = require("node:crypto");
     CURRENT_AUDIT_HASH_VERSION = 2;
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/store/dist/repositories/audit-repository.js
+// ../gsb-h1-reg/packages/store/dist/repositories/audit-repository.js
 function rowToEvent(row) {
   const flatResult = AuditRowSchema.safeParse(row);
   if (!flatResult.success) {
@@ -38155,7 +38503,7 @@ function rowToEvent(row) {
 }
 var import_zod14, AuditRowSchema, AuditRepository;
 var init_audit_repository = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/store/dist/repositories/audit-repository.js"() {
+  "../gsb-h1-reg/packages/store/dist/repositories/audit-repository.js"() {
     "use strict";
     import_zod14 = __toESM(require_zod(), 1);
     init_dist();
@@ -38362,7 +38710,7 @@ var init_audit_repository = __esm({
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/store/dist/audit-verify.js
+// ../gsb-h1-reg/packages/store/dist/audit-verify.js
 function rowHashVersion(row) {
   return row.hash_version === 2 ? 2 : 1;
 }
@@ -38433,13 +38781,13 @@ function verifyAuditChain(repo) {
   };
 }
 var init_audit_verify = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/store/dist/audit-verify.js"() {
+  "../gsb-h1-reg/packages/store/dist/audit-verify.js"() {
     "use strict";
     init_audit_chain();
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/store/dist/audit-anchor.js
+// ../gsb-h1-reg/packages/store/dist/audit-anchor.js
 function anchorBodyJson(b) {
   return JSON.stringify({
     schemaVersion: b.schemaVersion,
@@ -38451,15 +38799,15 @@ function anchorBodyJson(b) {
   });
 }
 function computeAnchorHash(body) {
-  return (0, import_node_crypto5.createHash)("sha256").update(anchorBodyJson(body), "utf8").digest("hex");
+  return (0, import_node_crypto6.createHash)("sha256").update(anchorBodyJson(body), "utf8").digest("hex");
 }
 function chainedRowsOf(repo) {
   return repo.findAllChronological().filter((r) => r.entry_hash !== null);
 }
 function readAnchors(anchorPath) {
-  if (!(0, import_node_fs3.existsSync)(anchorPath))
+  if (!(0, import_node_fs4.existsSync)(anchorPath))
     return [];
-  return (0, import_node_fs3.readFileSync)(anchorPath, "utf8").split("\n").filter((l) => l.trim().length > 0).map((l) => JSON.parse(l));
+  return (0, import_node_fs4.readFileSync)(anchorPath, "utf8").split("\n").filter((l) => l.trim().length > 0).map((l) => JSON.parse(l));
 }
 function appendAnchor(repo, anchorPath, opts) {
   const now = opts.nowFn ?? (() => (/* @__PURE__ */ new Date()).toISOString());
@@ -38480,7 +38828,7 @@ function appendAnchor(repo, anchorPath, opts) {
     prevAnchorHash
   };
   const record2 = { ...body, anchorHash: computeAnchorHash(body) };
-  (0, import_node_fs3.appendFileSync)(anchorPath, JSON.stringify(record2) + "\n", { mode: 384 });
+  (0, import_node_fs4.appendFileSync)(anchorPath, JSON.stringify(record2) + "\n", { mode: 384 });
   return record2;
 }
 function verifyAnchors(repo, anchorPath) {
@@ -38542,17 +38890,17 @@ function verifyAnchors(repo, anchorPath) {
     ok: chain.breaks.length === 0 && anchorBreaks.length === 0
   };
 }
-var import_node_crypto5, import_node_fs3;
+var import_node_crypto6, import_node_fs4;
 var init_audit_anchor = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/store/dist/audit-anchor.js"() {
+  "../gsb-h1-reg/packages/store/dist/audit-anchor.js"() {
     "use strict";
-    import_node_crypto5 = require("node:crypto");
-    import_node_fs3 = require("node:fs");
+    import_node_crypto6 = require("node:crypto");
+    import_node_fs4 = require("node:fs");
     init_audit_verify();
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/store/dist/exception-manifest.js
+// ../gsb-h1-reg/packages/store/dist/exception-manifest.js
 function sortedEntries(entries) {
   return [...entries].sort((a, b) => {
     if (a.seq !== b.seq)
@@ -38577,12 +38925,12 @@ function manifestBodyJson(body) {
   });
 }
 function computeManifestHash(body) {
-  return (0, import_node_crypto6.createHash)("sha256").update(manifestBodyJson(body), "utf8").digest("hex");
+  return (0, import_node_crypto7.createHash)("sha256").update(manifestBodyJson(body), "utf8").digest("hex");
 }
 function readManifest(path) {
   let raw;
   try {
-    raw = (0, import_node_fs4.readFileSync)(path, "utf8");
+    raw = (0, import_node_fs5.readFileSync)(path, "utf8");
   } catch (e) {
     throw new ExceptionManifestError(`cannot read manifest at ${path}: ${String(e)}`);
   }
@@ -38651,12 +38999,12 @@ function classifyChainBreaks(breaks, manifest, rowsById) {
     chainForks
   };
 }
-var import_node_crypto6, import_node_fs4, import_zod15, TAMPER_REASONS, TAMPER_REASON_SET, ExceptionManifestEntrySchema, ExceptionManifestSchema, ExceptionManifestError;
+var import_node_crypto7, import_node_fs5, import_zod15, TAMPER_REASONS, TAMPER_REASON_SET, ExceptionManifestEntrySchema, ExceptionManifestSchema, ExceptionManifestError;
 var init_exception_manifest = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/store/dist/exception-manifest.js"() {
+  "../gsb-h1-reg/packages/store/dist/exception-manifest.js"() {
     "use strict";
-    import_node_crypto6 = require("node:crypto");
-    import_node_fs4 = require("node:fs");
+    import_node_crypto7 = require("node:crypto");
+    import_node_fs5 = require("node:fs");
     import_zod15 = __toESM(require_zod(), 1);
     TAMPER_REASONS = [
       "ENTRY_HASH_MISMATCH",
@@ -38705,16 +39053,16 @@ var init_exception_manifest = __esm({
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/store/dist/signed-merge-anchor.js
+// ../gsb-h1-reg/packages/store/dist/signed-merge-anchor.js
 var init_signed_merge_anchor = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/store/dist/signed-merge-anchor.js"() {
+  "../gsb-h1-reg/packages/store/dist/signed-merge-anchor.js"() {
     "use strict";
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/store/dist/audit-verify-merge.js
+// ../gsb-h1-reg/packages/store/dist/audit-verify-merge.js
 var init_audit_verify_merge = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/store/dist/audit-verify-merge.js"() {
+  "../gsb-h1-reg/packages/store/dist/audit-verify-merge.js"() {
     "use strict";
     init_audit_chain();
     init_audit_verify();
@@ -38722,7 +39070,7 @@ var init_audit_verify_merge = __esm({
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/store/dist/repositories/export-state-repository.js
+// ../gsb-h1-reg/packages/store/dist/repositories/export-state-repository.js
 function rowToState(row) {
   const result = ExportStateRowSchema.safeParse(row);
   if (!result.success) {
@@ -38738,7 +39086,7 @@ function rowToState(row) {
 }
 var import_zod16, ExportStateRowSchema, ExportStateRepository;
 var init_export_state_repository = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/store/dist/repositories/export-state-repository.js"() {
+  "../gsb-h1-reg/packages/store/dist/repositories/export-state-repository.js"() {
     "use strict";
     import_zod16 = __toESM(require_zod(), 1);
     ExportStateRowSchema = import_zod16.z.object({
@@ -38780,23 +39128,37 @@ var init_export_state_repository = __esm({
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/store/dist/repositories/memory-links-repository.js
+// ../gsb-h1-reg/packages/store/dist/repositories/index-state-repository.js
+var import_zod17, IndexStateRowSchema;
+var init_index_state_repository = __esm({
+  "../gsb-h1-reg/packages/store/dist/repositories/index-state-repository.js"() {
+    "use strict";
+    import_zod17 = __toESM(require_zod(), 1);
+    IndexStateRowSchema = import_zod17.z.object({
+      tenant_id: import_zod17.z.string(),
+      last_indexed_at: import_zod17.z.string(),
+      updated_at: import_zod17.z.string()
+    });
+  }
+});
+
+// ../gsb-h1-reg/packages/store/dist/repositories/memory-links-repository.js
 var init_memory_links_repository = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/store/dist/repositories/memory-links-repository.js"() {
+  "../gsb-h1-reg/packages/store/dist/repositories/memory-links-repository.js"() {
     "use strict";
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/store/dist/repositories/import-batch-repository.js
+// ../gsb-h1-reg/packages/store/dist/repositories/import-batch-repository.js
 var init_import_batch_repository = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/store/dist/repositories/import-batch-repository.js"() {
+  "../gsb-h1-reg/packages/store/dist/repositories/import-batch-repository.js"() {
     "use strict";
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/store/dist/index.js
+// ../gsb-h1-reg/packages/store/dist/index.js
 var init_dist3 = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/store/dist/index.js"() {
+  "../gsb-h1-reg/packages/store/dist/index.js"() {
     "use strict";
     init_database();
     init_schema();
@@ -38812,27 +39174,28 @@ var init_dist3 = __esm({
     init_signed_merge_anchor();
     init_audit_verify_merge();
     init_export_state_repository();
+    init_index_state_repository();
     init_memory_links_repository();
     init_import_batch_repository();
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/qmd-adapter/dist/config.js
+// ../gsb-h1-reg/packages/qmd-adapter/dist/config.js
 function getQmdTenantIndexPath(tenantId) {
   return resolveTeamKbPath(`${QMD_INDEX_DIR}/${tenantId}`);
 }
 function getQmdTenantEnv(tenantId) {
   const base = getQmdTenantIndexPath(tenantId);
   return {
-    XDG_CONFIG_HOME: (0, import_node_path5.join)(base, "config"),
-    XDG_CACHE_HOME: (0, import_node_path5.join)(base, "cache")
+    XDG_CONFIG_HOME: (0, import_node_path6.join)(base, "config"),
+    XDG_CACHE_HOME: (0, import_node_path6.join)(base, "cache")
   };
 }
-var import_node_path5, QMD_INDEX_DIR, DEFAULT_QMD_BINARY, DEFAULT_TIMEOUT;
+var import_node_path6, QMD_INDEX_DIR, DEFAULT_QMD_BINARY, DEFAULT_TIMEOUT;
 var init_config = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/qmd-adapter/dist/config.js"() {
+  "../gsb-h1-reg/packages/qmd-adapter/dist/config.js"() {
     "use strict";
-    import_node_path5 = require("node:path");
+    import_node_path6 = require("node:path");
     init_dist2();
     QMD_INDEX_DIR = "qmd-index";
     DEFAULT_QMD_BINARY = "qmd";
@@ -38840,10 +39203,10 @@ var init_config = __esm({
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/qmd-adapter/dist/executor/real-executor.js
+// ../gsb-h1-reg/packages/qmd-adapter/dist/executor/real-executor.js
 var import_node_child_process, import_node_util, execFileAsync, RealQmdExecutor;
 var init_real_executor = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/qmd-adapter/dist/executor/real-executor.js"() {
+  "../gsb-h1-reg/packages/qmd-adapter/dist/executor/real-executor.js"() {
     "use strict";
     import_node_child_process = require("node:child_process");
     import_node_util = require("node:util");
@@ -38900,14 +39263,14 @@ var init_real_executor = __esm({
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/qmd-adapter/dist/executor/mock-executor.js
+// ../gsb-h1-reg/packages/qmd-adapter/dist/executor/mock-executor.js
 var init_mock_executor = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/qmd-adapter/dist/executor/mock-executor.js"() {
+  "../gsb-h1-reg/packages/qmd-adapter/dist/executor/mock-executor.js"() {
     "use strict";
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/qmd-adapter/dist/collections/collection-registry.js
+// ../gsb-h1-reg/packages/qmd-adapter/dist/collections/collection-registry.js
 function getDefaultSearchCollections() {
   return KNOWN_COLLECTIONS.filter((c) => c.includeInDefaultSearch).map((c) => c.name);
 }
@@ -38916,7 +39279,7 @@ function getExportableCollections() {
 }
 var KNOWN_COLLECTIONS;
 var init_collection_registry = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/qmd-adapter/dist/collections/collection-registry.js"() {
+  "../gsb-h1-reg/packages/qmd-adapter/dist/collections/collection-registry.js"() {
     "use strict";
     KNOWN_COLLECTIONS = [
       {
@@ -38953,12 +39316,12 @@ var init_collection_registry = __esm({
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/qmd-adapter/dist/collections/collection-manager.js
-var import_node_path6, CollectionManager;
+// ../gsb-h1-reg/packages/qmd-adapter/dist/collections/collection-manager.js
+var import_node_path7, CollectionManager;
 var init_collection_manager = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/qmd-adapter/dist/collections/collection-manager.js"() {
+  "../gsb-h1-reg/packages/qmd-adapter/dist/collections/collection-manager.js"() {
     "use strict";
-    import_node_path6 = require("node:path");
+    import_node_path7 = require("node:path");
     init_collection_registry();
     CollectionManager = class {
       executor;
@@ -39030,7 +39393,7 @@ var init_collection_manager = __esm({
         const created = [];
         for (const def of getExportableCollections()) {
           if (!existing.some((e) => e.includes(def.name))) {
-            const path = (0, import_node_path6.join)(exportBaseDir, def.sourceSubdir);
+            const path = (0, import_node_path7.join)(exportBaseDir, def.sourceSubdir);
             const addResult = await this.addCollection(def.name, path);
             if (!addResult.ok)
               return { ok: false, error: addResult.error };
@@ -39043,18 +39406,18 @@ var init_collection_manager = __esm({
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/qmd-adapter/dist/index-manager/index-paths.js
+// ../gsb-h1-reg/packages/qmd-adapter/dist/index-manager/index-paths.js
 var init_index_paths = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/qmd-adapter/dist/index-manager/index-paths.js"() {
+  "../gsb-h1-reg/packages/qmd-adapter/dist/index-manager/index-paths.js"() {
     "use strict";
     init_config();
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/qmd-adapter/dist/index-manager/index-lifecycle.js
+// ../gsb-h1-reg/packages/qmd-adapter/dist/index-manager/index-lifecycle.js
 var IndexLifecycleManager;
 var init_index_lifecycle = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/qmd-adapter/dist/index-manager/index-lifecycle.js"() {
+  "../gsb-h1-reg/packages/qmd-adapter/dist/index-manager/index-lifecycle.js"() {
     "use strict";
     IndexLifecycleManager = class {
       executor;
@@ -39130,7 +39493,7 @@ var init_index_lifecycle = __esm({
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/qmd-adapter/dist/search/result-parser.js
+// ../gsb-h1-reg/packages/qmd-adapter/dist/search/result-parser.js
 function parseQueryOutput(stdout) {
   const trimmed = stdout.trim();
   if (!trimmed)
@@ -39169,12 +39532,12 @@ function deriveCollectionFromPath(filePath) {
   return "unknown";
 }
 var init_result_parser = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/qmd-adapter/dist/search/result-parser.js"() {
+  "../gsb-h1-reg/packages/qmd-adapter/dist/search/result-parser.js"() {
     "use strict";
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/qmd-adapter/dist/search/search-client.js
+// ../gsb-h1-reg/packages/qmd-adapter/dist/search/search-client.js
 function resolveScopeCollections(scope) {
   switch (scope) {
     case "curated":
@@ -39192,7 +39555,7 @@ function resolveScopeCollections(scope) {
 }
 var SearchClient;
 var init_search_client = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/qmd-adapter/dist/search/search-client.js"() {
+  "../gsb-h1-reg/packages/qmd-adapter/dist/search/search-client.js"() {
     "use strict";
     init_collection_registry();
     init_result_parser();
@@ -39229,11 +39592,27 @@ var init_search_client = __esm({
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/qmd-adapter/dist/health/health-check.js
-async function checkHealth(executor) {
+// ../gsb-h1-reg/packages/qmd-adapter/dist/health/health-check.js
+function probeStaleness(probe) {
+  if (probe === void 0)
+    return null;
+  try {
+    return probe();
+  } catch {
+    return null;
+  }
+}
+async function checkHealth(executor, stalenessProbe) {
+  const stalenessSeconds = probeStaleness(stalenessProbe);
   const available = await executor.isAvailable();
   if (!available) {
-    return { available: false, version: null, initialized: false, collections: [] };
+    return {
+      available: false,
+      version: null,
+      initialized: false,
+      collections: [],
+      stalenessSeconds
+    };
   }
   let version = null;
   try {
@@ -39253,15 +39632,15 @@ async function checkHealth(executor) {
     }
   } catch {
   }
-  return { available, version, initialized, collections };
+  return { available, version, initialized, collections, stalenessSeconds };
 }
 var init_health_check = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/qmd-adapter/dist/health/health-check.js"() {
+  "../gsb-h1-reg/packages/qmd-adapter/dist/health/health-check.js"() {
     "use strict";
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/qmd-adapter/dist/search/rrf-fusion.js
+// ../gsb-h1-reg/packages/qmd-adapter/dist/search/rrf-fusion.js
 function fuseReciprocalRank(qmdHits, nativeHits, k = RRF_K) {
   const entries = /* @__PURE__ */ new Map();
   qmdHits.forEach((hit, i) => {
@@ -39289,20 +39668,20 @@ function fuseReciprocalRank(qmdHits, nativeHits, k = RRF_K) {
 }
 var RRF_K;
 var init_rrf_fusion = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/qmd-adapter/dist/search/rrf-fusion.js"() {
+  "../gsb-h1-reg/packages/qmd-adapter/dist/search/rrf-fusion.js"() {
     "use strict";
     RRF_K = 60;
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/qmd-adapter/dist/native/fts5-backend.js
+// ../gsb-h1-reg/packages/qmd-adapter/dist/native/fts5-backend.js
 function buildFts5MatchQuery(query) {
   const tokens = query.match(/[\p{L}\p{N}]+/gu) ?? [];
   return tokens.map((t) => `"${t}"`).join(" ");
 }
 var import_better_sqlite32, Fts5Backend;
 var init_fts5_backend = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/qmd-adapter/dist/native/fts5-backend.js"() {
+  "../gsb-h1-reg/packages/qmd-adapter/dist/native/fts5-backend.js"() {
     "use strict";
     import_better_sqlite32 = __toESM(require("better-sqlite3"), 1);
     Fts5Backend = class {
@@ -39383,7 +39762,7 @@ var init_fts5_backend = __esm({
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/qmd-adapter/dist/native/native-index-manager.js
+// ../gsb-h1-reg/packages/qmd-adapter/dist/native/native-index-manager.js
 function getNativeIndexManager(opts) {
   if (opts.indexPath === ":memory:")
     return new NativeIndexManager(opts);
@@ -39394,12 +39773,12 @@ function getNativeIndexManager(opts) {
   managerCache.set(opts.indexPath, manager);
   return manager;
 }
-var import_node_fs5, import_node_path7, import_better_sqlite33, NativeIndexManager, managerCache;
+var import_node_fs6, import_node_path8, import_better_sqlite33, NativeIndexManager, managerCache;
 var init_native_index_manager = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/qmd-adapter/dist/native/native-index-manager.js"() {
+  "../gsb-h1-reg/packages/qmd-adapter/dist/native/native-index-manager.js"() {
     "use strict";
-    import_node_fs5 = require("node:fs");
-    import_node_path7 = require("node:path");
+    import_node_fs6 = require("node:fs");
+    import_node_path8 = require("node:path");
     import_better_sqlite33 = __toESM(require("better-sqlite3"), 1);
     init_collection_registry();
     init_fts5_backend();
@@ -39416,7 +39795,7 @@ var init_native_index_manager = __esm({
         this.exportDir = opts.exportDir;
         this.refreshTtlMs = opts.refreshTtlMs ?? 15e3;
         if (opts.indexPath !== ":memory:") {
-          (0, import_node_fs5.mkdirSync)((0, import_node_path7.dirname)(opts.indexPath), { recursive: true });
+          (0, import_node_fs6.mkdirSync)((0, import_node_path8.dirname)(opts.indexPath), { recursive: true });
         }
         this.db = new import_better_sqlite33.default(opts.indexPath);
         this.backend = new Fts5Backend({ db: this.db });
@@ -39435,16 +39814,16 @@ var init_native_index_manager = __esm({
         this.lastRefreshMs = nowMs;
         const onDisk = /* @__PURE__ */ new Map();
         for (const def of getExportableCollections()) {
-          const dir = (0, import_node_path7.join)(this.exportDir, def.sourceSubdir);
-          if (!(0, import_node_fs5.existsSync)(dir))
+          const dir = (0, import_node_path8.join)(this.exportDir, def.sourceSubdir);
+          if (!(0, import_node_fs6.existsSync)(dir))
             continue;
-          for (const name of (0, import_node_fs5.readdirSync)(dir)) {
+          for (const name of (0, import_node_fs6.readdirSync)(dir)) {
             if (!name.endsWith(".md"))
               continue;
-            const path = (0, import_node_path7.join)(dir, name);
+            const path = (0, import_node_path8.join)(dir, name);
             let mtimeMs;
             try {
-              mtimeMs = (0, import_node_fs5.statSync)(path).mtimeMs;
+              mtimeMs = (0, import_node_fs6.statSync)(path).mtimeMs;
             } catch {
               continue;
             }
@@ -39464,7 +39843,7 @@ var init_native_index_manager = __esm({
             continue;
           let content;
           try {
-            content = (0, import_node_fs5.readFileSync)(path, "utf8");
+            content = (0, import_node_fs6.readFileSync)(path, "utf8");
           } catch {
             continue;
           }
@@ -39520,13 +39899,13 @@ var init_native_index_manager = __esm({
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/qmd-adapter/dist/adapter.js
-var import_node_fs6, import_node_path8, NATIVE_SEARCH_K, QmdAdapter;
+// ../gsb-h1-reg/packages/qmd-adapter/dist/adapter.js
+var import_node_fs7, import_node_path9, NATIVE_SEARCH_K, QmdAdapter;
 var init_adapter = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/qmd-adapter/dist/adapter.js"() {
+  "../gsb-h1-reg/packages/qmd-adapter/dist/adapter.js"() {
     "use strict";
-    import_node_fs6 = require("node:fs");
-    import_node_path8 = require("node:path");
+    import_node_fs7 = require("node:fs");
+    import_node_path9 = require("node:path");
     init_real_executor();
     init_collection_manager();
     init_collection_registry();
@@ -39546,6 +39925,8 @@ var init_adapter = __esm({
       exportDir;
       /** The single tenant this adapter's qmd registry + index are bound to. */
       tenantId;
+      /** Optional index-freshness probe (D2) — see QmdAdapterConfig.stalenessProbe. */
+      stalenessProbe;
       /** The tenant this adapter serves (read-only; used by the search canary's fail-closed guard). */
       get boundTenantId() {
         return this.tenantId;
@@ -39553,6 +39934,7 @@ var init_adapter = __esm({
       constructor(config2, executor) {
         this.exportDir = config2.exportDir;
         this.tenantId = config2.tenantId;
+        this.stalenessProbe = config2.stalenessProbe;
         this.executor = executor ?? new RealQmdExecutor({
           binary: config2.qmdBinary,
           timeout: config2.timeout,
@@ -39568,7 +39950,7 @@ var init_adapter = __esm({
           try {
             this.native = getNativeIndexManager({
               exportDir: config2.exportDir,
-              indexPath: config2.nativeIndexPath ?? (0, import_node_path8.join)(getQmdTenantIndexPath(config2.tenantId), "native-fts5.sqlite")
+              indexPath: config2.nativeIndexPath ?? (0, import_node_path9.join)(getQmdTenantIndexPath(config2.tenantId), "native-fts5.sqlite")
             });
           } catch {
             this.native = null;
@@ -39621,9 +40003,9 @@ var init_adapter = __esm({
           return [];
         }
       }
-      /** Check health of qmd and index state */
+      /** Check health of qmd and index state (incl. stalenessSeconds when a probe is wired). */
       async health() {
-        return checkHealth(this.executor);
+        return checkHealth(this.executor, this.stalenessProbe);
       }
       /** Update the index */
       async update() {
@@ -39637,7 +40019,7 @@ var init_adapter = __esm({
        */
       async ensureCollections() {
         for (const def of getExportableCollections()) {
-          (0, import_node_fs6.mkdirSync)((0, import_node_path8.join)(this.exportDir, def.sourceSubdir), { recursive: true });
+          (0, import_node_fs7.mkdirSync)((0, import_node_path9.join)(this.exportDir, def.sourceSubdir), { recursive: true });
         }
         return this.collections.ensureCollections(this.exportDir);
       }
@@ -39645,78 +40027,78 @@ var init_adapter = __esm({
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/qmd-adapter/dist/weights/verify-weights.js
+// ../gsb-h1-reg/packages/qmd-adapter/dist/weights/verify-weights.js
 var init_verify_weights = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/qmd-adapter/dist/weights/verify-weights.js"() {
+  "../gsb-h1-reg/packages/qmd-adapter/dist/weights/verify-weights.js"() {
     "use strict";
     init_dist2();
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/qmd-adapter/dist/weights/weights-manifest.js
+// ../gsb-h1-reg/packages/qmd-adapter/dist/weights/weights-manifest.js
 var init_weights_manifest = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/qmd-adapter/dist/weights/weights-manifest.js"() {
+  "../gsb-h1-reg/packages/qmd-adapter/dist/weights/weights-manifest.js"() {
     "use strict";
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/qmd-adapter/dist/weights/index.js
+// ../gsb-h1-reg/packages/qmd-adapter/dist/weights/index.js
 var init_weights = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/qmd-adapter/dist/weights/index.js"() {
+  "../gsb-h1-reg/packages/qmd-adapter/dist/weights/index.js"() {
     "use strict";
     init_verify_weights();
     init_weights_manifest();
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/qmd-adapter/dist/eval/metrics.js
+// ../gsb-h1-reg/packages/qmd-adapter/dist/eval/metrics.js
 var init_metrics = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/qmd-adapter/dist/eval/metrics.js"() {
+  "../gsb-h1-reg/packages/qmd-adapter/dist/eval/metrics.js"() {
     "use strict";
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/qmd-adapter/dist/eval/run-eval.js
+// ../gsb-h1-reg/packages/qmd-adapter/dist/eval/run-eval.js
 var init_run_eval = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/qmd-adapter/dist/eval/run-eval.js"() {
+  "../gsb-h1-reg/packages/qmd-adapter/dist/eval/run-eval.js"() {
     "use strict";
     init_metrics();
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/qmd-adapter/dist/eval/datasets/seed-queries.js
+// ../gsb-h1-reg/packages/qmd-adapter/dist/eval/datasets/seed-queries.js
 var init_seed_queries = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/qmd-adapter/dist/eval/datasets/seed-queries.js"() {
+  "../gsb-h1-reg/packages/qmd-adapter/dist/eval/datasets/seed-queries.js"() {
     "use strict";
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/qmd-adapter/dist/eval/stratified-report.js
+// ../gsb-h1-reg/packages/qmd-adapter/dist/eval/stratified-report.js
 var init_stratified_report = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/qmd-adapter/dist/eval/stratified-report.js"() {
+  "../gsb-h1-reg/packages/qmd-adapter/dist/eval/stratified-report.js"() {
     "use strict";
     init_metrics();
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/qmd-adapter/dist/eval/qmd-retrieval.js
+// ../gsb-h1-reg/packages/qmd-adapter/dist/eval/qmd-retrieval.js
 var init_qmd_retrieval = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/qmd-adapter/dist/eval/qmd-retrieval.js"() {
+  "../gsb-h1-reg/packages/qmd-adapter/dist/eval/qmd-retrieval.js"() {
     "use strict";
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/qmd-adapter/dist/eval/datasets/governed-brain-v1.js
+// ../gsb-h1-reg/packages/qmd-adapter/dist/eval/datasets/governed-brain-v1.js
 var init_governed_brain_v1 = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/qmd-adapter/dist/eval/datasets/governed-brain-v1.js"() {
+  "../gsb-h1-reg/packages/qmd-adapter/dist/eval/datasets/governed-brain-v1.js"() {
     "use strict";
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/qmd-adapter/dist/eval/datasets/synthetic-v1.js
+// ../gsb-h1-reg/packages/qmd-adapter/dist/eval/datasets/synthetic-v1.js
 var SYNTHETIC_V1_BASELINE;
 var init_synthetic_v1 = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/qmd-adapter/dist/eval/datasets/synthetic-v1.js"() {
+  "../gsb-h1-reg/packages/qmd-adapter/dist/eval/datasets/synthetic-v1.js"() {
     "use strict";
     SYNTHETIC_V1_BASELINE = {
       /** 8/8 lexical queries hit. */
@@ -39734,9 +40116,9 @@ var init_synthetic_v1 = __esm({
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/qmd-adapter/dist/eval/index.js
+// ../gsb-h1-reg/packages/qmd-adapter/dist/eval/index.js
 var init_eval = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/qmd-adapter/dist/eval/index.js"() {
+  "../gsb-h1-reg/packages/qmd-adapter/dist/eval/index.js"() {
     "use strict";
     init_metrics();
     init_run_eval();
@@ -39748,33 +40130,33 @@ var init_eval = __esm({
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/qmd-adapter/dist/native/index.js
+// ../gsb-h1-reg/packages/qmd-adapter/dist/native/index.js
 var init_native = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/qmd-adapter/dist/native/index.js"() {
+  "../gsb-h1-reg/packages/qmd-adapter/dist/native/index.js"() {
     "use strict";
     init_fts5_backend();
     init_native_index_manager();
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/qmd-adapter/dist/reindex/reindex.js
+// ../gsb-h1-reg/packages/qmd-adapter/dist/reindex/reindex.js
 var init_reindex = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/qmd-adapter/dist/reindex/reindex.js"() {
+  "../gsb-h1-reg/packages/qmd-adapter/dist/reindex/reindex.js"() {
     "use strict";
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/qmd-adapter/dist/canary/search-canary.js
+// ../gsb-h1-reg/packages/qmd-adapter/dist/canary/search-canary.js
 var init_search_canary = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/qmd-adapter/dist/canary/search-canary.js"() {
+  "../gsb-h1-reg/packages/qmd-adapter/dist/canary/search-canary.js"() {
     "use strict";
     init_reindex();
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/qmd-adapter/dist/index.js
+// ../gsb-h1-reg/packages/qmd-adapter/dist/index.js
 var init_dist4 = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/qmd-adapter/dist/index.js"() {
+  "../gsb-h1-reg/packages/qmd-adapter/dist/index.js"() {
     "use strict";
     init_config();
     init_real_executor();
@@ -39797,7 +40179,7 @@ var init_dist4 = __esm({
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/claude-runtime/dist/config.js
+// ../gsb-h1-reg/packages/claude-runtime/dist/config.js
 function getSpoolPath() {
   return resolveTeamKbPath(SPOOL_DIR);
 }
@@ -39808,17 +40190,17 @@ function getSpoolFilename(date) {
 }
 var SPOOL_DIR;
 var init_config2 = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/claude-runtime/dist/config.js"() {
+  "../gsb-h1-reg/packages/claude-runtime/dist/config.js"() {
     "use strict";
     init_dist2();
     SPOOL_DIR = "spool";
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/claude-runtime/dist/secrets/patterns.js
+// ../gsb-h1-reg/packages/claude-runtime/dist/secrets/patterns.js
 var SECRET_PATTERNS2, PII_PATTERNS;
 var init_patterns = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/claude-runtime/dist/secrets/patterns.js"() {
+  "../gsb-h1-reg/packages/claude-runtime/dist/secrets/patterns.js"() {
     "use strict";
     SECRET_PATTERNS2 = [
       {
@@ -39979,7 +40361,7 @@ var init_patterns = __esm({
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/claude-runtime/dist/secrets/secret-scanner.js
+// ../gsb-h1-reg/packages/claude-runtime/dist/secrets/secret-scanner.js
 function execWithContext(pattern, text, contextText) {
   if (pattern.regex.global || pattern.regex.sticky) {
     pattern.regex.lastIndex = 0;
@@ -40154,7 +40536,7 @@ function scanForSecrets(content, patterns = SECRET_PATTERNS2) {
 }
 var LIMITS, BASE64_CANDIDATE_RE, HEX_CANDIDATE_RE;
 var init_secret_scanner = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/claude-runtime/dist/secrets/secret-scanner.js"() {
+  "../gsb-h1-reg/packages/claude-runtime/dist/secrets/secret-scanner.js"() {
     "use strict";
     init_patterns();
     LIMITS = {
@@ -40174,15 +40556,15 @@ var init_secret_scanner = __esm({
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/claude-runtime/dist/secrets/redactor.js
+// ../gsb-h1-reg/packages/claude-runtime/dist/secrets/redactor.js
 var init_redactor = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/claude-runtime/dist/secrets/redactor.js"() {
+  "../gsb-h1-reg/packages/claude-runtime/dist/secrets/redactor.js"() {
     "use strict";
     init_patterns();
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/claude-runtime/dist/secrets/content-classifier.js
+// ../gsb-h1-reg/packages/claude-runtime/dist/secrets/content-classifier.js
 function classifyContent(content) {
   const credentialMatches = scanForSecrets(content, SECRET_PATTERNS2);
   const piiMatches = scanForSecrets(content, PII_PATTERNS);
@@ -40220,7 +40602,7 @@ function classifyContent(content) {
 }
 var INTERNAL_PATH_PATTERNS;
 var init_content_classifier = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/claude-runtime/dist/secrets/content-classifier.js"() {
+  "../gsb-h1-reg/packages/claude-runtime/dist/secrets/content-classifier.js"() {
     "use strict";
     init_secret_scanner();
     init_patterns();
@@ -40232,9 +40614,9 @@ var init_content_classifier = __esm({
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/claude-runtime/dist/capture/candidate-builder.js
+// ../gsb-h1-reg/packages/claude-runtime/dist/capture/candidate-builder.js
 var init_candidate_builder = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/claude-runtime/dist/capture/candidate-builder.js"() {
+  "../gsb-h1-reg/packages/claude-runtime/dist/capture/candidate-builder.js"() {
     "use strict";
     init_dist();
     init_dist2();
@@ -40242,51 +40624,51 @@ var init_candidate_builder = __esm({
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/repo-resolver/dist/types.js
-var import_zod17, RepoContext, ResolverError;
+// ../gsb-h1-reg/packages/repo-resolver/dist/types.js
+var import_zod18, RepoContext, ResolverError;
 var init_types2 = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/repo-resolver/dist/types.js"() {
+  "../gsb-h1-reg/packages/repo-resolver/dist/types.js"() {
     "use strict";
-    import_zod17 = __toESM(require_zod(), 1);
-    RepoContext = import_zod17.z.object({
+    import_zod18 = __toESM(require_zod(), 1);
+    RepoContext = import_zod18.z.object({
       /** Absolute path to the repo working tree root. */
-      repoRoot: import_zod17.z.string().min(1),
+      repoRoot: import_zod18.z.string().min(1),
       /** Lowercased basename of `repoRoot`. */
-      repoName: import_zod17.z.string().min(1),
+      repoName: import_zod18.z.string().min(1),
       /** Origin remote URL, or null when no origin is configured. */
-      remoteUrl: import_zod17.z.string().nullable(),
+      remoteUrl: import_zod18.z.string().nullable(),
       /** Current branch, or null when HEAD is detached. */
-      branch: import_zod17.z.string().nullable(),
+      branch: import_zod18.z.string().nullable(),
       /** HEAD commit SHA (40-char hex). */
-      commitSha: import_zod17.z.string().regex(/^[0-9a-f]{40}$/),
+      commitSha: import_zod18.z.string().regex(/^[0-9a-f]{40}$/),
       /** True when a workspace manifest was detected. */
-      isMonorepo: import_zod17.z.boolean(),
+      isMonorepo: import_zod18.z.boolean(),
       /** Monorepo root (may equal `repoRoot`), or null when not a monorepo. */
-      workspaceRoot: import_zod17.z.string().nullable(),
+      workspaceRoot: import_zod18.z.string().nullable(),
       /** Workspace package `name` containing `cwd`, or null. */
-      workspacePackage: import_zod17.z.string().nullable()
+      workspacePackage: import_zod18.z.string().nullable()
     });
-    ResolverError = import_zod17.z.discriminatedUnion("kind", [
-      import_zod17.z.object({ kind: import_zod17.z.literal("NotAGitRepo"), cwd: import_zod17.z.string() }),
-      import_zod17.z.object({ kind: import_zod17.z.literal("BareRepo"), repoRoot: import_zod17.z.string() }),
-      import_zod17.z.object({ kind: import_zod17.z.literal("NoCommits"), repoRoot: import_zod17.z.string() }),
-      import_zod17.z.object({ kind: import_zod17.z.literal("GitUnavailable"), cause: import_zod17.z.string() }),
-      import_zod17.z.object({ kind: import_zod17.z.literal("Io"), path: import_zod17.z.string(), cause: import_zod17.z.string() })
+    ResolverError = import_zod18.z.discriminatedUnion("kind", [
+      import_zod18.z.object({ kind: import_zod18.z.literal("NotAGitRepo"), cwd: import_zod18.z.string() }),
+      import_zod18.z.object({ kind: import_zod18.z.literal("BareRepo"), repoRoot: import_zod18.z.string() }),
+      import_zod18.z.object({ kind: import_zod18.z.literal("NoCommits"), repoRoot: import_zod18.z.string() }),
+      import_zod18.z.object({ kind: import_zod18.z.literal("GitUnavailable"), cause: import_zod18.z.string() }),
+      import_zod18.z.object({ kind: import_zod18.z.literal("Io"), path: import_zod18.z.string(), cause: import_zod18.z.string() })
     ]);
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/repo-resolver/dist/git.js
+// ../gsb-h1-reg/packages/repo-resolver/dist/git.js
 var init_git = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/repo-resolver/dist/git.js"() {
+  "../gsb-h1-reg/packages/repo-resolver/dist/git.js"() {
     "use strict";
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/repo-resolver/dist/cache.js
+// ../gsb-h1-reg/packages/repo-resolver/dist/cache.js
 var DEFAULT_TTL_MS, RepoContextCache, defaultCache;
 var init_cache = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/repo-resolver/dist/cache.js"() {
+  "../gsb-h1-reg/packages/repo-resolver/dist/cache.js"() {
     "use strict";
     DEFAULT_TTL_MS = 5 * 60 * 1e3;
     RepoContextCache = class {
@@ -40349,18 +40731,18 @@ var init_cache = __esm({
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/repo-resolver/dist/monorepo.js
+// ../gsb-h1-reg/packages/repo-resolver/dist/monorepo.js
 var MAX_MANIFEST_SIZE;
 var init_monorepo = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/repo-resolver/dist/monorepo.js"() {
+  "../gsb-h1-reg/packages/repo-resolver/dist/monorepo.js"() {
     "use strict";
     MAX_MANIFEST_SIZE = 64 * 1024;
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/repo-resolver/dist/resolver.js
+// ../gsb-h1-reg/packages/repo-resolver/dist/resolver.js
 var init_resolver = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/repo-resolver/dist/resolver.js"() {
+  "../gsb-h1-reg/packages/repo-resolver/dist/resolver.js"() {
     "use strict";
     init_dist2();
     init_git();
@@ -40369,18 +40751,18 @@ var init_resolver = __esm({
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/repo-resolver/dist/tenant.js
+// ../gsb-h1-reg/packages/repo-resolver/dist/tenant.js
 var MAX_CONFIG_SIZE;
 var init_tenant = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/repo-resolver/dist/tenant.js"() {
+  "../gsb-h1-reg/packages/repo-resolver/dist/tenant.js"() {
     "use strict";
     MAX_CONFIG_SIZE = 64 * 1024;
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/repo-resolver/dist/index.js
+// ../gsb-h1-reg/packages/repo-resolver/dist/index.js
 var init_dist5 = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/repo-resolver/dist/index.js"() {
+  "../gsb-h1-reg/packages/repo-resolver/dist/index.js"() {
     "use strict";
     init_types2();
     init_resolver();
@@ -40390,10 +40772,10 @@ var init_dist5 = __esm({
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/claude-runtime/dist/capture/git-context.js
+// ../gsb-h1-reg/packages/claude-runtime/dist/capture/git-context.js
 var import_node_child_process2, import_node_util2, execFileAsync2;
 var init_git_context = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/claude-runtime/dist/capture/git-context.js"() {
+  "../gsb-h1-reg/packages/claude-runtime/dist/capture/git-context.js"() {
     "use strict";
     import_node_child_process2 = require("node:child_process");
     import_node_util2 = require("node:util");
@@ -40401,21 +40783,21 @@ var init_git_context = __esm({
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/claude-runtime/dist/capture/context-provider.js
+// ../gsb-h1-reg/packages/claude-runtime/dist/capture/context-provider.js
 var init_context_provider = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/claude-runtime/dist/capture/context-provider.js"() {
+  "../gsb-h1-reg/packages/claude-runtime/dist/capture/context-provider.js"() {
     "use strict";
     init_dist5();
     init_git_context();
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/claude-runtime/dist/spool/spool-writer.js
+// ../gsb-h1-reg/packages/claude-runtime/dist/spool/spool-writer.js
 async function writeToSpool(candidate, spoolDir, agentId) {
   const dir = spoolDir ?? getSpoolPath();
   const filename = agentId ? `spool-${agentId}.jsonl` : getSpoolFilename();
-  const filepath = (0, import_node_path9.resolve)(dir, filename);
-  const resolvedDir = (0, import_node_path9.resolve)(dir);
+  const filepath = (0, import_node_path10.resolve)(dir, filename);
+  const resolvedDir = (0, import_node_path10.resolve)(dir);
   if (!filepath.startsWith(resolvedDir + "/") && filepath !== resolvedDir) {
     return { ok: false, error: `Path traversal rejected: ${filename}` };
   }
@@ -40437,18 +40819,18 @@ async function writeToSpool(candidate, spoolDir, agentId) {
     return { ok: false, error: `Failed to write to spool: ${msg}` };
   }
 }
-var import_promises2, import_node_path9;
+var import_promises2, import_node_path10;
 var init_spool_writer = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/claude-runtime/dist/spool/spool-writer.js"() {
+  "../gsb-h1-reg/packages/claude-runtime/dist/spool/spool-writer.js"() {
     "use strict";
     import_promises2 = require("node:fs/promises");
-    import_node_path9 = require("node:path");
+    import_node_path10 = require("node:path");
     init_dist2();
     init_config2();
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/claude-runtime/dist/spool/spool-reader.js
+// ../gsb-h1-reg/packages/claude-runtime/dist/spool/spool-reader.js
 async function verifySpoolManifest(spoolFilePath) {
   const manifestPath2 = `${spoolFilePath}.manifest.json`;
   let manifestRaw;
@@ -40478,7 +40860,7 @@ async function verifySpoolManifest(spoolFilePath) {
     const msg = e instanceof Error ? e.message : String(e);
     return { ok: false, error: `Failed to read spool file for verification: ${msg}` };
   }
-  const actual = (0, import_node_crypto7.createHash)("sha256").update(content, "utf8").digest("hex");
+  const actual = (0, import_node_crypto8.createHash)("sha256").update(content, "utf8").digest("hex");
   return {
     ok: true,
     value: { status: actual === expected ? "verified" : "tampered", expected, actual }
@@ -40505,67 +40887,67 @@ async function listSpoolFiles(spoolDir) {
   const dir = spoolDir ?? getSpoolPath();
   try {
     const files = await (0, import_promises3.readdir)(dir);
-    const spoolFiles = files.filter((f) => f.startsWith("spool-") && f.endsWith(".jsonl")).sort().map((f) => (0, import_node_path10.join)(dir, f));
+    const spoolFiles = files.filter((f) => f.startsWith("spool-") && f.endsWith(".jsonl")).sort().map((f) => (0, import_node_path11.join)(dir, f));
     return { ok: true, value: spoolFiles };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return { ok: false, error: `Failed to list spool files: ${msg}` };
   }
 }
-var import_node_crypto7, import_promises3, import_node_path10;
+var import_node_crypto8, import_promises3, import_node_path11;
 var init_spool_reader = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/claude-runtime/dist/spool/spool-reader.js"() {
+  "../gsb-h1-reg/packages/claude-runtime/dist/spool/spool-reader.js"() {
     "use strict";
-    import_node_crypto7 = require("node:crypto");
+    import_node_crypto8 = require("node:crypto");
     import_promises3 = require("node:fs/promises");
-    import_node_path10 = require("node:path");
+    import_node_path11 = require("node:path");
     init_dist();
     init_config2();
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/claude-runtime/dist/spool/write-jsonl.js
+// ../gsb-h1-reg/packages/claude-runtime/dist/spool/write-jsonl.js
 var init_write_jsonl = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/claude-runtime/dist/spool/write-jsonl.js"() {
+  "../gsb-h1-reg/packages/claude-runtime/dist/spool/write-jsonl.js"() {
     "use strict";
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/claude-runtime/dist/spool/failure-bucket.js
+// ../gsb-h1-reg/packages/claude-runtime/dist/spool/failure-bucket.js
 var init_failure_bucket = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/claude-runtime/dist/spool/failure-bucket.js"() {
+  "../gsb-h1-reg/packages/claude-runtime/dist/spool/failure-bucket.js"() {
     "use strict";
     init_config2();
     init_write_jsonl();
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/claude-runtime/dist/spool/redaction-audit.js
+// ../gsb-h1-reg/packages/claude-runtime/dist/spool/redaction-audit.js
 var init_redaction_audit = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/claude-runtime/dist/spool/redaction-audit.js"() {
+  "../gsb-h1-reg/packages/claude-runtime/dist/spool/redaction-audit.js"() {
     "use strict";
     init_config2();
     init_write_jsonl();
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/claude-runtime/dist/templates/hook-templates.js
+// ../gsb-h1-reg/packages/claude-runtime/dist/templates/hook-templates.js
 var init_hook_templates = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/claude-runtime/dist/templates/hook-templates.js"() {
+  "../gsb-h1-reg/packages/claude-runtime/dist/templates/hook-templates.js"() {
     "use strict";
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/claude-runtime/dist/templates/claudemd-templates.js
+// ../gsb-h1-reg/packages/claude-runtime/dist/templates/claudemd-templates.js
 var init_claudemd_templates = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/claude-runtime/dist/templates/claudemd-templates.js"() {
+  "../gsb-h1-reg/packages/claude-runtime/dist/templates/claudemd-templates.js"() {
     "use strict";
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/claude-runtime/dist/index.js
+// ../gsb-h1-reg/packages/claude-runtime/dist/index.js
 var init_dist6 = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/claude-runtime/dist/index.js"() {
+  "../gsb-h1-reg/packages/claude-runtime/dist/index.js"() {
     "use strict";
     init_config2();
     init_patterns();
@@ -40591,22 +40973,22 @@ function resolveConfig() {
   return {
     tenantId,
     basePath,
-    spoolPath: (0, import_node_path11.join)(basePath, "spool"),
-    dbPath: (0, import_node_path11.join)(basePath, "teamkb.db"),
-    feedbackPath: (0, import_node_path11.join)(basePath, "feedback"),
-    exportDir: envExport && envExport.length > 0 ? envExport : (0, import_node_path11.join)(basePath, "kb-export")
+    spoolPath: (0, import_node_path12.join)(basePath, "spool"),
+    dbPath: (0, import_node_path12.join)(basePath, "teamkb.db"),
+    feedbackPath: (0, import_node_path12.join)(basePath, "feedback"),
+    exportDir: envExport && envExport.length > 0 ? envExport : (0, import_node_path12.join)(basePath, "kb-export")
   };
 }
-var import_node_path11;
+var import_node_path12;
 var init_config3 = __esm({
   "src/config.ts"() {
     "use strict";
-    import_node_path11 = require("node:path");
+    import_node_path12 = require("node:path");
     init_dist2();
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/policy-engine/dist/rules/secret-detection-rule.js
+// ../gsb-h1-reg/packages/policy-engine/dist/rules/secret-detection-rule.js
 function evaluateSecretDetection(candidate, rule, _context) {
   const matches = scanForSecrets(candidate.content);
   if (matches.length === 0) {
@@ -40627,13 +41009,13 @@ function evaluateSecretDetection(candidate, rule, _context) {
   };
 }
 var init_secret_detection_rule = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/policy-engine/dist/rules/secret-detection-rule.js"() {
+  "../gsb-h1-reg/packages/policy-engine/dist/rules/secret-detection-rule.js"() {
     "use strict";
     init_dist6();
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/policy-engine/dist/rules/content-length-rule.js
+// ../gsb-h1-reg/packages/policy-engine/dist/rules/content-length-rule.js
 function evaluateContentLength(candidate, rule, _context) {
   const min = typeof rule.parameters["min"] === "number" ? rule.parameters["min"] : DEFAULT_MIN;
   const max = typeof rule.parameters["max"] === "number" ? rule.parameters["max"] : DEFAULT_MAX;
@@ -40665,14 +41047,14 @@ function evaluateContentLength(candidate, rule, _context) {
 }
 var DEFAULT_MIN, DEFAULT_MAX;
 var init_content_length_rule = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/policy-engine/dist/rules/content-length-rule.js"() {
+  "../gsb-h1-reg/packages/policy-engine/dist/rules/content-length-rule.js"() {
     "use strict";
     DEFAULT_MIN = 10;
     DEFAULT_MAX = 5e4;
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/policy-engine/dist/rules/source-trust-rule.js
+// ../gsb-h1-reg/packages/policy-engine/dist/rules/source-trust-rule.js
 function isTrustLevel(value) {
   return value === "high" || value === "medium" || value === "low" || value === "untrusted";
 }
@@ -40701,7 +41083,7 @@ function evaluateSourceTrust(candidate, rule, _context) {
 }
 var TRUST_ORDER, DEFAULT_MINIMUM_TRUST;
 var init_source_trust_rule = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/policy-engine/dist/rules/source-trust-rule.js"() {
+  "../gsb-h1-reg/packages/policy-engine/dist/rules/source-trust-rule.js"() {
     "use strict";
     TRUST_ORDER = {
       high: 4,
@@ -40713,7 +41095,7 @@ var init_source_trust_rule = __esm({
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/policy-engine/dist/rules/relevance-score-rule.js
+// ../gsb-h1-reg/packages/policy-engine/dist/rules/relevance-score-rule.js
 function evaluateRelevanceScore(candidate, rule, _context) {
   const minimumScore = typeof rule.parameters["minimumScore"] === "number" ? rule.parameters["minimumScore"] : DEFAULT_MINIMUM_SCORE;
   let score = 0;
@@ -40767,13 +41149,13 @@ function evaluateRelevanceScore(candidate, rule, _context) {
 }
 var DEFAULT_MINIMUM_SCORE;
 var init_relevance_score_rule = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/policy-engine/dist/rules/relevance-score-rule.js"() {
+  "../gsb-h1-reg/packages/policy-engine/dist/rules/relevance-score-rule.js"() {
     "use strict";
     DEFAULT_MINIMUM_SCORE = 0.3;
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/policy-engine/dist/rules/dedup-check-rule.js
+// ../gsb-h1-reg/packages/policy-engine/dist/rules/dedup-check-rule.js
 function evaluateDedupCheck(candidate, rule, context) {
   if (context.existingHashes === void 0 || context.existingHashes.size === 0) {
     return {
@@ -40800,13 +41182,13 @@ function evaluateDedupCheck(candidate, rule, context) {
   };
 }
 var init_dedup_check_rule = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/policy-engine/dist/rules/dedup-check-rule.js"() {
+  "../gsb-h1-reg/packages/policy-engine/dist/rules/dedup-check-rule.js"() {
     "use strict";
     init_dist2();
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/policy-engine/dist/rules/tenant-match-rule.js
+// ../gsb-h1-reg/packages/policy-engine/dist/rules/tenant-match-rule.js
 function evaluateTenantMatch(candidate, rule, context) {
   if (context.tenantId === void 0) {
     return {
@@ -40832,12 +41214,12 @@ function evaluateTenantMatch(candidate, rule, context) {
   };
 }
 var init_tenant_match_rule = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/policy-engine/dist/rules/tenant-match-rule.js"() {
+  "../gsb-h1-reg/packages/policy-engine/dist/rules/tenant-match-rule.js"() {
     "use strict";
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/policy-engine/dist/rules/sensitivity-gate-rule.js
+// ../gsb-h1-reg/packages/policy-engine/dist/rules/sensitivity-gate-rule.js
 function parseBlockedLevels(params) {
   if (!params || !Array.isArray(params["blockedLevels"]))
     return DEFAULT_BLOCKED_LEVELS;
@@ -40865,7 +41247,7 @@ function evaluateSensitivityGate(candidate, rule, _context) {
 }
 var VALID_LEVELS, DEFAULT_BLOCKED_LEVELS;
 var init_sensitivity_gate_rule = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/policy-engine/dist/rules/sensitivity-gate-rule.js"() {
+  "../gsb-h1-reg/packages/policy-engine/dist/rules/sensitivity-gate-rule.js"() {
     "use strict";
     init_dist6();
     init_dist();
@@ -40874,7 +41256,7 @@ var init_sensitivity_gate_rule = __esm({
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/policy-engine/dist/rules/content-sanitization-rule.js
+// ../gsb-h1-reg/packages/policy-engine/dist/rules/content-sanitization-rule.js
 function evaluateContentSanitization(candidate, rule, _context) {
   const params = rule.parameters;
   const enabledPatternIds = Array.isArray(params["enabledPatterns"]) ? params["enabledPatterns"].filter((v) => typeof v === "string") : void 0;
@@ -40902,7 +41284,7 @@ function evaluateContentSanitization(candidate, rule, _context) {
 }
 var DEFAULT_PATTERNS;
 var init_content_sanitization_rule = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/policy-engine/dist/rules/content-sanitization-rule.js"() {
+  "../gsb-h1-reg/packages/policy-engine/dist/rules/content-sanitization-rule.js"() {
     "use strict";
     DEFAULT_PATTERNS = [
       {
@@ -40939,14 +41321,82 @@ var init_content_sanitization_rule = __esm({
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/policy-engine/dist/rules/index.js
+// ../gsb-h1-reg/packages/policy-engine/dist/rules/contradiction-check-rule.js
+function parseThreshold(params) {
+  const raw = params?.["threshold"];
+  if (typeof raw !== "number" || Number.isNaN(raw))
+    return DEFAULT_THRESHOLD;
+  return Math.min(1, Math.max(0, raw));
+}
+function tokenSet(text) {
+  return new Set(text.toLowerCase().match(/[a-z0-9]+/g) ?? []);
+}
+function jaccard(a, b) {
+  if (a.size === 0 && b.size === 0)
+    return 0;
+  let intersection2 = 0;
+  for (const token of a) {
+    if (b.has(token))
+      intersection2++;
+  }
+  const union2 = a.size + b.size - intersection2;
+  return union2 === 0 ? 0 : intersection2 / union2;
+}
+function evaluateContradictionCheck(candidate, rule, context) {
+  if (context.getActiveMemoriesInCategory === void 0) {
+    return {
+      ruleId: rule.id,
+      ruleType: rule.type,
+      outcome: "pass",
+      reason: "No active-memory lookup provided \u2014 contradiction check skipped"
+    };
+  }
+  const threshold = parseThreshold(rule.parameters);
+  const candidateTokens = tokenSet(candidate.content);
+  const suspects = [];
+  for (const memory of context.getActiveMemoriesInCategory(candidate.category)) {
+    if (memory.content === candidate.content)
+      continue;
+    const similarity = jaccard(candidateTokens, tokenSet(memory.content));
+    if (similarity >= threshold) {
+      suspects.push({ id: memory.id, similarity });
+    }
+  }
+  if (suspects.length === 0) {
+    return {
+      ruleId: rule.id,
+      ruleType: rule.type,
+      outcome: "pass",
+      reason: `No active '${candidate.category}' memory overlaps at or above ${threshold}`
+    };
+  }
+  suspects.sort((a, b) => b.similarity - a.similarity);
+  const reported = suspects.slice(0, MAX_REPORTED).map((s) => `${s.id} (${s.similarity.toFixed(2)})`).join(", ");
+  return {
+    ruleId: rule.id,
+    ruleType: rule.type,
+    outcome: "flag",
+    reason: `Potential contradiction: high token overlap with ${suspects.length} active '${candidate.category}' memor${suspects.length === 1 ? "y" : "ies"} \u2014 ${reported}. v1 heuristic (token overlap, not semantic) \u2014 human review required.`,
+    score: suspects[0]?.similarity
+  };
+}
+var DEFAULT_THRESHOLD, MAX_REPORTED;
+var init_contradiction_check_rule = __esm({
+  "../gsb-h1-reg/packages/policy-engine/dist/rules/contradiction-check-rule.js"() {
+    "use strict";
+    DEFAULT_THRESHOLD = 0.6;
+    MAX_REPORTED = 5;
+  }
+});
+
+// ../gsb-h1-reg/packages/policy-engine/dist/rules/index.js
 function createRule(type) {
   const evaluator = RULE_REGISTRY[type];
   return evaluator;
 }
 var RULE_REGISTRY;
 var init_rules = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/policy-engine/dist/rules/index.js"() {
+  "../gsb-h1-reg/packages/policy-engine/dist/rules/index.js"() {
     "use strict";
     init_secret_detection_rule();
     init_content_length_rule();
@@ -40956,6 +41406,7 @@ var init_rules = __esm({
     init_tenant_match_rule();
     init_sensitivity_gate_rule();
     init_content_sanitization_rule();
+    init_contradiction_check_rule();
     RULE_REGISTRY = {
       secret_detection: evaluateSecretDetection,
       content_length: evaluateContentLength,
@@ -40964,33 +41415,69 @@ var init_rules = __esm({
       dedup_check: evaluateDedupCheck,
       tenant_match: evaluateTenantMatch,
       sensitivity_gate: evaluateSensitivityGate,
-      content_sanitization: evaluateContentSanitization
+      content_sanitization: evaluateContentSanitization,
+      contradiction_check: evaluateContradictionCheck
     };
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/policy-engine/dist/pipeline.js
+// ../gsb-h1-reg/packages/policy-engine/dist/recommended-policy.js
+function findUncoveredRuleTypes(policy) {
+  const enabled = new Set(policy.rules.filter((r) => r.enabled).map((r) => r.type));
+  return Object.keys(RULE_REGISTRY).filter((t) => !enabled.has(t)).sort();
+}
+var init_recommended_policy = __esm({
+  "../gsb-h1-reg/packages/policy-engine/dist/recommended-policy.js"() {
+    "use strict";
+    init_dist();
+    init_rules();
+  }
+});
+
+// ../gsb-h1-reg/packages/policy-engine/dist/pipeline.js
 var PolicyPipeline;
 var init_pipeline2 = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/policy-engine/dist/pipeline.js"() {
+  "../gsb-h1-reg/packages/policy-engine/dist/pipeline.js"() {
     "use strict";
     init_rules();
+    init_recommended_policy();
     PolicyPipeline = class {
       policy;
+      /**
+       * Registered rule types this policy does NOT actively enforce (5bm.2).
+       * Computed once at construction so the completeness gate is available at
+       * RUNTIME, not only in CI — a caller (e.g. the curator) can surface which
+       * rules are silently dormant on the loaded policy. Empty when the policy
+       * covers the full registry.
+       */
+      dormantRuleTypes;
       constructor(policy) {
         this.policy = policy;
+        this.dormantRuleTypes = findUncoveredRuleTypes(policy);
       }
       evaluate(candidate, partialContext = {}) {
         const context = {
           candidate,
           policy: this.policy,
           existingHashes: partialContext.existingHashes,
-          tenantId: partialContext.tenantId
+          tenantId: partialContext.tenantId,
+          getActiveMemoriesInCategory: partialContext.getActiveMemoriesInCategory
         };
-        const orderedRules = this.policy.rules.filter((r) => r.enabled).sort((a, b) => a.priority - b.priority);
+        const enabledRules = this.policy.rules.filter((r) => r.enabled);
+        const byPriority = (a, b) => a.priority - b.priority;
+        const contradictionRules = enabledRules.filter((r) => r.type === "contradiction_check").sort(byPriority);
+        const standardRules = enabledRules.filter((r) => r.type !== "contradiction_check").sort(byPriority);
         const evaluations = [];
         const flaggedBy = [];
-        for (const rule of orderedRules) {
+        for (const rule of contradictionRules) {
+          const evaluator = createRule(rule.type);
+          const result = evaluator(candidate, rule, context);
+          evaluations.push(result);
+          if (result.outcome !== "pass") {
+            flaggedBy.push(rule.id);
+          }
+        }
+        for (const rule of standardRules) {
           const evaluator = createRule(rule.type);
           const result = evaluator(candidate, rule, context);
           evaluations.push(result);
@@ -41000,7 +41487,8 @@ var init_pipeline2 = __esm({
                 candidateId: candidate.id,
                 outcome: "rejected",
                 evaluations,
-                rejectedBy: rule.id
+                rejectedBy: rule.id,
+                ...flaggedBy.length > 0 ? { flaggedBy } : {}
               };
             }
             flaggedBy.push(rule.id);
@@ -41026,9 +41514,9 @@ var init_pipeline2 = __esm({
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/packages/policy-engine/dist/index.js
+// ../gsb-h1-reg/packages/policy-engine/dist/index.js
 var init_dist7 = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/packages/policy-engine/dist/index.js"() {
+  "../gsb-h1-reg/packages/policy-engine/dist/index.js"() {
     "use strict";
     init_rules();
     init_secret_detection_rule();
@@ -41039,11 +41527,14 @@ var init_dist7 = __esm({
     init_tenant_match_rule();
     init_sensitivity_gate_rule();
     init_content_sanitization_rule();
+    init_contradiction_check_rule();
     init_pipeline2();
+    init_recommended_policy();
+    init_dist6();
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/apps/curator/dist/dedup/dedup-checker.js
+// ../gsb-h1-reg/apps/curator/dist/dedup/dedup-checker.js
 function checkDuplicate(candidate, memoryRepo, tenantId) {
   const contentHash = computeContentHash(candidate.content);
   const existing = tenantId !== void 0 ? memoryRepo.findByContentHashAndTenant(contentHash, tenantId) : memoryRepo.findByContentHash(contentHash);
@@ -41058,13 +41549,13 @@ function checkDuplicate(candidate, memoryRepo, tenantId) {
   return { isDuplicate: false, contentHash };
 }
 var init_dedup_checker = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/apps/curator/dist/dedup/dedup-checker.js"() {
+  "../gsb-h1-reg/apps/curator/dist/dedup/dedup-checker.js"() {
     "use strict";
     init_dist2();
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/apps/curator/dist/supersession/supersession-detector.js
+// ../gsb-h1-reg/apps/curator/dist/supersession/supersession-detector.js
 function detectSupersession(candidate, memoryRepo, threshold = 0.6) {
   const existingMemories = memoryRepo.findByTenantAndLifecycle(candidate.tenantId, "active").filter((m) => m.category === candidate.category);
   let bestMatch = null;
@@ -41099,12 +41590,12 @@ function tokenize(text) {
   return text.toLowerCase().split(/\s+/).filter((t) => t.length > 0);
 }
 var init_supersession_detector = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/apps/curator/dist/supersession/supersession-detector.js"() {
+  "../gsb-h1-reg/apps/curator/dist/supersession/supersession-detector.js"() {
     "use strict";
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/apps/curator/dist/import/wikilink-parser.js
+// ../gsb-h1-reg/apps/curator/dist/import/wikilink-parser.js
 function extractWikiLinks(content) {
   const codeRanges = findCodeRanges(content);
   const links = [];
@@ -41155,13 +41646,13 @@ function isInsideCodeRange(start, end, ranges) {
 }
 var WIKILINK_RE;
 var init_wikilink_parser = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/apps/curator/dist/import/wikilink-parser.js"() {
+  "../gsb-h1-reg/apps/curator/dist/import/wikilink-parser.js"() {
     "use strict";
     WIKILINK_RE = /\[\[([^\[\]|][^\[\]|]*?)(?:\|([^\[\]]*))?\]\]/g;
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/apps/curator/dist/promotion/promoter.js
+// ../gsb-h1-reg/apps/curator/dist/promotion/promoter.js
 function promote(input, memoryRepo, auditRepo, dryRun = false, linksRepo, evalCallback, now = (/* @__PURE__ */ new Date()).toISOString()) {
   const memoryId = deriveMemoryId(input.candidate.id, input.contentHash);
   const policyEvaluations = input.pipelineResult.evaluations.map((ev, index) => ({
@@ -41171,6 +41662,7 @@ function promote(input, memoryRepo, auditRepo, dryRun = false, linksRepo, evalCa
     reason: ev.reason,
     evaluatedAt: now
   }));
+  const sensitivity = classifyContent(input.candidate.content).sensitivityLevel;
   const memory = CuratedMemory.parse({
     id: memoryId,
     candidateId: input.candidate.id,
@@ -41179,7 +41671,7 @@ function promote(input, memoryRepo, auditRepo, dryRun = false, linksRepo, evalCa
     title: input.candidate.title,
     category: input.candidate.category,
     trustLevel: input.candidate.trustLevel,
-    sensitivity: "internal",
+    sensitivity,
     author: input.candidate.author,
     tenantId: input.candidate.tenantId,
     metadata: input.candidate.metadata,
@@ -41278,7 +41770,20 @@ function promote(input, memoryRepo, auditRepo, dryRun = false, linksRepo, evalCa
         tenantId: input.candidate.tenantId,
         actor: input.promotedBy ?? CURATOR_ACTOR,
         reason: input.promotionReason !== void 0 && input.promotionReason.trim().length > 0 ? `${input.promotionReason} (passed all governance rules)` : "Passed all governance rules",
-        details: { candidateId: input.candidate.id },
+        // Write-time provenance on the receipt (GSB Wave-2 H2): the origin
+        // CHANNEL plus a TRUNCATED SHA-256 of the token HMAC — never the
+        // token itself, so surfaced audit details can identify an
+        // attestation without enabling replay-minting (no oracle). An
+        // origin-less candidate is receipted honestly as `unattested`.
+        // Deterministic (a pure function of candidate fields), so
+        // cross-clone entry_hash reproducibility (8da.5/8da.6) holds.
+        details: {
+          candidateId: input.candidate.id,
+          originChannel: input.candidate.origin?.channel ?? UNATTESTED_CHANNEL,
+          ...input.candidate.origin !== void 0 ? {
+            originTokenHash: hashOriginToken(input.candidate.origin.tokenHmac).slice(0, ORIGIN_TOKEN_HASH_SURFACE_LEN)
+          } : {}
+        },
         timestamp: now
       }));
       if (evalCallback !== void 0) {
@@ -41313,21 +41818,22 @@ function promote(input, memoryRepo, auditRepo, dryRun = false, linksRepo, evalCa
 }
 var CURATOR_ACTOR;
 var init_promoter = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/apps/curator/dist/promotion/promoter.js"() {
+  "../gsb-h1-reg/apps/curator/dist/promotion/promoter.js"() {
     "use strict";
     init_dist2();
     init_dist();
+    init_dist7();
     init_wikilink_parser();
     CURATOR_ACTOR = { type: "system", id: "curator" };
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/apps/curator/dist/rejection/rejector.js
+// ../gsb-h1-reg/apps/curator/dist/rejection/rejector.js
 function reject(candidate, pipelineResult, auditRepo, dryRun = false) {
   const reason = pipelineResult.rejectedBy !== void 0 ? `Rejected by rule: ${pipelineResult.rejectedBy}` : `Flagged by rules: ${pipelineResult.flaggedBy?.join(", ") ?? "unknown"}`;
   if (!dryRun) {
     auditRepo.insert(AuditEvent.parse({
-      id: (0, import_node_crypto8.randomUUID)(),
+      id: (0, import_node_crypto9.randomUUID)(),
       action: "deleted",
       memoryId: candidate.id,
       tenantId: candidate.tenantId,
@@ -41343,19 +41849,65 @@ function reject(candidate, pipelineResult, auditRepo, dryRun = false) {
   }
   return reason;
 }
-var import_node_crypto8;
+var import_node_crypto9;
 var init_rejector = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/apps/curator/dist/rejection/rejector.js"() {
+  "../gsb-h1-reg/apps/curator/dist/rejection/rejector.js"() {
     "use strict";
-    import_node_crypto8 = require("node:crypto");
+    import_node_crypto9 = require("node:crypto");
     init_dist();
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/apps/curator/dist/curator.js
+// ../gsb-h1-reg/apps/curator/dist/origin/origin-gate.js
+function checkOriginAttestation(candidate, originSecret) {
+  if (candidate.origin === void 0) {
+    return { verdict: "unattested" };
+  }
+  if (originSecret === void 0 || originSecret.length === 0) {
+    return rejected(candidate, "origin_token_unverifiable", "Candidate claims an origin attestation but no installation origin secret is configured on this govern path \u2014 cannot verify, refusing to promote.");
+  }
+  const ok2 = verifyOriginToken(originSecret, {
+    candidateId: candidate.id,
+    tenantId: candidate.tenantId,
+    capturedAt: candidate.capturedAt
+  }, candidate.origin.tokenHmac);
+  if (!ok2) {
+    return rejected(candidate, "origin_token_invalid", "Origin token HMAC does not verify against the installation secret for (id, tenantId, capturedAt) \u2014 the claimed provenance is forged, replayed across identities, or minted under a different secret.");
+  }
+  return { verdict: "attested" };
+}
+function rejected(candidate, code, reason) {
+  return {
+    verdict: "rejected",
+    code,
+    pipelineResult: {
+      candidateId: candidate.id,
+      outcome: "rejected",
+      evaluations: [
+        {
+          ruleId: code,
+          ruleType: ORIGIN_ATTESTATION_RULE_TYPE,
+          outcome: "fail",
+          reason
+        }
+      ],
+      rejectedBy: code
+    }
+  };
+}
+var ORIGIN_ATTESTATION_RULE_TYPE;
+var init_origin_gate = __esm({
+  "../gsb-h1-reg/apps/curator/dist/origin/origin-gate.js"() {
+    "use strict";
+    init_dist2();
+    ORIGIN_ATTESTATION_RULE_TYPE = "origin_attestation";
+  }
+});
+
+// ../gsb-h1-reg/apps/curator/dist/curator.js
 var Curator;
 var init_curator = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/apps/curator/dist/curator.js"() {
+  "../gsb-h1-reg/apps/curator/dist/curator.js"() {
     "use strict";
     init_dist2();
     init_dist7();
@@ -41363,9 +41915,16 @@ var init_curator = __esm({
     init_supersession_detector();
     init_promoter();
     init_rejector();
+    init_origin_gate();
     Curator = class {
       deps;
       config;
+      /**
+       * Policy ids already warned about for dormant rules (5bm.2), so the runtime
+       * completeness check fires ONCE per policy rather than per candidate — a
+       * digestion batch must not emit 17k identical warnings.
+       */
+      warnedDormantPolicies = /* @__PURE__ */ new Set();
       constructor(deps, config2) {
         this.deps = deps;
         this.config = config2;
@@ -41394,6 +41953,17 @@ var init_curator = __esm({
             reason: "Intra-batch duplicate (same content already promoted in this batch)"
           };
         }
+        const suppressReject = this.config.dryRun === true || this.config.suppressRejectionReceipts === true;
+        const originGate = checkOriginAttestation(candidate, this.config.originSecret);
+        if (originGate.verdict === "rejected") {
+          const reason = reject(candidate, originGate.pipelineResult, this.deps.auditRepo, suppressReject);
+          return {
+            candidateId: candidate.id,
+            outcome: "rejected",
+            pipelineResult: originGate.pipelineResult,
+            reason
+          };
+        }
         const policies = this.deps.policyRepo.findByTenant(this.config.tenantId);
         const policy = policies.find((p) => p.enabled);
         if (policy === void 0) {
@@ -41404,12 +41974,19 @@ var init_curator = __esm({
           });
         }
         const pipeline = new PolicyPipeline(policy);
+        if (pipeline.dormantRuleTypes.length > 0 && !this.warnedDormantPolicies.has(policy.id)) {
+          this.warnedDormantPolicies.add(policy.id);
+          console.warn(`[curator] governance policy "${policy.name}" (${policy.id}) leaves ${pipeline.dormantRuleTypes.length} registered rule(s) dormant: ${pipeline.dormantRuleTypes.join(", ")}. They gate nothing on this store. See buildRecommendedPolicy / bead qmd-team-intent-kb-5bm.10.`);
+        }
         const hashSet = existingHashes ?? new Set(this.deps.memoryRepo.getContentHashesByTenant(this.config.tenantId));
         const pipelineResult = pipeline.evaluate(candidate, {
           existingHashes: hashSet,
-          tenantId: this.config.tenantId
+          tenantId: this.config.tenantId,
+          // contradiction_check lookup (E1): tenant-scoped ACTIVE memories filtered
+          // to the requested category. Queried lazily — the store is only hit when
+          // a contradiction rule actually runs.
+          getActiveMemoriesInCategory: (category) => this.deps.memoryRepo.findByTenantAndLifecycle(this.config.tenantId, "active").filter((m) => m.category === category).map((m) => ({ id: m.id, content: m.content }))
         });
-        const suppressReject = this.config.dryRun === true || this.config.suppressRejectionReceipts === true;
         if (pipelineResult.outcome === "rejected") {
           const reason = reject(candidate, pipelineResult, this.deps.auditRepo, suppressReject);
           return {
@@ -41440,7 +42017,7 @@ var init_curator = __esm({
       processBatch(candidates) {
         const results = [];
         let promoted = 0;
-        let rejected = 0;
+        let rejected2 = 0;
         let flagged = 0;
         let duplicates = 0;
         const existingHashes = new Set(this.deps.memoryRepo.getContentHashesByTenant(this.config.tenantId));
@@ -41453,7 +42030,7 @@ var init_curator = __esm({
               existingHashes.add(computeContentHash(candidate.content));
               break;
             case "rejected":
-              rejected++;
+              rejected2++;
               break;
             case "flagged":
               flagged++;
@@ -41466,7 +42043,7 @@ var init_curator = __esm({
         return {
           processed: candidates.length,
           promoted,
-          rejected,
+          rejected: rejected2,
           flagged,
           duplicates,
           results
@@ -41493,7 +42070,7 @@ var init_curator = __esm({
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/apps/curator/dist/intake/spool-intake.js
+// ../gsb-h1-reg/apps/curator/dist/intake/spool-intake.js
 async function ingestFromSpool(candidateRepo, spoolDir, opts) {
   const detailed = await ingestFromSpoolDetailed(candidateRepo, spoolDir, opts);
   if (!detailed.ok)
@@ -41507,7 +42084,7 @@ async function ingestFromSpoolDetailed(candidateRepo, spoolDir, opts) {
     return filesResult;
   const ingested = [];
   const tampered = [];
-  const rejected = [];
+  const rejected2 = [];
   for (const filepath of filesResult.value) {
     if (verifyManifest) {
       const verify = await verifySpoolManifest(filepath);
@@ -41537,7 +42114,7 @@ async function ingestFromSpoolDetailed(candidateRepo, spoolDir, opts) {
         ingested.push(candidate);
       } catch (e) {
         if (e instanceof DisclosureRejectedError) {
-          rejected.push({ candidateId: candidate.id, category: e.category });
+          rejected2.push({ candidateId: candidate.id, category: e.category });
           continue;
         }
         throw e;
@@ -41547,28 +42124,28 @@ async function ingestFromSpoolDetailed(candidateRepo, spoolDir, opts) {
       await archiveIngestedFile(filepath, opts.archiveIngestedDir);
     }
   }
-  return { ok: true, value: { ingested, tampered, rejected } };
+  return { ok: true, value: { ingested, tampered, rejected: rejected2 } };
 }
 async function archiveIngestedFile(spoolFilePath, archiveDir) {
   try {
     await (0, import_promises4.mkdir)(archiveDir, { recursive: true });
-    const dest = (0, import_node_path12.join)(archiveDir, (0, import_node_path12.basename)(spoolFilePath));
+    const dest = (0, import_node_path13.join)(archiveDir, (0, import_node_path13.basename)(spoolFilePath));
     await (0, import_promises4.rename)(spoolFilePath, dest);
     try {
       await (0, import_promises4.rename)(`${spoolFilePath}.manifest.json`, `${dest}.manifest.json`);
     } catch {
     }
   } catch (e) {
-    process.stderr.write(`[spool-intake] archive skipped for ${(0, import_node_path12.basename)(spoolFilePath)}: ${e instanceof Error ? e.message : String(e)}
+    process.stderr.write(`[spool-intake] archive skipped for ${(0, import_node_path13.basename)(spoolFilePath)}: ${e instanceof Error ? e.message : String(e)}
 `);
   }
 }
 async function quarantineTamperedFile(spoolFilePath, spoolDir, quarantineDirOverride, expected, actual) {
   try {
-    const baseDir = quarantineDirOverride ?? (0, import_node_path12.join)(spoolDir ?? ".", "quarantine");
+    const baseDir = quarantineDirOverride ?? (0, import_node_path13.join)(spoolDir ?? ".", "quarantine");
     await (0, import_promises4.mkdir)(baseDir, { recursive: true });
-    const name = (0, import_node_path12.basename)(spoolFilePath);
-    const dest = (0, import_node_path12.join)(baseDir, name);
+    const name = (0, import_node_path13.basename)(spoolFilePath);
+    const dest = (0, import_node_path13.join)(baseDir, name);
     const evidence = {
       spoolFile: name,
       detectedAt: (/* @__PURE__ */ new Date()).toISOString(),
@@ -41587,21 +42164,21 @@ async function quarantineTamperedFile(spoolFilePath, spoolDir, quarantineDirOver
     return null;
   }
 }
-var import_promises4, import_node_path12;
+var import_promises4, import_node_path13;
 var init_spool_intake = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/apps/curator/dist/intake/spool-intake.js"() {
+  "../gsb-h1-reg/apps/curator/dist/intake/spool-intake.js"() {
     "use strict";
     import_promises4 = require("node:fs/promises");
-    import_node_path12 = require("node:path");
+    import_node_path13 = require("node:path");
     init_dist6();
     init_dist2();
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/apps/curator/dist/merge/merge-gate.js
+// ../gsb-h1-reg/apps/curator/dist/merge/merge-gate.js
 var MERGE_EPOCH_MS;
 var init_merge_gate = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/apps/curator/dist/merge/merge-gate.js"() {
+  "../gsb-h1-reg/apps/curator/dist/merge/merge-gate.js"() {
     "use strict";
     init_dist2();
     init_dist7();
@@ -41611,42 +42188,43 @@ var init_merge_gate = __esm({
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/apps/curator/dist/import/markdown-parser.js
+// ../gsb-h1-reg/apps/curator/dist/import/markdown-parser.js
 var init_markdown_parser = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/apps/curator/dist/import/markdown-parser.js"() {
+  "../gsb-h1-reg/apps/curator/dist/import/markdown-parser.js"() {
     "use strict";
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/apps/curator/dist/import/vault-walker.js
+// ../gsb-h1-reg/apps/curator/dist/import/vault-walker.js
 var init_vault_walker = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/apps/curator/dist/import/vault-walker.js"() {
+  "../gsb-h1-reg/apps/curator/dist/import/vault-walker.js"() {
     "use strict";
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/apps/curator/dist/import/collision-detector.js
+// ../gsb-h1-reg/apps/curator/dist/import/collision-detector.js
 var init_collision_detector = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/apps/curator/dist/import/collision-detector.js"() {
+  "../gsb-h1-reg/apps/curator/dist/import/collision-detector.js"() {
     "use strict";
     init_dist2();
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/apps/curator/dist/import/import-pipeline.js
+// ../gsb-h1-reg/apps/curator/dist/import/import-pipeline.js
 var init_import_pipeline = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/apps/curator/dist/import/import-pipeline.js"() {
+  "../gsb-h1-reg/apps/curator/dist/import/import-pipeline.js"() {
     "use strict";
     init_dist2();
+    init_dist();
     init_vault_walker();
     init_markdown_parser();
     init_collision_detector();
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/apps/curator/dist/import/index.js
+// ../gsb-h1-reg/apps/curator/dist/import/index.js
 var init_import = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/apps/curator/dist/import/index.js"() {
+  "../gsb-h1-reg/apps/curator/dist/import/index.js"() {
     "use strict";
     init_markdown_parser();
     init_vault_walker();
@@ -41656,9 +42234,9 @@ var init_import = __esm({
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/apps/curator/dist/index.js
+// ../gsb-h1-reg/apps/curator/dist/index.js
 var init_dist8 = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/apps/curator/dist/index.js"() {
+  "../gsb-h1-reg/apps/curator/dist/index.js"() {
     "use strict";
     init_curator();
     init_spool_intake();
@@ -41666,13 +42244,14 @@ var init_dist8 = __esm({
     init_supersession_detector();
     init_promoter();
     init_rejector();
+    init_origin_gate();
     init_merge_gate();
     init_import();
     init_import();
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/apps/git-exporter/dist/formatter/frontmatter.js
+// ../gsb-h1-reg/apps/git-exporter/dist/formatter/frontmatter.js
 function extractFrontmatter(memory) {
   return {
     id: memory.id,
@@ -41723,12 +42302,12 @@ function escapeYamlString(s) {
   return s.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 }
 var init_frontmatter = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/apps/git-exporter/dist/formatter/frontmatter.js"() {
+  "../gsb-h1-reg/apps/git-exporter/dist/formatter/frontmatter.js"() {
     "use strict";
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/apps/git-exporter/dist/formatter/markdown-formatter.js
+// ../gsb-h1-reg/apps/git-exporter/dist/formatter/markdown-formatter.js
 function formatMemoryAsMarkdown(memory, resolveLinks) {
   const frontmatter = renderFrontmatter(extractFrontmatter(memory));
   const content = resolveLinks ? resolveLinks(memory.content) : memory.content;
@@ -41740,13 +42319,13 @@ ${content}
 `;
 }
 var init_markdown_formatter = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/apps/git-exporter/dist/formatter/markdown-formatter.js"() {
+  "../gsb-h1-reg/apps/git-exporter/dist/formatter/markdown-formatter.js"() {
     "use strict";
     init_frontmatter();
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/apps/git-exporter/dist/formatter/directory-mapper.js
+// ../gsb-h1-reg/apps/git-exporter/dist/formatter/directory-mapper.js
 function getDirectory(memory) {
   if (memory.lifecycle === "archived" || memory.lifecycle === "superseded") {
     return "archive";
@@ -41766,59 +42345,82 @@ function getCategoryDirectory(category) {
     case "onboarding":
       return "guides";
     default:
-      return "curated";
+      throw new UnknownCategoryError(category);
   }
 }
 function getRelativePath2(memory) {
   return `${getDirectory(memory)}/${memory.id}.md`;
 }
+var UnknownCategoryError;
 var init_directory_mapper = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/apps/git-exporter/dist/formatter/directory-mapper.js"() {
+  "../gsb-h1-reg/apps/git-exporter/dist/formatter/directory-mapper.js"() {
     "use strict";
+    UnknownCategoryError = class extends Error {
+      category;
+      constructor(category) {
+        super(`No export-directory mapping for category "${category}"`);
+        this.category = category;
+        this.name = "UnknownCategoryError";
+      }
+    };
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/apps/git-exporter/dist/diff/change-detector.js
+// ../gsb-h1-reg/apps/git-exporter/dist/diff/change-detector.js
 function detectChanges(memoryRepo, exportStateRepo, config2) {
   const exportState = exportStateRepo.get(config2.targetId);
   let memories;
+  const readFailures = [];
   if (config2.tenantId !== void 0) {
-    memories = memoryRepo.findByTenant(config2.tenantId);
+    const res = memoryRepo.findByTenantResilient(config2.tenantId);
+    memories = res.memories;
+    readFailures.push(...res.failures);
   } else {
-    const active = memoryRepo.findByLifecycle("active");
-    const deprecated = memoryRepo.findByLifecycle("deprecated");
-    const superseded = memoryRepo.findByLifecycle("superseded");
-    const archived = memoryRepo.findByLifecycle("archived");
-    memories = [...active, ...deprecated, ...superseded, ...archived];
+    const parts = ["active", "deprecated", "superseded", "archived"].map((lc) => memoryRepo.findByLifecycleResilient(lc));
+    memories = parts.flatMap((p) => p.memories);
+    readFailures.push(...parts.flatMap((p) => p.failures));
   }
   if (exportState !== null) {
     memories = memories.filter((m) => m.updatedAt > exportState.lastExportedAt);
   }
   const toWrite = [];
   const toArchive = [];
+  const quarantined = readFailures.map((f) => ({
+    id: f.id,
+    category: "",
+    reason: f.reason
+  }));
   for (const memory of memories) {
-    if (memory.lifecycle === "archived" || memory.lifecycle === "superseded") {
-      const categoryDir = getCategoryDirectory(memory.category);
-      const fromPath = (0, import_node_path13.join)(config2.outputDir, categoryDir, `${memory.id}.md`);
-      const toPath = (0, import_node_path13.join)(config2.outputDir, getRelativePath2(memory));
-      toArchive.push({ memory, fromPath, toPath });
-    } else {
-      const filePath = (0, import_node_path13.join)(config2.outputDir, getRelativePath2(memory));
-      toWrite.push({ memory, filePath });
+    try {
+      if (memory.lifecycle === "archived" || memory.lifecycle === "superseded") {
+        const categoryDir = getCategoryDirectory(memory.category);
+        const fromPath = (0, import_node_path14.join)(config2.outputDir, categoryDir, `${memory.id}.md`);
+        const toPath = (0, import_node_path14.join)(config2.outputDir, getRelativePath2(memory));
+        toArchive.push({ memory, fromPath, toPath });
+      } else {
+        const filePath = (0, import_node_path14.join)(config2.outputDir, getRelativePath2(memory));
+        toWrite.push({ memory, filePath });
+      }
+    } catch (err2) {
+      quarantined.push({
+        id: memory.id,
+        category: memory.category ?? "",
+        reason: err2 instanceof Error ? err2.message : String(err2)
+      });
     }
   }
-  return { toWrite, toArchive, toRemove: [] };
+  return { toWrite, toArchive, toRemove: [], quarantined };
 }
-var import_node_path13;
+var import_node_path14;
 var init_change_detector = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/apps/git-exporter/dist/diff/change-detector.js"() {
+  "../gsb-h1-reg/apps/git-exporter/dist/diff/change-detector.js"() {
     "use strict";
     init_directory_mapper();
-    import_node_path13 = require("node:path");
+    import_node_path14 = require("node:path");
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/apps/git-exporter/dist/writer/file-writer.js
+// ../gsb-h1-reg/apps/git-exporter/dist/writer/file-writer.js
 function assertPathSafe(filePath, allowedRoot) {
   if (filePath.includes("\0")) {
     throw new Error("Unsafe file path: Path contains null byte");
@@ -41828,8 +42430,8 @@ function assertPathSafe(filePath, allowedRoot) {
     throw new Error("Unsafe file path: Path contains directory traversal (..)");
   }
   if (allowedRoot !== void 0) {
-    const resolved = (0, import_node_path14.resolve)(filePath);
-    const resolvedRoot = (0, import_node_path14.resolve)(allowedRoot);
+    const resolved = (0, import_node_path15.resolve)(filePath);
+    const resolvedRoot = (0, import_node_path15.resolve)(allowedRoot);
     if (!resolved.startsWith(resolvedRoot + "/") && resolved !== resolvedRoot) {
       throw new Error(`Path traversal rejected: ${filePath} is outside ${allowedRoot}`);
     }
@@ -41837,40 +42439,40 @@ function assertPathSafe(filePath, allowedRoot) {
 }
 function writeFile3(filePath, content, exportRoot) {
   assertPathSafe(filePath, exportRoot);
-  (0, import_node_fs7.mkdirSync)((0, import_node_path14.dirname)(filePath), { recursive: true });
-  (0, import_node_fs7.writeFileSync)(filePath, content, "utf8");
+  (0, import_node_fs8.mkdirSync)((0, import_node_path15.dirname)(filePath), { recursive: true });
+  (0, import_node_fs8.writeFileSync)(filePath, content, "utf8");
 }
 function archiveFile(fromPath, toPath, content, exportRoot) {
   assertPathSafe(toPath, exportRoot);
   if (exportRoot !== void 0) {
     assertPathSafe(fromPath, exportRoot);
   }
-  (0, import_node_fs7.mkdirSync)((0, import_node_path14.dirname)(toPath), { recursive: true });
-  if ((0, import_node_fs7.existsSync)(fromPath)) {
-    (0, import_node_fs7.unlinkSync)(fromPath);
+  (0, import_node_fs8.mkdirSync)((0, import_node_path15.dirname)(toPath), { recursive: true });
+  if ((0, import_node_fs8.existsSync)(fromPath)) {
+    (0, import_node_fs8.unlinkSync)(fromPath);
   }
-  (0, import_node_fs7.writeFileSync)(toPath, content, "utf8");
+  (0, import_node_fs8.writeFileSync)(toPath, content, "utf8");
 }
 function removeFile(filePath, exportRoot) {
   if (exportRoot !== void 0) {
     assertPathSafe(filePath, exportRoot);
   }
-  if ((0, import_node_fs7.existsSync)(filePath)) {
-    (0, import_node_fs7.unlinkSync)(filePath);
+  if ((0, import_node_fs8.existsSync)(filePath)) {
+    (0, import_node_fs8.unlinkSync)(filePath);
     return true;
   }
   return false;
 }
-var import_node_fs7, import_node_path14;
+var import_node_fs8, import_node_path15;
 var init_file_writer = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/apps/git-exporter/dist/writer/file-writer.js"() {
+  "../gsb-h1-reg/apps/git-exporter/dist/writer/file-writer.js"() {
     "use strict";
-    import_node_fs7 = require("node:fs");
-    import_node_path14 = require("node:path");
+    import_node_fs8 = require("node:fs");
+    import_node_path15 = require("node:path");
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/apps/git-exporter/dist/exporter.js
+// ../gsb-h1-reg/apps/git-exporter/dist/exporter.js
 function isSensitivityRestricted(level) {
   const idx = Sensitivity.options.indexOf(level);
   return idx >= CONFIDENTIAL_INDEX;
@@ -41881,31 +42483,48 @@ function runExport(memoryRepo, exportStateRepo, config2, nowFn = () => (/* @__PU
   const archived = [];
   const removed = [];
   const skipped = [];
+  const quarantined = [...changeset.quarantined];
   let unchanged = 0;
   for (const item of changeset.toWrite) {
     if (isSensitivityRestricted(item.memory.sensitivity)) {
       skipped.push(item.memory.id);
       continue;
     }
-    const content = formatMemoryAsMarkdown(item.memory);
-    if ((0, import_node_fs8.existsSync)(item.filePath)) {
-      const existing = (0, import_node_fs8.readFileSync)(item.filePath, "utf8");
-      if (existing === content) {
-        unchanged++;
-        continue;
+    try {
+      const content = formatMemoryAsMarkdown(item.memory);
+      if ((0, import_node_fs9.existsSync)(item.filePath)) {
+        const existing = (0, import_node_fs9.readFileSync)(item.filePath, "utf8");
+        if (existing === content) {
+          unchanged++;
+          continue;
+        }
       }
+      writeFile3(item.filePath, content);
+      written.push(item.filePath);
+    } catch (err2) {
+      quarantined.push({
+        id: item.memory.id,
+        category: item.memory.category ?? "",
+        reason: err2 instanceof Error ? err2.message : String(err2)
+      });
     }
-    writeFile3(item.filePath, content);
-    written.push(item.filePath);
   }
   for (const item of changeset.toArchive) {
     if (isSensitivityRestricted(item.memory.sensitivity)) {
       skipped.push(item.memory.id);
       continue;
     }
-    const content = formatMemoryAsMarkdown(item.memory);
-    archiveFile(item.fromPath, item.toPath, content);
-    archived.push(item.toPath);
+    try {
+      const content = formatMemoryAsMarkdown(item.memory);
+      archiveFile(item.fromPath, item.toPath, content);
+      archived.push(item.toPath);
+    } catch (err2) {
+      quarantined.push({
+        id: item.memory.id,
+        category: item.memory.category ?? "",
+        reason: err2 instanceof Error ? err2.message : String(err2)
+      });
+    }
   }
   for (const filePath of changeset.toRemove) {
     if (removeFile(filePath)) {
@@ -41918,35 +42537,36 @@ function runExport(memoryRepo, exportStateRepo, config2, nowFn = () => (/* @__PU
     archived,
     removed,
     skipped,
+    quarantined,
     unchanged,
     totalProcessed: changeset.toWrite.length + changeset.toArchive.length + changeset.toRemove.length
   };
 }
-var import_node_fs8, CONFIDENTIAL_INDEX;
+var import_node_fs9, CONFIDENTIAL_INDEX;
 var init_exporter = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/apps/git-exporter/dist/exporter.js"() {
+  "../gsb-h1-reg/apps/git-exporter/dist/exporter.js"() {
     "use strict";
     init_dist();
     init_change_detector();
     init_markdown_formatter();
     init_file_writer();
-    import_node_fs8 = require("node:fs");
+    import_node_fs9 = require("node:fs");
     CONFIDENTIAL_INDEX = Sensitivity.options.indexOf("confidential");
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/apps/git-exporter/dist/cli.js
+// ../gsb-h1-reg/apps/git-exporter/dist/cli.js
 var init_cli = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/apps/git-exporter/dist/cli.js"() {
+  "../gsb-h1-reg/apps/git-exporter/dist/cli.js"() {
     "use strict";
     init_dist3();
     init_exporter();
   }
 });
 
-// ../../../../../000-projects/bobs-big-brain-registrar/apps/git-exporter/dist/index.js
+// ../gsb-h1-reg/apps/git-exporter/dist/index.js
 var init_dist9 = __esm({
-  "../../../../../000-projects/bobs-big-brain-registrar/apps/git-exporter/dist/index.js"() {
+  "../gsb-h1-reg/apps/git-exporter/dist/index.js"() {
     "use strict";
     init_frontmatter();
     init_markdown_formatter();
@@ -41964,7 +42584,7 @@ function seedDefaultPolicy(policyRepo, tenantId) {
   if (Array.isArray(existing) && existing.length > 0) return false;
   const now = (/* @__PURE__ */ new Date()).toISOString();
   const policy = GovernancePolicy.parse({
-    id: (0, import_node_crypto9.randomUUID)(),
+    id: (0, import_node_crypto10.randomUUID)(),
     name: "local-default",
     tenantId,
     enabled: true,
@@ -41997,11 +42617,11 @@ function seedDefaultPolicy(policyRepo, tenantId) {
   policyRepo.insert(policy);
   return true;
 }
-var import_node_crypto9;
+var import_node_crypto10;
 var init_seed_policy = __esm({
   "src/seed-policy.ts"() {
     "use strict";
-    import_node_crypto9 = require("node:crypto");
+    import_node_crypto10 = require("node:crypto");
     init_dist();
   }
 });
@@ -42017,7 +42637,7 @@ function commitAnchor(auditDir) {
   };
   const git = (args) => (0, import_node_child_process3.execFileSync)("git", args, { cwd: auditDir, stdio: "ignore", env });
   try {
-    if (!(0, import_node_fs9.existsSync)((0, import_node_path15.join)(auditDir, ".git"))) git(["init", "-q"]);
+    if (!(0, import_node_fs10.existsSync)((0, import_node_path16.join)(auditDir, ".git"))) git(["init", "-q"]);
     git(["add", "anchors.jsonl"]);
     git(["commit", "-q", "-m", `anchor ${(/* @__PURE__ */ new Date()).toISOString()}`]);
     try {
@@ -42033,9 +42653,9 @@ function commitAnchor(auditDir) {
 }
 function anchorChainHead(auditRepo, basePath, tenantId) {
   try {
-    const auditDir = (0, import_node_path15.join)(basePath, "audit");
-    (0, import_node_fs9.mkdirSync)(auditDir, { recursive: true });
-    const rec = appendAnchor(auditRepo, (0, import_node_path15.join)(auditDir, "anchors.jsonl"), { tenantId });
+    const auditDir = (0, import_node_path16.join)(basePath, "audit");
+    (0, import_node_fs10.mkdirSync)(auditDir, { recursive: true });
+    const rec = appendAnchor(auditRepo, (0, import_node_path16.join)(auditDir, "anchors.jsonl"), { tenantId });
     return {
       chainHead: rec.chainHead,
       chainedRows: rec.chainedRows,
@@ -42045,14 +42665,14 @@ function anchorChainHead(auditRepo, basePath, tenantId) {
     return void 0;
   }
 }
-var import_node_child_process3, import_node_fs9, import_node_path15;
+var import_node_child_process3, import_node_fs10, import_node_path16;
 var init_anchor = __esm({
   "src/anchor.ts"() {
     "use strict";
     init_dist3();
     import_node_child_process3 = require("node:child_process");
-    import_node_fs9 = require("node:fs");
-    import_node_path15 = require("node:path");
+    import_node_fs10 = require("node:fs");
+    import_node_path16 = require("node:path");
   }
 });
 
@@ -42070,9 +42690,9 @@ function isContention(err2) {
   return err2.code === "EAGAIN" || err2.code === "EWOULDBLOCK";
 }
 async function acquireWriteLock(basePath, timeoutMs = DEFAULT_TIMEOUT_MS) {
-  (0, import_node_fs10.mkdirSync)(basePath, { recursive: true });
-  const lockPath = (0, import_node_path16.join)(basePath, LOCK_FILENAME);
-  const fd = (0, import_node_fs10.openSync)(lockPath, "a");
+  (0, import_node_fs11.mkdirSync)(basePath, { recursive: true });
+  const lockPath = (0, import_node_path17.join)(basePath, LOCK_FILENAME);
+  const fd = (0, import_node_fs11.openSync)(lockPath, "a");
   const deadline = Date.now() + Math.max(0, timeoutMs);
   for (; ; ) {
     const err2 = await tryFlockExclusive(fd);
@@ -42084,7 +42704,7 @@ async function acquireWriteLock(basePath, timeoutMs = DEFAULT_TIMEOUT_MS) {
           } catch {
           } finally {
             try {
-              (0, import_node_fs10.closeSync)(fd);
+              (0, import_node_fs11.closeSync)(fd);
             } catch {
             }
           }
@@ -42093,14 +42713,14 @@ async function acquireWriteLock(basePath, timeoutMs = DEFAULT_TIMEOUT_MS) {
     }
     if (!isContention(err2)) {
       try {
-        (0, import_node_fs10.closeSync)(fd);
+        (0, import_node_fs11.closeSync)(fd);
       } catch {
       }
       throw err2;
     }
     if (Date.now() >= deadline) {
       try {
-        (0, import_node_fs10.closeSync)(fd);
+        (0, import_node_fs11.closeSync)(fd);
       } catch {
       }
       throw new WriteLockBusyError();
@@ -42108,12 +42728,12 @@ async function acquireWriteLock(basePath, timeoutMs = DEFAULT_TIMEOUT_MS) {
     await sleep(RETRY_INTERVAL_MS);
   }
 }
-var import_node_fs10, import_node_path16, import_fs_ext, LOCK_FILENAME, DEFAULT_TIMEOUT_MS, RETRY_INTERVAL_MS, WriteLockBusyError, sleep;
+var import_node_fs11, import_node_path17, import_fs_ext, LOCK_FILENAME, DEFAULT_TIMEOUT_MS, RETRY_INTERVAL_MS, WriteLockBusyError, sleep;
 var init_write_lock = __esm({
   "src/write-lock.ts"() {
     "use strict";
-    import_node_fs10 = require("node:fs");
-    import_node_path16 = require("node:path");
+    import_node_fs11 = require("node:fs");
+    import_node_path17 = require("node:path");
     import_fs_ext = require("fs-ext");
     LOCK_FILENAME = ".write.lock";
     DEFAULT_TIMEOUT_MS = 8e3;
@@ -42154,7 +42774,7 @@ async function runGovernLocked(config2) {
       );
     }
     const ingestResult = await ingestFromSpool(candidateRepo, config2.spoolPath, {
-      archiveIngestedDir: (0, import_node_path17.join)(config2.spoolPath, "ingested")
+      archiveIngestedDir: (0, import_node_path18.join)(config2.spoolPath, "ingested")
     });
     const ingested = ingestResult.ok ? ingestResult.value.length : 0;
     const curation = sweepInbox(config2, { candidateRepo, memoryRepo, policyRepo, auditRepo });
@@ -42218,9 +42838,15 @@ function sweepInbox(config2, deps) {
     skipped: 0
   };
   if (inbox.length === 0) return res;
+  let originSecret;
+  try {
+    originSecret = loadOrCreateOriginSecret(config2.basePath);
+  } catch {
+    originSecret = void 0;
+  }
   const curator = new Curator(
     { candidateRepo, memoryRepo, policyRepo, auditRepo },
-    { tenantId: config2.tenantId, suppressRejectionReceipts: true }
+    { tenantId: config2.tenantId, suppressRejectionReceipts: true, originSecret }
   );
   const existingHashes = new Set(memoryRepo.getContentHashesByTenant(config2.tenantId));
   const outcomes = [];
@@ -42272,7 +42898,7 @@ function sweepInbox(config2, deps) {
       }
       auditRepo.insert(
         AuditEvent.parse({
-          id: (0, import_node_crypto10.randomUUID)(),
+          id: (0, import_node_crypto11.randomUUID)(),
           action: "governed",
           memoryId: SWEEP_RECEIPT_MEMORY_ID,
           tenantId: config2.tenantId,
@@ -42298,12 +42924,12 @@ function sweepInbox(config2, deps) {
 function isMemberAuthored(candidate) {
   return candidate.metadata?.proposedByRole === "member";
 }
-var import_node_crypto10, import_node_path17, SWEEP_RECEIPT_MEMORY_ID;
+var import_node_crypto11, import_node_path18, SWEEP_RECEIPT_MEMORY_ID;
 var init_govern = __esm({
   "src/govern.ts"() {
     "use strict";
-    import_node_crypto10 = require("node:crypto");
-    import_node_path17 = require("node:path");
+    import_node_crypto11 = require("node:crypto");
+    import_node_path18 = require("node:path");
     init_dist8();
     init_dist9();
     init_dist2();
@@ -42332,11 +42958,11 @@ function isMissingNativeDep(e) {
   );
 }
 function manifestPath(basePath) {
-  return (0, import_node_path18.join)(basePath, "audit", "exceptions.manifest.json");
+  return (0, import_node_path19.join)(basePath, "audit", "exceptions.manifest.json");
 }
 function loadExceptionManifest(basePath) {
   const p = manifestPath(basePath);
-  if (!(0, import_node_fs11.existsSync)(p)) return null;
+  if (!(0, import_node_fs12.existsSync)(p)) return null;
   try {
     return readManifest(p);
   } catch (e) {
@@ -42386,16 +43012,16 @@ async function startLocalServer() {
 `
   );
 }
-var import_node_crypto11, import_node_fs11, import_zod18, import_node_path18, VERSION2, config, CATEGORIES2, NATIVE_DEP_HINT, server2;
+var import_node_crypto12, import_node_fs12, import_zod19, import_node_path19, VERSION2, config, CATEGORIES2, NATIVE_DEP_HINT, server2;
 var init_local_server = __esm({
   "src/local-server.ts"() {
     "use strict";
-    import_node_crypto11 = require("node:crypto");
-    import_node_fs11 = require("node:fs");
+    import_node_crypto12 = require("node:crypto");
+    import_node_fs12 = require("node:fs");
     init_mcp();
     init_stdio2();
-    import_zod18 = __toESM(require_zod(), 1);
-    import_node_path18 = require("node:path");
+    import_zod19 = __toESM(require_zod(), 1);
+    import_node_path19 = require("node:path");
     init_dist3();
     init_dist4();
     init_dist2();
@@ -42422,9 +43048,9 @@ var init_local_server = __esm({
       "brain_search",
       "Search your governed knowledge brain and return qmd:// citations \u2014 receipts, not recall. Runs in-process against your local qmd index (no network, no API key). Curated scope by default.",
       {
-        query: import_zod18.z.string().min(1).describe("Natural-language search query"),
-        scope: import_zod18.z.enum(["curated", "all", "inbox", "archived"]).optional().describe("Search scope: curated (default, governed knowledge), all, inbox, or archived"),
-        limit: import_zod18.z.number().int().min(1).max(50).optional().describe("Maximum number of cited hits to return (default 10)")
+        query: import_zod19.z.string().min(1).describe("Natural-language search query"),
+        scope: import_zod19.z.enum(["curated", "all", "inbox", "archived"]).optional().describe("Search scope: curated (default, governed knowledge), all, inbox, or archived"),
+        limit: import_zod19.z.number().int().min(1).max(50).optional().describe("Maximum number of cited hits to return (default 10)")
       },
       async (params) => {
         const scope = params.scope ?? "curated";
@@ -42512,7 +43138,7 @@ var init_local_server = __esm({
       "brain_audit_verify",
       "Verify the integrity of your brain's audit trail \u2014 the SHA-256 hash chain AND the external anchor log. Reports an honest 3-state summary: tamper signatures (a broken hash link, or a silent rewrite of history caught by cross-checking the anchored snapshots), documented migration exceptions, and benign chain-ordering forks. Read-only.",
       {
-        verbose: import_zod18.z.boolean().optional().describe(
+        verbose: import_zod19.z.boolean().optional().describe(
           "Include the raw per-break detail arrays (row ids, tenants). Default false \u2014 the summary reports counts only, to avoid leaking row identity on a read surface an outsider may hit."
         )
       },
@@ -42527,7 +43153,7 @@ var init_local_server = __esm({
         }
         try {
           const auditRepo = new AuditRepository(db);
-          const result = verifyAnchors(auditRepo, (0, import_node_path18.join)(config.basePath, "audit", "anchors.jsonl"));
+          const result = verifyAnchors(auditRepo, (0, import_node_path19.join)(config.basePath, "audit", "anchors.jsonl"));
           const manifest = loadExceptionManifest(config.basePath);
           const rowsById = buildRowsById(auditRepo);
           const classified = classifyChainBreaks(result.chain.breaks, manifest, rowsById);
@@ -42567,14 +43193,32 @@ var init_local_server = __esm({
       "brain_capture",
       "Capture a single fact, decision, pattern, or convention as a governance candidate (the model's PROPOSAL). It is appended to the local spool; run brain_govern to put it through deterministic dedupe/policy/promotion with a hash-chained receipt.",
       {
-        title: import_zod18.z.string().min(1).describe("Short, specific title for the memory"),
-        content: import_zod18.z.string().min(1).describe("The fact to remember, in full"),
-        category: import_zod18.z.enum(CATEGORIES2).optional().describe("Memory category (default: reference)"),
-        filePaths: import_zod18.z.array(import_zod18.z.string()).optional().describe("Related file paths, if any")
+        title: import_zod19.z.string().min(1).describe("Short, specific title for the memory"),
+        content: import_zod19.z.string().min(1).describe("The fact to remember, in full"),
+        category: import_zod19.z.enum(CATEGORIES2).optional().describe("Memory category (default: reference)"),
+        filePaths: import_zod19.z.array(import_zod19.z.string()).optional().describe("Related file paths, if any")
       },
       async (params) => {
+        const id = (0, import_node_crypto12.randomUUID)();
+        const capturedAt = (/* @__PURE__ */ new Date()).toISOString();
+        let origin;
+        try {
+          const secret = loadOrCreateOriginSecret(config.basePath);
+          origin = {
+            tokenHmac: mintOriginToken2(secret, {
+              candidateId: id,
+              tenantId: config.tenantId,
+              capturedAt
+            }),
+            channel: "local-mcp",
+            mintedAt: capturedAt
+          };
+        } catch {
+          origin = void 0;
+        }
         const candidate = {
-          id: (0, import_node_crypto11.randomUUID)(),
+          schemaVersion: "1",
+          id,
           status: "inbox",
           source: "mcp",
           content: params.content,
@@ -42585,7 +43229,8 @@ var init_local_server = __esm({
           tenantId: config.tenantId,
           metadata: { filePaths: params.filePaths ?? [], tags: [] },
           prePolicyFlags: { potentialSecret: false, lowConfidence: false, duplicateSuspect: false },
-          capturedAt: (/* @__PURE__ */ new Date()).toISOString()
+          capturedAt,
+          ...origin !== void 0 ? { origin } : {}
         };
         const res = await writeToSpool(candidate, config.spoolPath);
         if (!res.ok) {
@@ -42629,11 +43274,11 @@ var init_local_server = __esm({
       "brain_transition",
       "Change the lifecycle state of an existing governed memory (e.g. retire an outdated one). Writes a hash-chained audit event. Valid moves: active\u2192{deprecated,superseded,archived}, deprecated\u2192{active,archived}, superseded\u2192archived.",
       {
-        memoryId: import_zod18.z.string().uuid().describe("UUID of the memory to transition"),
-        to: import_zod18.z.enum(["active", "deprecated", "superseded", "archived"]).describe("Target lifecycle state"),
-        reason: import_zod18.z.string().min(1).describe("Human-readable justification (lands in the audit trail)"),
-        actor: import_zod18.z.string().optional().describe("Who is making the change (default: owner)"),
-        supersededBy: import_zod18.z.string().uuid().optional().describe('Required UUID when transitioning to "superseded"')
+        memoryId: import_zod19.z.string().uuid().describe("UUID of the memory to transition"),
+        to: import_zod19.z.enum(["active", "deprecated", "superseded", "archived"]).describe("Target lifecycle state"),
+        reason: import_zod19.z.string().min(1).describe("Human-readable justification (lands in the audit trail)"),
+        actor: import_zod19.z.string().optional().describe("Who is making the change (default: owner)"),
+        supersededBy: import_zod19.z.string().uuid().optional().describe('Required UUID when transitioning to "superseded"')
       },
       async (params) => {
         let lock;
@@ -42672,7 +43317,7 @@ var init_local_server = __esm({
             db.transaction(() => {
               memoryRepo.updateLifecycle(params.memoryId, params.to, now);
               auditRepo.insert({
-                id: (0, import_node_crypto11.randomUUID)(),
+                id: (0, import_node_crypto12.randomUUID)(),
                 action,
                 memoryId: params.memoryId,
                 tenantId: memory.tenantId,
