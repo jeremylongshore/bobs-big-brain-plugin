@@ -21,8 +21,16 @@
  * Env:
  *   TEAMKB_API_URL    — brain API base (e.g. http://team-server:3847). Required for results.
  *   TEAMKB_API_TOKEN  — per-user bearer token (sent as Authorization: Bearer).
+ *   TEAMKB_ORIGIN_SECRET — OPTIONAL admin-distributed origin-token secret (H1).
+ *                       When set, brain_capture mints a write-time provenance
+ *                       attestation (origin { tokenHmac, channel:'team-mcp',
+ *                       mintedAt }) the server verifies before promotion. When
+ *                       unset, captures are sent WITHOUT origin (unattested —
+ *                       exactly the pre-H1 behavior). Never auto-generated
+ *                       client-side: a freshly-invented secret would mint
+ *                       tokens the server's secret rejects at promotion.
  */
-import { createHash } from 'node:crypto';
+import { createHash, createHmac } from 'node:crypto';
 import { mkdir, readdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
@@ -37,6 +45,31 @@ const API_TOKEN = process.env['TEAMKB_API_TOKEN'];
 // lets a teammate target another tenant. NEVER hardcode 'local' here (that would
 // silently route team writes into a tenant the team brain never reads).
 const TENANT_ID = process.env['TEAMKB_TENANT_ID']?.trim() || 'intent-solutions';
+// H1 write-time provenance: the ADMIN-DISTRIBUTED origin secret (see header).
+// Env-only by design — no ~/.teamkb/origin-secret fallback in team mode: a box
+// that also ran LOCAL mode has its own auto-generated local secret there, and
+// minting team captures with it would poison this member's proposals (the
+// server's secret rejects them at promotion as origin_token_invalid).
+const ORIGIN_SECRET = process.env['TEAMKB_ORIGIN_SECRET']?.trim() || undefined;
+/** The capture channel team-mode proposals claim (must be on the server's allowlist, H3). */
+const TEAM_ORIGIN_CHANNEL = 'team-mcp';
+
+/**
+ * Mint the H1 origin token: HMAC-SHA256 (lowercase hex) over the candidate
+ * identity tuple `(candidateId, tenantId, capturedAt)`, NUL-joined. Hand-rolled
+ * with node:crypto — byte-identical to the Registrar's
+ * `@qmd-team-intent-kb/common` mintOriginToken, NOT imported (team mode stays
+ * dependency-free). Exported for unit tests.
+ */
+export function mintOriginToken(
+  secret: string,
+  candidateId: string,
+  tenantId: string,
+  capturedAt: string,
+): string {
+  const payload = [candidateId, tenantId, capturedAt].join(String.fromCharCode(0));
+  return createHmac('sha256', secret).update(payload, 'utf8').digest('hex');
+}
 
 // Category enum, copied verbatim from local-server.ts (NOT imported — team mode
 // stays dependency-free: no @qmd-team-intent-kb/* in the bundle).
@@ -396,8 +429,13 @@ export async function capture(
   }
   // Build the FULL MemoryCandidate client-side once. This object (serialized) is
   // what gets POSTed and, on failure, FROZEN in the outbox — drain never rebuilds it.
+  // The H1 origin token binds (id, tenantId, capturedAt); freezing the body means
+  // an outbox replay re-sends the SAME identity tuple + token, so the attestation
+  // stays valid across retries.
+  const candidateId = deriveCandidateId(TENANT_ID, title, content, sessionId, learningIndex);
+  const capturedAt = new Date().toISOString();
   const candidate = {
-    id: deriveCandidateId(TENANT_ID, title, content, sessionId, learningIndex),
+    id: candidateId,
     status: 'inbox',
     source: 'mcp',
     content,
@@ -415,7 +453,18 @@ export async function capture(
         : {}),
     },
     prePolicyFlags: { potentialSecret: false, lowConfidence: false, duplicateSuspect: false },
-    capturedAt: new Date().toISOString(),
+    capturedAt,
+    // H1 write-time provenance — only when the admin distributed the secret.
+    // Unset → no origin field at all (unattested; identical to pre-H1 bodies).
+    ...(ORIGIN_SECRET !== undefined
+      ? {
+          origin: {
+            tokenHmac: mintOriginToken(ORIGIN_SECRET, candidateId, TENANT_ID, capturedAt),
+            channel: TEAM_ORIGIN_CHANNEL,
+            mintedAt: capturedAt,
+          },
+        }
+      : {}),
   };
   const body = JSON.stringify(candidate);
   let res: Response;
