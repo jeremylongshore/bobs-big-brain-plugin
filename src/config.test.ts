@@ -1,4 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+
+// CI intentionally removes the private Registrar sibling links before running
+// this package's unit suite. The test only needs the base-path helper's
+// contract, so keep that dependency boundary explicit and mock the helper.
+vi.mock('@qmd-team-intent-kb/common', () => ({
+  getTeamKbBasePath: () => process.env['TEAMKB_BASE_PATH']?.trim() || '/tmp/teamkb',
+}));
+
 import { resolveConfig, resolveQmdIndexPath } from './config.js';
 
 afterEach(() => {
