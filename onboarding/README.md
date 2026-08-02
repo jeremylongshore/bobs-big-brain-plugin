@@ -8,9 +8,29 @@ The brain is a **plugin**, so it runs inside a **desktop** Claude — never a we
 | **Claude Desktop** (standalone chat app) | ⚙️ manual | Add a custom `mcpServers` entry by hand (below). |
 | **claude.ai in a browser**, phone apps | ⛔ no | A browser tab can't reach a local plugin or a private network. Install Claude Code and use that. |
 
-Every teammate needs two things: a **desktop Claude** (Claude Code is quickest) and **Tailscale**
-(so their machine can reach the brain over the private network — the one genuinely-manual
-prerequisite; the GUI *Allow* dialogs can't be automated).
+## Forker/local path — no team connection required
+
+Forkers can run their own governed brain entirely on-device. Leave
+`TEAMKB_API_URL` unset, choose a private brain root, and choose a tenant name:
+
+```bash
+export TEAMKB_BASE_PATH="$HOME/.teamkb-my-fork"
+export TEAMKB_TENANT_ID="my-fork"
+npx governed-second-brain init "$HOME/my-notes" --index-only \
+  --base "$TEAMKB_BASE_PATH" --tenant "$TEAMKB_TENANT_ID"
+```
+
+This uses no API key or network. The qmd index is derived at
+`$TEAMKB_BASE_PATH/qmd-index/$TEAMKB_TENANT_ID`; `brain_govern` refreshes it
+from the governed Markdown export. `brain_status` shows the resolved tenant
+and qmd path, which is the quickest way to catch a wrong-root or wrong-tenant
+configuration before grounding `/brain` on the fork's own corpus.
+
+## Team path
+
+Every team-mode teammate needs two things: a **desktop Claude** (Claude Code is quickest) and
+**Tailscale** (so their machine can reach the brain over the private network — the one
+genuinely-manual prerequisite; the GUI *Allow* dialogs can't be automated).
 
 ## Claude Code or Cowork (recommended)
 

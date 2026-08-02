@@ -22,6 +22,19 @@ export interface BrainConfig {
   dbPath: string;
   feedbackPath: string;
   exportDir: string;
+  /** Derived qmd registry/cache root for this brain's tenant. */
+  qmdIndexPath: string;
+}
+
+/**
+ * Resolve the qmd index root used by the Registrar adapter.
+ *
+ * qmd's registry and BM25 cache are isolated below this path through XDG
+ * overrides. Keeping the derivation here makes the local BYO-brain contract
+ * visible without introducing a second, plugin-only qmd path setting.
+ */
+export function resolveQmdIndexPath(basePath: string, tenantId: string): string {
+  return join(basePath, 'qmd-index', tenantId);
 }
 
 export function resolveConfig(): BrainConfig {
@@ -35,5 +48,6 @@ export function resolveConfig(): BrainConfig {
     dbPath: join(basePath, 'teamkb.db'),
     feedbackPath: join(basePath, 'feedback'),
     exportDir: envExport && envExport.length > 0 ? envExport : join(basePath, 'kb-export'),
+    qmdIndexPath: resolveQmdIndexPath(basePath, tenantId),
   };
 }

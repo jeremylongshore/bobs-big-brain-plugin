@@ -40966,6 +40966,9 @@ var init_dist6 = __esm({
 });
 
 // src/config.ts
+function resolveQmdIndexPath(basePath, tenantId) {
+  return (0, import_node_path12.join)(basePath, "qmd-index", tenantId);
+}
 function resolveConfig() {
   const tenantId = (process.env["TEAMKB_TENANT_ID"] ?? "local").trim() || "local";
   const basePath = getTeamKbBasePath();
@@ -40976,7 +40979,8 @@ function resolveConfig() {
     spoolPath: (0, import_node_path12.join)(basePath, "spool"),
     dbPath: (0, import_node_path12.join)(basePath, "teamkb.db"),
     feedbackPath: (0, import_node_path12.join)(basePath, "feedback"),
-    exportDir: envExport && envExport.length > 0 ? envExport : (0, import_node_path12.join)(basePath, "kb-export")
+    exportDir: envExport && envExport.length > 0 ? envExport : (0, import_node_path12.join)(basePath, "kb-export"),
+    qmdIndexPath: resolveQmdIndexPath(basePath, tenantId)
   };
 }
 var import_node_path12;
@@ -41514,50 +41518,9 @@ var init_pipeline2 = __esm({
   }
 });
 
-// ../gsb-h1-reg/packages/policy-engine/dist/index.js
-var init_dist7 = __esm({
-  "../gsb-h1-reg/packages/policy-engine/dist/index.js"() {
-    "use strict";
-    init_rules();
-    init_secret_detection_rule();
-    init_content_length_rule();
-    init_source_trust_rule();
-    init_relevance_score_rule();
-    init_dedup_check_rule();
-    init_tenant_match_rule();
-    init_sensitivity_gate_rule();
-    init_content_sanitization_rule();
-    init_contradiction_check_rule();
-    init_pipeline2();
-    init_recommended_policy();
-    init_dist6();
-  }
-});
-
-// ../gsb-h1-reg/apps/curator/dist/dedup/dedup-checker.js
-function checkDuplicate(candidate, memoryRepo, tenantId) {
-  const contentHash = computeContentHash(candidate.content);
-  const existing = tenantId !== void 0 ? memoryRepo.findByContentHashAndTenant(contentHash, tenantId) : memoryRepo.findByContentHash(contentHash);
-  if (existing !== null) {
-    return {
-      isDuplicate: true,
-      matchedMemoryId: existing.id,
-      matchType: "exact_hash",
-      contentHash
-    };
-  }
-  return { isDuplicate: false, contentHash };
-}
-var init_dedup_checker = __esm({
-  "../gsb-h1-reg/apps/curator/dist/dedup/dedup-checker.js"() {
-    "use strict";
-    init_dist2();
-  }
-});
-
-// ../gsb-h1-reg/apps/curator/dist/supersession/supersession-detector.js
-function detectSupersession(candidate, memoryRepo, threshold = 0.6) {
-  const existingMemories = memoryRepo.findByTenantAndLifecycle(candidate.tenantId, "active").filter((m) => m.category === candidate.category);
+// ../gsb-h1-reg/packages/policy-engine/dist/supersession/supersession-detector.js
+function detectSupersession(candidate, memorySource, threshold = DEFAULT_SUPERSESSION_THRESHOLD) {
+  const existingMemories = memorySource.findByTenantAndLifecycle(candidate.tenantId, "active").filter((m) => m.category === candidate.category);
   let bestMatch = null;
   for (const memory of existingMemories) {
     const similarity = computeTitleSimilarity(candidate.title, memory.title);
@@ -41589,9 +41552,61 @@ function computeTitleSimilarity(a, b) {
 function tokenize(text) {
   return text.toLowerCase().split(/\s+/).filter((t) => t.length > 0);
 }
+var DEFAULT_SUPERSESSION_THRESHOLD;
 var init_supersession_detector = __esm({
+  "../gsb-h1-reg/packages/policy-engine/dist/supersession/supersession-detector.js"() {
+    "use strict";
+    DEFAULT_SUPERSESSION_THRESHOLD = 0.6;
+  }
+});
+
+// ../gsb-h1-reg/packages/policy-engine/dist/index.js
+var init_dist7 = __esm({
+  "../gsb-h1-reg/packages/policy-engine/dist/index.js"() {
+    "use strict";
+    init_rules();
+    init_secret_detection_rule();
+    init_content_length_rule();
+    init_source_trust_rule();
+    init_relevance_score_rule();
+    init_dedup_check_rule();
+    init_tenant_match_rule();
+    init_sensitivity_gate_rule();
+    init_content_sanitization_rule();
+    init_contradiction_check_rule();
+    init_pipeline2();
+    init_supersession_detector();
+    init_recommended_policy();
+    init_dist6();
+  }
+});
+
+// ../gsb-h1-reg/apps/curator/dist/dedup/dedup-checker.js
+function checkDuplicate(candidate, memoryRepo, tenantId) {
+  const contentHash = computeContentHash(candidate.content);
+  const existing = tenantId !== void 0 ? memoryRepo.findByContentHashAndTenant(contentHash, tenantId) : memoryRepo.findByContentHash(contentHash);
+  if (existing !== null) {
+    return {
+      isDuplicate: true,
+      matchedMemoryId: existing.id,
+      matchType: "exact_hash",
+      contentHash
+    };
+  }
+  return { isDuplicate: false, contentHash };
+}
+var init_dedup_checker = __esm({
+  "../gsb-h1-reg/apps/curator/dist/dedup/dedup-checker.js"() {
+    "use strict";
+    init_dist2();
+  }
+});
+
+// ../gsb-h1-reg/apps/curator/dist/supersession/supersession-detector.js
+var init_supersession_detector2 = __esm({
   "../gsb-h1-reg/apps/curator/dist/supersession/supersession-detector.js"() {
     "use strict";
+    init_dist7();
   }
 });
 
@@ -41912,7 +41927,7 @@ var init_curator = __esm({
     init_dist2();
     init_dist7();
     init_dedup_checker();
-    init_supersession_detector();
+    init_supersession_detector2();
     init_promoter();
     init_rejector();
     init_origin_gate();
@@ -42050,7 +42065,7 @@ var init_curator = __esm({
         };
       }
       promoteCandidate(candidate, contentHash, pipelineResult) {
-        const supersession = detectSupersession(candidate, this.deps.memoryRepo, this.config.supersessionThreshold ?? 0.6);
+        const supersession = detectSupersession(candidate, this.deps.memoryRepo, this.config.supersessionThreshold ?? DEFAULT_SUPERSESSION_THRESHOLD);
         const memory = promote({
           candidate,
           contentHash,
@@ -42241,7 +42256,7 @@ var init_dist8 = __esm({
     init_curator();
     init_spool_intake();
     init_dedup_checker();
-    init_supersession_detector();
+    init_supersession_detector2();
     init_promoter();
     init_rejector();
     init_origin_gate();
@@ -42951,6 +42966,15 @@ __export(local_server_exports, {
 function jsonResult2(obj) {
   return { content: [{ type: "text", text: JSON.stringify(obj, null, 2) }] };
 }
+function localConfigReceipt() {
+  return {
+    mode: "local",
+    tenantId: config.tenantId,
+    basePath: config.basePath,
+    exportDir: config.exportDir,
+    qmdIndexPath: config.qmdIndexPath
+  };
+}
 function isMissingNativeDep(e) {
   const msg = e instanceof Error ? e.message : String(e);
   return /better[_-]sqlite3|MODULE_NOT_FOUND|Cannot find module|did not self-register|NODE_MODULE_VERSION|invalid ELF/i.test(
@@ -43008,7 +43032,7 @@ async function startLocalServer() {
   process.on("SIGTERM", () => void shutdown("SIGTERM"));
   await server2.connect(transport);
   process.stderr.write(
-    `[governed-brain:local] started \u2014 tenant=${config.tenantId} base=${config.basePath} (local, in-process, no network)
+    `[governed-brain:local] started \u2014 tenant=${config.tenantId} base=${config.basePath} qmd=${config.qmdIndexPath} (local, in-process, no network)
 `
   );
 }
@@ -43108,14 +43132,15 @@ var init_local_server = __esm({
     );
     server2.tool(
       "brain_status",
-      "Report the health of your governed brain \u2014 counts of memories by lifecycle state and category. Read-only.",
+      "Report the health and local storage routing of your governed brain \u2014 counts by lifecycle/category plus tenant and qmd paths. Read-only.",
       async () => {
         let db;
         try {
           db = createDatabase({ path: config.dbPath, readonly: true });
         } catch (e) {
-          if (isMissingNativeDep(e)) return jsonResult2({ total: 0, note: NATIVE_DEP_HINT });
+          if (isMissingNativeDep(e)) return jsonResult2({ ...localConfigReceipt(), total: 0, note: NATIVE_DEP_HINT });
           return jsonResult2({
+            ...localConfigReceipt(),
             total: 0,
             byLifecycle: {},
             byCategory: {},
@@ -43125,6 +43150,7 @@ var init_local_server = __esm({
         try {
           const repo = new MemoryRepository(db);
           return jsonResult2({
+            ...localConfigReceipt(),
             total: repo.count(),
             byLifecycle: repo.countByLifecycle(),
             byCategory: repo.countByCategory()

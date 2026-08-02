@@ -56,6 +56,21 @@ function jsonResult(obj: unknown) {
 }
 
 /**
+ * Safe local-mode configuration receipt. It makes a fork's tenant, export
+ * source, and derived qmd index inspectable without exposing file contents or
+ * credentials. The qmd adapter independently enforces the same tenant path.
+ */
+function localConfigReceipt() {
+  return {
+    mode: 'local' as const,
+    tenantId: config.tenantId,
+    basePath: config.basePath,
+    exportDir: config.exportDir,
+    qmdIndexPath: config.qmdIndexPath,
+  };
+}
+
+/**
  * The local store (better-sqlite3) is a per-machine native module the plugin
  * keeps EXTERNAL to the bundle — the `npx governed-second-brain init` installer
  * builds it (ensureNativeDep). A file-copy install (e.g. `/plugin install` from a
@@ -251,14 +266,15 @@ server.tool(
 
 server.tool(
   'brain_status',
-  'Report the health of your governed brain — counts of memories by lifecycle state and category. Read-only.',
+  'Report the health and local storage routing of your governed brain — counts by lifecycle/category plus tenant and qmd paths. Read-only.',
   async () => {
     let db;
     try {
       db = createDatabase({ path: config.dbPath, readonly: true });
     } catch (e) {
-      if (isMissingNativeDep(e)) return jsonResult({ total: 0, note: NATIVE_DEP_HINT });
+      if (isMissingNativeDep(e)) return jsonResult({ ...localConfigReceipt(), total: 0, note: NATIVE_DEP_HINT });
       return jsonResult({
+        ...localConfigReceipt(),
         total: 0,
         byLifecycle: {},
         byCategory: {},
@@ -268,6 +284,7 @@ server.tool(
     try {
       const repo = new MemoryRepository(db);
       return jsonResult({
+        ...localConfigReceipt(),
         total: repo.count(),
         byLifecycle: repo.countByLifecycle(),
         byCategory: repo.countByCategory(),
@@ -563,6 +580,6 @@ export async function startLocalServer(): Promise<void> {
   process.on('SIGTERM', () => void shutdown('SIGTERM'));
   await server.connect(transport);
   process.stderr.write(
-    `[governed-brain:local] started — tenant=${config.tenantId} base=${config.basePath} (local, in-process, no network)\n`,
+    `[governed-brain:local] started — tenant=${config.tenantId} base=${config.basePath} qmd=${config.qmdIndexPath} (local, in-process, no network)\n`,
   );
 }
