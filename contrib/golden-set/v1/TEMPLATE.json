@@ -1,0 +1,14 @@
+{
+  "format": "bobs-big-brain/golden-set/v1",
+  "name": "replace-with-a-short-synthetic-name",
+  "description": "One-sentence description of the synthetic behavior this case pins.",
+  "cases": [
+    {
+      "id": "replace-with-a-kebab-case-id",
+      "title": "Synthetic title",
+      "content": "Replace this with a fully synthetic statement longer than 25 characters.",
+      "category": "reference",
+      "expectedStatus": "promoted"
+    }
+  ]
+}
