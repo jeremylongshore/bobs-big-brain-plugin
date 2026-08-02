@@ -105,6 +105,18 @@ Build hard-facts:
   `local` silently misroutes team writes into a tenant the team brain never reads). Local → `local`
   (config.ts); team → `intent-solutions` (remote-server.ts); a user env override applies in either mode.
 
+### Forker/local BYO-brain contract
+
+Local mode is the sovereignty path: keep `TEAMKB_API_URL` unset, set
+`TEAMKB_BASE_PATH` to the fork's private brain root, and set
+`TEAMKB_TENANT_ID` to the fork's namespace. The qmd adapter derives its
+tenant-scoped registry/cache at `<base>/qmd-index/<tenant>` and the runtime
+reports that resolved path through `brain_status` and the local boot receipt.
+`TEAMKB_EXPORT_DIR` is optional and points to the governed Markdown source tree
+(default `<base>/kb-export`), not to the qmd index. No API key or network is
+needed for local grounding. Changes to this contract require config tests and
+an isolated local smoke; never test against the operator's real `~/.teamkb`.
+
 ## Audit-claim honesty
 The chain is tamper-**evident** (detection of edits/reordering), **not** tamper-proof: a local writer
 can edit an event *and* re-hash forward. Keep the "What the receipt does *not* do" framing honest.
