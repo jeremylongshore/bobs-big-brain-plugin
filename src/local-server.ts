@@ -175,14 +175,14 @@ server.tool(
     const scope = params.scope ?? 'curated';
     const limit = params.limit ?? 10;
     const adapter = new QmdAdapter({
-        tenantId: config.tenantId,
-        exportDir: config.exportDir,
-        // Dense arm ON by default via the registrar's shared production seam
-        // (#328); TEAMKB_DENSE_ENABLED=false is the emergency kill switch. This
-        // site was the vps.1 drift class — the plugin bypasses the API, so
-        // wiring the API alone would leave local mode lexical-only.
-        dense: getDefaultDenseConfig(),
-      });
+      tenantId: config.tenantId,
+      exportDir: config.exportDir,
+      // Dense arm ON by default via the registrar's shared production seam
+      // (#328); TEAMKB_DENSE_ENABLED=false is the emergency kill switch. This
+      // site was the vps.1 drift class — the plugin bypasses the API, so
+      // wiring the API alone would leave local mode lexical-only.
+      dense: getDefaultDenseConfig(),
+    });
     // Pass the bound tenant explicitly: adapter.query() is fail-closed on an
     // undefined tenantId (the c5k.2 hardening), so a local search that omits it
     // is refused and silently returns zero hits. In local mode the query tenant
