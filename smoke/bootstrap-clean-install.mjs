@@ -130,7 +130,8 @@ try {
   ok(mcp.protocolErrors.length === 0, 'local mode emitted JSON-RPC only on stdout');
   ok(
     existsSync(join(RUNTIME, 'node_modules', 'better-sqlite3')) &&
-      existsSync(join(RUNTIME, 'node_modules', 'fs-ext')),
+      existsSync(join(RUNTIME, 'node_modules', 'fs-ext')) &&
+      existsSync(join(RUNTIME, 'node_modules', 'sqlite-vec')),
     'lockfile-pinned native dependencies were provisioned inside plugin-runtime',
   );
 

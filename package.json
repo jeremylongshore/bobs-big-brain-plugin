@@ -58,6 +58,7 @@
     "@modelcontextprotocol/sdk": "^1.29.0",
     "better-sqlite3": "^12.10.0",
     "fs-ext": "^2.1.1",
+    "sqlite-vec": "^0.1.9",
     "zod": "^4.4.3"
   },
   "pnpm": {
