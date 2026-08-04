@@ -20,10 +20,10 @@
     },
     "govern": {
       "name": "bobs-big-brain-registrar",
-      "version": "0.7.0",
-      "commit": "ce15feb",
+      "version": "0.8.0",
+      "commit": "628c225",
       "registry": "bundled",
-      "role": "INTKB \u2014 deterministic dedupe -> policy -> promote + the SHA-256 hash-chained audit + external anchor. Private monorepo; compiled into plugin-runtime/governed-brain.cjs, never published to a registry."
+      "role": "INTKB \u2014 deterministic dedupe -> policy -> promote + the SHA-256 hash-chained audit + external anchor; dense retrieval default-on (#328/#334). Private monorepo; compiled into plugin-runtime/governed-brain.cjs, never published to a registry."
     },
     "retrieve": {
       "name": "qmd",
@@ -46,6 +46,11 @@
         "name": "fs-ext",
         "acceptedRange": "^2.1.1",
         "role": "flock(2) wrapper for the local-mode write lock \u2014 serializes ~/.teamkb writes against the cron's /usr/bin/flock (R9). Externalized from the bundle, native-built by the installer."
+      },
+      {
+        "name": "sqlite-vec",
+        "acceptedRange": "^0.1.9",
+        "role": "SQLite extension for the dense retrieval sidecar (EmbeddingGemma KNN) \u2014 externalized from the bundle; without it DenseVecIndex construction throws and the dense arm silently degrades to lexical (the gybo.4 root cause)"
       }
     ]
   },

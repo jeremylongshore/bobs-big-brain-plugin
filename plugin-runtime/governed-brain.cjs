@@ -36056,7 +36056,7 @@ var init_remote_server = __esm({
   }
 });
 
-// ../gsb-h1-reg/packages/store/dist/schema.js
+// ../bobs-big-brain-registrar/packages/store/dist/schema.js
 function applyCheckConstraintBackfill(db) {
   const row = db.prepare("SELECT sql FROM sqlite_schema WHERE type = 'table' AND name = 'curated_memories'").get();
   if (row !== void 0 && /CHECK\s*\(\s*category\s+IN/i.test(row.sql)) {
@@ -36067,7 +36067,7 @@ function applyCheckConstraintBackfill(db) {
 }
 var CANDIDATES_DDL, CURATED_MEMORIES_DDL, GOVERNANCE_POLICIES_DDL, AUDIT_EVENTS_DDL, EXPORT_STATE_DDL, SCHEMA_MIGRATIONS_DDL, TABLE_DDL, CURATED_MEMORIES_V9_REBUILD, MIGRATIONS;
 var init_schema = __esm({
-  "../gsb-h1-reg/packages/store/dist/schema.js"() {
+  "../bobs-big-brain-registrar/packages/store/dist/schema.js"() {
     "use strict";
     CANDIDATES_DDL = `
 CREATE TABLE IF NOT EXISTS candidates (
@@ -36469,7 +36469,7 @@ ALTER TABLE candidates ADD COLUMN origin_json TEXT;
   }
 });
 
-// ../gsb-h1-reg/packages/store/dist/database.js
+// ../bobs-big-brain-registrar/packages/store/dist/database.js
 function ensureSecureDirectory(dbPath) {
   if (dbPath === ":memory:")
     return;
@@ -36541,7 +36541,7 @@ function runMigrations(db) {
 }
 var import_node_fs2, import_node_path3, import_better_sqlite3;
 var init_database = __esm({
-  "../gsb-h1-reg/packages/store/dist/database.js"() {
+  "../bobs-big-brain-registrar/packages/store/dist/database.js"() {
     "use strict";
     import_node_fs2 = require("node:fs");
     import_node_path3 = require("node:path");
@@ -36550,10 +36550,10 @@ var init_database = __esm({
   }
 });
 
-// ../gsb-h1-reg/packages/schema/dist/enums.js
+// ../bobs-big-brain-registrar/packages/schema/dist/enums.js
 var import_zod3, MemorySource, TrustLevel, MemoryCategory, MemoryLifecycleState, CandidateStatus, SearchScope, PolicyRuleType, PolicyRuleAction, AuditAction, ProposerRole, Confidence, Sensitivity, AuthorType, LinkType, LinkSource, ImportBatchStatus;
 var init_enums = __esm({
-  "../gsb-h1-reg/packages/schema/dist/enums.js"() {
+  "../bobs-big-brain-registrar/packages/schema/dist/enums.js"() {
     "use strict";
     import_zod3 = __toESM(require_zod(), 1);
     MemorySource = import_zod3.z.enum(["claude_session", "manual", "import", "mcp", "bulk_import"]);
@@ -36576,7 +36576,7 @@ var init_enums = __esm({
       "duplicate",
       "quarantined"
     ]);
-    SearchScope = import_zod3.z.enum(["curated", "all", "inbox", "archived"]).default("curated");
+    SearchScope = import_zod3.z.enum(["curated", "all", "inbox", "archived", "bulk"]).default("curated");
     PolicyRuleType = import_zod3.z.enum([
       "secret_detection",
       "dedup_check",
@@ -36617,7 +36617,14 @@ var init_enums = __esm({
       // the per-candidate reject receipts the sweep would otherwise emit (which would
       // re-fire every night for a candidate left in the inbox → unbounded chain bloat).
       // `memoryId` is a fixed sweep sentinel UUID (the sweep is not tied to one memory).
-      "governed"
+      "governed",
+      // Receipt for a governed-policy upgrade (5bm.2's migration path): the curator
+      // `upgrade-policy` command replaces a store's dormant-rule policy shape with
+      // RECOMMENDED_POLICY_RULES. `memoryId` on this row is the POLICY's UUID (the
+      // policy row is the mutated durable state); `details` carries the previous
+      // rules so the change is reversible from the receipt alone. The audit_events
+      // `action` column has no CHECK constraint, so this member needs no migration.
+      "policy_upgraded"
     ]);
     ProposerRole = import_zod3.z.enum(["admin", "member"]);
     Confidence = import_zod3.z.enum(["high", "medium", "low"]);
@@ -36635,10 +36642,10 @@ var init_enums = __esm({
   }
 });
 
-// ../gsb-h1-reg/packages/schema/dist/common.js
+// ../bobs-big-brain-registrar/packages/schema/dist/common.js
 var import_zod4, Uuid, Sha256Hash, IsoDatetime, NonEmptyString, SemVer, Tag, Author, TenantId, ContentMetadata;
 var init_common = __esm({
-  "../gsb-h1-reg/packages/schema/dist/common.js"() {
+  "../bobs-big-brain-registrar/packages/schema/dist/common.js"() {
     "use strict";
     import_zod4 = __toESM(require_zod(), 1);
     init_enums();
@@ -36680,10 +36687,10 @@ var init_common = __esm({
   }
 });
 
-// ../gsb-h1-reg/packages/schema/dist/memory-candidate.js
+// ../bobs-big-brain-registrar/packages/schema/dist/memory-candidate.js
 var import_zod5, PrePolicyFlags, MEMORY_CANDIDATE_SCHEMA_VERSION, OriginChannel, CandidateOrigin, MemoryCandidate;
 var init_memory_candidate = __esm({
-  "../gsb-h1-reg/packages/schema/dist/memory-candidate.js"() {
+  "../bobs-big-brain-registrar/packages/schema/dist/memory-candidate.js"() {
     "use strict";
     import_zod5 = __toESM(require_zod(), 1);
     init_enums();
@@ -36726,14 +36733,17 @@ var init_memory_candidate = __esm({
       capturedAt: IsoDatetime,
       /** Optional write-time provenance attestation (H1) — verified before promotion when present. */
       origin: CandidateOrigin.optional()
+    }).refine((c) => c.source !== "bulk_import" || c.trustLevel === "low" || c.trustLevel === "untrusted", {
+      message: "source 'bulk_import' requires trustLevel 'low' or 'untrusted' \u2014 a bulk digestion cannot claim curated-grade trust",
+      path: ["trustLevel"]
     });
   }
 });
 
-// ../gsb-h1-reg/packages/schema/dist/curated-memory.js
+// ../bobs-big-brain-registrar/packages/schema/dist/curated-memory.js
 var import_zod6, PolicyEvaluation, SupersessionLink, CuratedMemory;
 var init_curated_memory = __esm({
-  "../gsb-h1-reg/packages/schema/dist/curated-memory.js"() {
+  "../bobs-big-brain-registrar/packages/schema/dist/curated-memory.js"() {
     "use strict";
     import_zod6 = __toESM(require_zod(), 1);
     init_enums();
@@ -36782,10 +36792,10 @@ var init_curated_memory = __esm({
   }
 });
 
-// ../gsb-h1-reg/packages/schema/dist/governance-policy.js
+// ../bobs-big-brain-registrar/packages/schema/dist/governance-policy.js
 var import_zod7, PolicyRule, GovernancePolicy;
 var init_governance_policy = __esm({
-  "../gsb-h1-reg/packages/schema/dist/governance-policy.js"() {
+  "../bobs-big-brain-registrar/packages/schema/dist/governance-policy.js"() {
     "use strict";
     import_zod7 = __toESM(require_zod(), 1);
     init_enums();
@@ -36812,10 +36822,10 @@ var init_governance_policy = __esm({
   }
 });
 
-// ../gsb-h1-reg/packages/schema/dist/search.js
+// ../bobs-big-brain-registrar/packages/schema/dist/search.js
 var import_zod8, Pagination, SearchQuery, SearchHit, SearchResult;
 var init_search = __esm({
-  "../gsb-h1-reg/packages/schema/dist/search.js"() {
+  "../bobs-big-brain-registrar/packages/schema/dist/search.js"() {
     "use strict";
     import_zod8 = __toESM(require_zod(), 1);
     init_enums();
@@ -36868,10 +36878,10 @@ var init_search = __esm({
   }
 });
 
-// ../gsb-h1-reg/packages/schema/dist/audit-event.js
+// ../bobs-big-brain-registrar/packages/schema/dist/audit-event.js
 var import_zod9, AuditEvent;
 var init_audit_event = __esm({
-  "../gsb-h1-reg/packages/schema/dist/audit-event.js"() {
+  "../bobs-big-brain-registrar/packages/schema/dist/audit-event.js"() {
     "use strict";
     import_zod9 = __toESM(require_zod(), 1);
     init_enums();
@@ -36889,7 +36899,7 @@ var init_audit_event = __esm({
   }
 });
 
-// ../gsb-h1-reg/packages/schema/dist/lifecycle.js
+// ../bobs-big-brain-registrar/packages/schema/dist/lifecycle.js
 function isTransitionAllowed(from, to) {
   return ALLOWED_TRANSITIONS[from].includes(to);
 }
@@ -36910,7 +36920,7 @@ function validateTransition(from, to, request) {
 }
 var import_zod10, TransitionRequest, RecategorizeRequest, ALLOWED_TRANSITIONS;
 var init_lifecycle = __esm({
-  "../gsb-h1-reg/packages/schema/dist/lifecycle.js"() {
+  "../bobs-big-brain-registrar/packages/schema/dist/lifecycle.js"() {
     "use strict";
     init_enums();
     init_common();
@@ -36934,9 +36944,9 @@ var init_lifecycle = __esm({
   }
 });
 
-// ../gsb-h1-reg/packages/schema/dist/index.js
+// ../bobs-big-brain-registrar/packages/schema/dist/index.js
 var init_dist = __esm({
-  "../gsb-h1-reg/packages/schema/dist/index.js"() {
+  "../bobs-big-brain-registrar/packages/schema/dist/index.js"() {
     "use strict";
     init_enums();
     init_common();
@@ -36949,26 +36959,26 @@ var init_dist = __esm({
   }
 });
 
-// ../gsb-h1-reg/packages/common/dist/result.js
+// ../bobs-big-brain-registrar/packages/common/dist/result.js
 var init_result = __esm({
-  "../gsb-h1-reg/packages/common/dist/result.js"() {
+  "../bobs-big-brain-registrar/packages/common/dist/result.js"() {
     "use strict";
   }
 });
 
-// ../gsb-h1-reg/packages/common/dist/hash.js
+// ../bobs-big-brain-registrar/packages/common/dist/hash.js
 function computeContentHash(content) {
   return (0, import_node_crypto2.createHash)("sha256").update(content, "utf8").digest("hex");
 }
 var import_node_crypto2;
 var init_hash = __esm({
-  "../gsb-h1-reg/packages/common/dist/hash.js"() {
+  "../bobs-big-brain-registrar/packages/common/dist/hash.js"() {
     "use strict";
     import_node_crypto2 = require("node:crypto");
   }
 });
 
-// ../gsb-h1-reg/packages/common/dist/uuid-v5.js
+// ../bobs-big-brain-registrar/packages/common/dist/uuid-v5.js
 function uuidStringToBytes(uuid) {
   const hex = uuid.replace(/-/g, "");
   if (hex.length !== 32) {
@@ -37013,7 +37023,7 @@ function deriveLinkId(sourceMemoryId, targetMemoryId, linkType) {
 }
 var import_node_crypto3, SPOOL_UUID_NAMESPACE, NAME_FIELD_SEPARATOR;
 var init_uuid_v5 = __esm({
-  "../gsb-h1-reg/packages/common/dist/uuid-v5.js"() {
+  "../bobs-big-brain-registrar/packages/common/dist/uuid-v5.js"() {
     "use strict";
     import_node_crypto3 = require("node:crypto");
     SPOOL_UUID_NAMESPACE = ["6c6f6e67-7368-6f72", "6500-69636f73706c"].join("-");
@@ -37021,7 +37031,7 @@ var init_uuid_v5 = __esm({
   }
 });
 
-// ../gsb-h1-reg/packages/common/dist/paths.js
+// ../bobs-big-brain-registrar/packages/common/dist/paths.js
 function getTeamKbBasePath() {
   const basePath = process.env["TEAMKB_BASE_PATH"];
   if (typeof basePath === "string" && basePath.trim() !== "") {
@@ -37038,7 +37048,7 @@ function resolveTeamKbPath(subdir) {
 }
 var import_node_path4, import_node_os3, DEFAULT_TEAMKB_BASE;
 var init_paths = __esm({
-  "../gsb-h1-reg/packages/common/dist/paths.js"() {
+  "../bobs-big-brain-registrar/packages/common/dist/paths.js"() {
     "use strict";
     import_node_path4 = require("node:path");
     import_node_os3 = require("node:os");
@@ -37046,7 +37056,7 @@ var init_paths = __esm({
   }
 });
 
-// ../gsb-h1-reg/packages/common/dist/origin-token.js
+// ../bobs-big-brain-registrar/packages/common/dist/origin-token.js
 function buildOriginTokenPayload(identity) {
   return [identity.candidateId, identity.tenantId, identity.capturedAt].join(FIELD_SEPARATOR);
 }
@@ -37110,7 +37120,7 @@ function originSecretPath(basePath) {
 }
 var import_node_crypto4, import_node_fs3, import_node_path5, ORIGIN_SECRET_FILENAME, ORIGIN_SECRET_ENV, UNATTESTED_CHANNEL, FIELD_SEPARATOR, ORIGIN_TOKEN_HASH_SURFACE_LEN;
 var init_origin_token = __esm({
-  "../gsb-h1-reg/packages/common/dist/origin-token.js"() {
+  "../bobs-big-brain-registrar/packages/common/dist/origin-token.js"() {
     "use strict";
     import_node_crypto4 = require("node:crypto");
     import_node_fs3 = require("node:fs");
@@ -37124,7 +37134,7 @@ var init_origin_token = __esm({
   }
 });
 
-// ../gsb-h1-reg/packages/common/dist/path-safety.js
+// ../bobs-big-brain-registrar/packages/common/dist/path-safety.js
 function isPathSafe(path, allowedRoots) {
   if (path.includes("\0")) {
     return { safe: false, reason: "Path contains null byte" };
@@ -37150,12 +37160,12 @@ function isPathSafe(path, allowedRoots) {
   return { safe: true };
 }
 var init_path_safety = __esm({
-  "../gsb-h1-reg/packages/common/dist/path-safety.js"() {
+  "../bobs-big-brain-registrar/packages/common/dist/path-safety.js"() {
     "use strict";
   }
 });
 
-// ../gsb-h1-reg/packages/common/dist/freshness.js
+// ../bobs-big-brain-registrar/packages/common/dist/freshness.js
 function computeFreshnessScore(updatedAt, nowIso, halfLifeDays = 90) {
   const updatedMs = new Date(updatedAt).getTime();
   const nowMs = new Date(nowIso).getTime();
@@ -37195,7 +37205,7 @@ function rerankCitedHits(hits, resolveMetadata, nowIso, halfLifeDays = 90) {
 }
 var CATEGORY_BOOST;
 var init_freshness = __esm({
-  "../gsb-h1-reg/packages/common/dist/freshness.js"() {
+  "../bobs-big-brain-registrar/packages/common/dist/freshness.js"() {
     "use strict";
     CATEGORY_BOOST = {
       decision: 1.2,
@@ -37209,7 +37219,7 @@ var init_freshness = __esm({
   }
 });
 
-// ../gsb-h1-reg/packages/common/dist/disclosure-filter.js
+// ../bobs-big-brain-registrar/packages/common/dist/disclosure-filter.js
 function foldHomoglyphs(text) {
   let out = "";
   for (const ch of text) {
@@ -37300,7 +37310,7 @@ function assertDisclosureClean(candidate) {
 }
 var COMPENSATION_TERMS_PATTERN, RATIO_SPLIT_PATTERN, COMP_CONTEXT_PATTERN, PII_PATTERN, SECRET_PATTERNS, INVISIBLE_CHARS, HOMOGLYPH_MAP, ENUM_CONSTRAINED_FIELDS, DisclosureRejectedError;
 var init_disclosure_filter = __esm({
-  "../gsb-h1-reg/packages/common/dist/disclosure-filter.js"() {
+  "../bobs-big-brain-registrar/packages/common/dist/disclosure-filter.js"() {
     "use strict";
     COMPENSATION_TERMS_PATTERN = /\bsalary\b|base pay\b|take[- ]home pay\b|(?:launch|signing|sign[- ]on) bonus|equity\s+(?:stakes?|grants?|granted|options?)\b|equity\s+[0-9]|\bvesting\b|\bRSUs?\b|stock options?\b|revenue[- ]share\s*[0-9]|7[- ]bucket/i;
     RATIO_SPLIT_PATTERN = /[0-9]{1,3}\s*\/\s*[0-9]{1,3}\s*(?:split|share)|[0-9]{1,2}\s*\/\s*[0-9]{1,2}\s*(?:max|→|->)\s*[0-9]{1,2}\s*\/\s*[0-9]{1,2}/i;
@@ -37441,9 +37451,9 @@ var init_disclosure_filter = __esm({
   }
 });
 
-// ../gsb-h1-reg/packages/common/dist/index.js
+// ../bobs-big-brain-registrar/packages/common/dist/index.js
 var init_dist2 = __esm({
-  "../gsb-h1-reg/packages/common/dist/index.js"() {
+  "../bobs-big-brain-registrar/packages/common/dist/index.js"() {
     "use strict";
     init_result();
     init_hash();
@@ -37456,7 +37466,7 @@ var init_dist2 = __esm({
   }
 });
 
-// ../gsb-h1-reg/packages/store/dist/repositories/enum-membership.js
+// ../bobs-big-brain-registrar/packages/store/dist/repositories/enum-membership.js
 function assertEnumMembership(candidate) {
   runEnumChecks([
     { field: "status", schema: CandidateStatus, value: candidate.status },
@@ -37503,7 +37513,7 @@ function runEnumChecks(checks) {
 }
 var EnumConstraintViolationError;
 var init_enum_membership = __esm({
-  "../gsb-h1-reg/packages/store/dist/repositories/enum-membership.js"() {
+  "../bobs-big-brain-registrar/packages/store/dist/repositories/enum-membership.js"() {
     "use strict";
     init_dist();
     init_dist2();
@@ -37518,7 +37528,7 @@ var init_enum_membership = __esm({
   }
 });
 
-// ../gsb-h1-reg/packages/store/dist/repositories/candidate-repository.js
+// ../bobs-big-brain-registrar/packages/store/dist/repositories/candidate-repository.js
 function rowToCandidate(row) {
   const flatResult = CandidateRowSchema.safeParse(row);
   if (!flatResult.success) {
@@ -37583,7 +37593,7 @@ function rowToCandidateSafe(row) {
 }
 var import_zod11, CandidateRowSchema, CandidateRepository;
 var init_candidate_repository = __esm({
-  "../gsb-h1-reg/packages/store/dist/repositories/candidate-repository.js"() {
+  "../bobs-big-brain-registrar/packages/store/dist/repositories/candidate-repository.js"() {
     "use strict";
     import_zod11 = __toESM(require_zod(), 1);
     init_dist();
@@ -37803,7 +37813,7 @@ var init_candidate_repository = __esm({
   }
 });
 
-// ../gsb-h1-reg/packages/store/dist/repositories/memory-repository.js
+// ../bobs-big-brain-registrar/packages/store/dist/repositories/memory-repository.js
 function deserializeRowsResilient(rows) {
   const memories = [];
   const failures = [];
@@ -37901,7 +37911,7 @@ function appendOptionalFilters(conditions, params, tenantId, categories, prefix)
 }
 var import_zod12, InvalidLifecycleTransitionError, MemoryRowSchema, MemoryRepository;
 var init_memory_repository = __esm({
-  "../gsb-h1-reg/packages/store/dist/repositories/memory-repository.js"() {
+  "../bobs-big-brain-registrar/packages/store/dist/repositories/memory-repository.js"() {
     "use strict";
     import_zod12 = __toESM(require_zod(), 1);
     init_dist();
@@ -37957,6 +37967,7 @@ var init_memory_repository = __esm({
       stmtCountByTenant;
       stmtFindStale;
       stmtFindByTenantAndLifecycle;
+      stmtFindByTenantAndLifecycleAndCategory;
       constructor(db) {
         this.db = db;
         try {
@@ -38046,6 +38057,9 @@ var init_memory_repository = __esm({
     `);
         this.stmtFindByTenantAndLifecycle = db.prepare(`
       SELECT * FROM curated_memories WHERE tenant_id = ? AND lifecycle = ?
+    `);
+        this.stmtFindByTenantAndLifecycleAndCategory = db.prepare(`
+      SELECT * FROM curated_memories WHERE tenant_id = ? AND lifecycle = ? AND category = ?
     `);
       }
       /**
@@ -38236,6 +38250,19 @@ var init_memory_repository = __esm({
         return rows.map(rowToMemory);
       }
       /**
+       * Find memories by tenant, lifecycle state, AND category — the
+       * contradiction-check lookup (E1 review follow-up). The rule only ever
+       * compares against same-category actives, so filtering at the store keeps a
+       * 17k-row corpus from being loaded and deserialized per candidate just to
+       * discard the ~94% in other categories. Narrowed by
+       * `idx_memories_tenant_lifecycle`; the residual category filter runs in SQL,
+       * not on materialized domain objects.
+       */
+      findByTenantAndLifecycleAndCategory(tenantId, lifecycle, category) {
+        const rows = this.stmtFindByTenantAndLifecycleAndCategory.all(tenantId, lifecycle, category);
+        return rows.map(rowToMemory);
+      }
+      /**
        * Search active curated memories by text match on title and content.
        *
        * Uses FTS5 MATCH when the virtual table is available (faster, ranked).
@@ -38284,7 +38311,7 @@ var init_memory_repository = __esm({
   }
 });
 
-// ../gsb-h1-reg/packages/store/dist/repositories/policy-repository.js
+// ../bobs-big-brain-registrar/packages/store/dist/repositories/policy-repository.js
 function rowToPolicy(row) {
   const flatResult = PolicyRowSchema.safeParse(row);
   if (!flatResult.success) {
@@ -38316,7 +38343,7 @@ function rowToPolicy(row) {
 }
 var import_zod13, PolicyRowSchema, PolicyRepository;
 var init_policy_repository = __esm({
-  "../gsb-h1-reg/packages/store/dist/repositories/policy-repository.js"() {
+  "../bobs-big-brain-registrar/packages/store/dist/repositories/policy-repository.js"() {
     "use strict";
     import_zod13 = __toESM(require_zod(), 1);
     init_dist();
@@ -38424,7 +38451,7 @@ var init_policy_repository = __esm({
   }
 });
 
-// ../gsb-h1-reg/packages/store/dist/audit-chain.js
+// ../bobs-big-brain-registrar/packages/store/dist/audit-chain.js
 function canonicalRowJsonV1(row) {
   return JSON.stringify({
     id: row.id,
@@ -38458,14 +38485,14 @@ function computeEntryHash(row, hashVersion = CURRENT_AUDIT_HASH_VERSION) {
 }
 var import_node_crypto5, CURRENT_AUDIT_HASH_VERSION;
 var init_audit_chain = __esm({
-  "../gsb-h1-reg/packages/store/dist/audit-chain.js"() {
+  "../bobs-big-brain-registrar/packages/store/dist/audit-chain.js"() {
     "use strict";
     import_node_crypto5 = require("node:crypto");
     CURRENT_AUDIT_HASH_VERSION = 2;
   }
 });
 
-// ../gsb-h1-reg/packages/store/dist/repositories/audit-repository.js
+// ../bobs-big-brain-registrar/packages/store/dist/repositories/audit-repository.js
 function rowToEvent(row) {
   const flatResult = AuditRowSchema.safeParse(row);
   if (!flatResult.success) {
@@ -38503,7 +38530,7 @@ function rowToEvent(row) {
 }
 var import_zod14, AuditRowSchema, AuditRepository;
 var init_audit_repository = __esm({
-  "../gsb-h1-reg/packages/store/dist/repositories/audit-repository.js"() {
+  "../bobs-big-brain-registrar/packages/store/dist/repositories/audit-repository.js"() {
     "use strict";
     import_zod14 = __toESM(require_zod(), 1);
     init_dist();
@@ -38710,7 +38737,7 @@ var init_audit_repository = __esm({
   }
 });
 
-// ../gsb-h1-reg/packages/store/dist/audit-verify.js
+// ../bobs-big-brain-registrar/packages/store/dist/audit-verify.js
 function rowHashVersion(row) {
   return row.hash_version === 2 ? 2 : 1;
 }
@@ -38781,13 +38808,13 @@ function verifyAuditChain(repo) {
   };
 }
 var init_audit_verify = __esm({
-  "../gsb-h1-reg/packages/store/dist/audit-verify.js"() {
+  "../bobs-big-brain-registrar/packages/store/dist/audit-verify.js"() {
     "use strict";
     init_audit_chain();
   }
 });
 
-// ../gsb-h1-reg/packages/store/dist/audit-anchor.js
+// ../bobs-big-brain-registrar/packages/store/dist/audit-anchor.js
 function anchorBodyJson(b) {
   return JSON.stringify({
     schemaVersion: b.schemaVersion,
@@ -38892,7 +38919,7 @@ function verifyAnchors(repo, anchorPath) {
 }
 var import_node_crypto6, import_node_fs4;
 var init_audit_anchor = __esm({
-  "../gsb-h1-reg/packages/store/dist/audit-anchor.js"() {
+  "../bobs-big-brain-registrar/packages/store/dist/audit-anchor.js"() {
     "use strict";
     import_node_crypto6 = require("node:crypto");
     import_node_fs4 = require("node:fs");
@@ -38900,7 +38927,7 @@ var init_audit_anchor = __esm({
   }
 });
 
-// ../gsb-h1-reg/packages/store/dist/exception-manifest.js
+// ../bobs-big-brain-registrar/packages/store/dist/exception-manifest.js
 function sortedEntries(entries) {
   return [...entries].sort((a, b) => {
     if (a.seq !== b.seq)
@@ -39001,7 +39028,7 @@ function classifyChainBreaks(breaks, manifest, rowsById) {
 }
 var import_node_crypto7, import_node_fs5, import_zod15, TAMPER_REASONS, TAMPER_REASON_SET, ExceptionManifestEntrySchema, ExceptionManifestSchema, ExceptionManifestError;
 var init_exception_manifest = __esm({
-  "../gsb-h1-reg/packages/store/dist/exception-manifest.js"() {
+  "../bobs-big-brain-registrar/packages/store/dist/exception-manifest.js"() {
     "use strict";
     import_node_crypto7 = require("node:crypto");
     import_node_fs5 = require("node:fs");
@@ -39053,16 +39080,16 @@ var init_exception_manifest = __esm({
   }
 });
 
-// ../gsb-h1-reg/packages/store/dist/signed-merge-anchor.js
+// ../bobs-big-brain-registrar/packages/store/dist/signed-merge-anchor.js
 var init_signed_merge_anchor = __esm({
-  "../gsb-h1-reg/packages/store/dist/signed-merge-anchor.js"() {
+  "../bobs-big-brain-registrar/packages/store/dist/signed-merge-anchor.js"() {
     "use strict";
   }
 });
 
-// ../gsb-h1-reg/packages/store/dist/audit-verify-merge.js
+// ../bobs-big-brain-registrar/packages/store/dist/audit-verify-merge.js
 var init_audit_verify_merge = __esm({
-  "../gsb-h1-reg/packages/store/dist/audit-verify-merge.js"() {
+  "../bobs-big-brain-registrar/packages/store/dist/audit-verify-merge.js"() {
     "use strict";
     init_audit_chain();
     init_audit_verify();
@@ -39070,7 +39097,7 @@ var init_audit_verify_merge = __esm({
   }
 });
 
-// ../gsb-h1-reg/packages/store/dist/repositories/export-state-repository.js
+// ../bobs-big-brain-registrar/packages/store/dist/repositories/export-state-repository.js
 function rowToState(row) {
   const result = ExportStateRowSchema.safeParse(row);
   if (!result.success) {
@@ -39086,7 +39113,7 @@ function rowToState(row) {
 }
 var import_zod16, ExportStateRowSchema, ExportStateRepository;
 var init_export_state_repository = __esm({
-  "../gsb-h1-reg/packages/store/dist/repositories/export-state-repository.js"() {
+  "../bobs-big-brain-registrar/packages/store/dist/repositories/export-state-repository.js"() {
     "use strict";
     import_zod16 = __toESM(require_zod(), 1);
     ExportStateRowSchema = import_zod16.z.object({
@@ -39128,10 +39155,10 @@ var init_export_state_repository = __esm({
   }
 });
 
-// ../gsb-h1-reg/packages/store/dist/repositories/index-state-repository.js
+// ../bobs-big-brain-registrar/packages/store/dist/repositories/index-state-repository.js
 var import_zod17, IndexStateRowSchema;
 var init_index_state_repository = __esm({
-  "../gsb-h1-reg/packages/store/dist/repositories/index-state-repository.js"() {
+  "../bobs-big-brain-registrar/packages/store/dist/repositories/index-state-repository.js"() {
     "use strict";
     import_zod17 = __toESM(require_zod(), 1);
     IndexStateRowSchema = import_zod17.z.object({
@@ -39142,23 +39169,23 @@ var init_index_state_repository = __esm({
   }
 });
 
-// ../gsb-h1-reg/packages/store/dist/repositories/memory-links-repository.js
+// ../bobs-big-brain-registrar/packages/store/dist/repositories/memory-links-repository.js
 var init_memory_links_repository = __esm({
-  "../gsb-h1-reg/packages/store/dist/repositories/memory-links-repository.js"() {
+  "../bobs-big-brain-registrar/packages/store/dist/repositories/memory-links-repository.js"() {
     "use strict";
   }
 });
 
-// ../gsb-h1-reg/packages/store/dist/repositories/import-batch-repository.js
+// ../bobs-big-brain-registrar/packages/store/dist/repositories/import-batch-repository.js
 var init_import_batch_repository = __esm({
-  "../gsb-h1-reg/packages/store/dist/repositories/import-batch-repository.js"() {
+  "../bobs-big-brain-registrar/packages/store/dist/repositories/import-batch-repository.js"() {
     "use strict";
   }
 });
 
-// ../gsb-h1-reg/packages/store/dist/index.js
+// ../bobs-big-brain-registrar/packages/store/dist/index.js
 var init_dist3 = __esm({
-  "../gsb-h1-reg/packages/store/dist/index.js"() {
+  "../bobs-big-brain-registrar/packages/store/dist/index.js"() {
     "use strict";
     init_database();
     init_schema();
@@ -39180,7 +39207,7 @@ var init_dist3 = __esm({
   }
 });
 
-// ../gsb-h1-reg/packages/qmd-adapter/dist/config.js
+// ../bobs-big-brain-registrar/packages/qmd-adapter/dist/config.js
 function getQmdTenantIndexPath(tenantId) {
   return resolveTeamKbPath(`${QMD_INDEX_DIR}/${tenantId}`);
 }
@@ -39191,22 +39218,28 @@ function getQmdTenantEnv(tenantId) {
     XDG_CACHE_HOME: (0, import_node_path6.join)(base, "cache")
   };
 }
-var import_node_path6, QMD_INDEX_DIR, DEFAULT_QMD_BINARY, DEFAULT_TIMEOUT;
+function getDefaultDenseConfig(env = process.env) {
+  const rawEnabled = env["TEAMKB_DENSE_ENABLED"]?.trim().toLowerCase();
+  const enabled = rawEnabled === void 0 || !["0", "false", "off", "no"].includes(rawEnabled);
+  return { enabled, url: DEFAULT_DENSE_URL };
+}
+var import_node_path6, QMD_INDEX_DIR, DEFAULT_DENSE_URL, DEFAULT_QMD_BINARY, DEFAULT_TIMEOUT;
 var init_config = __esm({
-  "../gsb-h1-reg/packages/qmd-adapter/dist/config.js"() {
+  "../bobs-big-brain-registrar/packages/qmd-adapter/dist/config.js"() {
     "use strict";
     import_node_path6 = require("node:path");
     init_dist2();
     QMD_INDEX_DIR = "qmd-index";
+    DEFAULT_DENSE_URL = "http://127.0.0.1:8098";
     DEFAULT_QMD_BINARY = "qmd";
     DEFAULT_TIMEOUT = 3e4;
   }
 });
 
-// ../gsb-h1-reg/packages/qmd-adapter/dist/executor/real-executor.js
+// ../bobs-big-brain-registrar/packages/qmd-adapter/dist/executor/real-executor.js
 var import_node_child_process, import_node_util, execFileAsync, RealQmdExecutor;
 var init_real_executor = __esm({
-  "../gsb-h1-reg/packages/qmd-adapter/dist/executor/real-executor.js"() {
+  "../bobs-big-brain-registrar/packages/qmd-adapter/dist/executor/real-executor.js"() {
     "use strict";
     import_node_child_process = require("node:child_process");
     import_node_util = require("node:util");
@@ -39263,14 +39296,14 @@ var init_real_executor = __esm({
   }
 });
 
-// ../gsb-h1-reg/packages/qmd-adapter/dist/executor/mock-executor.js
+// ../bobs-big-brain-registrar/packages/qmd-adapter/dist/executor/mock-executor.js
 var init_mock_executor = __esm({
-  "../gsb-h1-reg/packages/qmd-adapter/dist/executor/mock-executor.js"() {
+  "../bobs-big-brain-registrar/packages/qmd-adapter/dist/executor/mock-executor.js"() {
     "use strict";
   }
 });
 
-// ../gsb-h1-reg/packages/qmd-adapter/dist/collections/collection-registry.js
+// ../bobs-big-brain-registrar/packages/qmd-adapter/dist/collections/collection-registry.js
 function getDefaultSearchCollections() {
   return KNOWN_COLLECTIONS.filter((c) => c.includeInDefaultSearch).map((c) => c.name);
 }
@@ -39279,7 +39312,7 @@ function getExportableCollections() {
 }
 var KNOWN_COLLECTIONS;
 var init_collection_registry = __esm({
-  "../gsb-h1-reg/packages/qmd-adapter/dist/collections/collection-registry.js"() {
+  "../bobs-big-brain-registrar/packages/qmd-adapter/dist/collections/collection-registry.js"() {
     "use strict";
     KNOWN_COLLECTIONS = [
       {
@@ -39311,15 +39344,28 @@ var init_collection_registry = __esm({
         description: "Deprecated, superseded, or archived memories",
         includeInDefaultSearch: false,
         sourceSubdir: "archive"
+      },
+      {
+        // 5bm.8 — bulk-digestion quarantine collection. Memories whose source is
+        // `bulk_import` (whole-machine digestions, stamped low-trust at the schema
+        // boundary) export to `bulk/` instead of their category directory, so a
+        // 10k-file digestion can never flood the default `curated` search scope
+        // again (the 2026-07-16 flood put ~9.7k bulk reference files in kb-guides).
+        // Deliberately searchable via scope `bulk` or `all` — quarantined from the
+        // DEFAULT surface, not hidden.
+        name: "kb-bulk",
+        description: "Bulk-imported low-trust memories (whole-machine digestions), excluded from default search",
+        includeInDefaultSearch: false,
+        sourceSubdir: "bulk"
       }
     ];
   }
 });
 
-// ../gsb-h1-reg/packages/qmd-adapter/dist/collections/collection-manager.js
+// ../bobs-big-brain-registrar/packages/qmd-adapter/dist/collections/collection-manager.js
 var import_node_path7, CollectionManager;
 var init_collection_manager = __esm({
-  "../gsb-h1-reg/packages/qmd-adapter/dist/collections/collection-manager.js"() {
+  "../bobs-big-brain-registrar/packages/qmd-adapter/dist/collections/collection-manager.js"() {
     "use strict";
     import_node_path7 = require("node:path");
     init_collection_registry();
@@ -39406,18 +39452,18 @@ var init_collection_manager = __esm({
   }
 });
 
-// ../gsb-h1-reg/packages/qmd-adapter/dist/index-manager/index-paths.js
+// ../bobs-big-brain-registrar/packages/qmd-adapter/dist/index-manager/index-paths.js
 var init_index_paths = __esm({
-  "../gsb-h1-reg/packages/qmd-adapter/dist/index-manager/index-paths.js"() {
+  "../bobs-big-brain-registrar/packages/qmd-adapter/dist/index-manager/index-paths.js"() {
     "use strict";
     init_config();
   }
 });
 
-// ../gsb-h1-reg/packages/qmd-adapter/dist/index-manager/index-lifecycle.js
+// ../bobs-big-brain-registrar/packages/qmd-adapter/dist/index-manager/index-lifecycle.js
 var IndexLifecycleManager;
 var init_index_lifecycle = __esm({
-  "../gsb-h1-reg/packages/qmd-adapter/dist/index-manager/index-lifecycle.js"() {
+  "../bobs-big-brain-registrar/packages/qmd-adapter/dist/index-manager/index-lifecycle.js"() {
     "use strict";
     IndexLifecycleManager = class {
       executor;
@@ -39493,7 +39539,7 @@ var init_index_lifecycle = __esm({
   }
 });
 
-// ../gsb-h1-reg/packages/qmd-adapter/dist/search/result-parser.js
+// ../bobs-big-brain-registrar/packages/qmd-adapter/dist/search/result-parser.js
 function parseQueryOutput(stdout) {
   const trimmed = stdout.trim();
   if (!trimmed)
@@ -39524,7 +39570,14 @@ function parseQueryOutput(stdout) {
   return results;
 }
 function deriveCollectionFromPath(filePath) {
-  const knownCollections = ["kb-curated", "kb-decisions", "kb-guides", "kb-inbox", "kb-archive"];
+  const knownCollections = [
+    "kb-curated",
+    "kb-decisions",
+    "kb-guides",
+    "kb-inbox",
+    "kb-archive",
+    "kb-bulk"
+  ];
   for (const name of knownCollections) {
     if (filePath.includes(name))
       return name;
@@ -39532,12 +39585,12 @@ function deriveCollectionFromPath(filePath) {
   return "unknown";
 }
 var init_result_parser = __esm({
-  "../gsb-h1-reg/packages/qmd-adapter/dist/search/result-parser.js"() {
+  "../bobs-big-brain-registrar/packages/qmd-adapter/dist/search/result-parser.js"() {
     "use strict";
   }
 });
 
-// ../gsb-h1-reg/packages/qmd-adapter/dist/search/search-client.js
+// ../bobs-big-brain-registrar/packages/qmd-adapter/dist/search/search-client.js
 function resolveScopeCollections(scope) {
   switch (scope) {
     case "curated":
@@ -39546,6 +39599,8 @@ function resolveScopeCollections(scope) {
       return ["kb-inbox"];
     case "archived":
       return ["kb-archive"];
+    case "bulk":
+      return ["kb-bulk"];
     case "all":
       return [];
     // No filtering
@@ -39555,7 +39610,7 @@ function resolveScopeCollections(scope) {
 }
 var SearchClient;
 var init_search_client = __esm({
-  "../gsb-h1-reg/packages/qmd-adapter/dist/search/search-client.js"() {
+  "../bobs-big-brain-registrar/packages/qmd-adapter/dist/search/search-client.js"() {
     "use strict";
     init_collection_registry();
     init_result_parser();
@@ -39592,7 +39647,7 @@ var init_search_client = __esm({
   }
 });
 
-// ../gsb-h1-reg/packages/qmd-adapter/dist/health/health-check.js
+// ../bobs-big-brain-registrar/packages/qmd-adapter/dist/health/health-check.js
 function probeStaleness(probe) {
   if (probe === void 0)
     return null;
@@ -39635,13 +39690,13 @@ async function checkHealth(executor, stalenessProbe) {
   return { available, version, initialized, collections, stalenessSeconds };
 }
 var init_health_check = __esm({
-  "../gsb-h1-reg/packages/qmd-adapter/dist/health/health-check.js"() {
+  "../bobs-big-brain-registrar/packages/qmd-adapter/dist/health/health-check.js"() {
     "use strict";
   }
 });
 
-// ../gsb-h1-reg/packages/qmd-adapter/dist/search/rrf-fusion.js
-function fuseReciprocalRank(qmdHits, nativeHits, k = RRF_K) {
+// ../bobs-big-brain-registrar/packages/qmd-adapter/dist/search/rrf-fusion.js
+function fuseReciprocalRank(qmdHits, nativeHits, denseHits = [], k = RRF_K) {
   const entries = /* @__PURE__ */ new Map();
   qmdHits.forEach((hit, i) => {
     const rank = i + 1;
@@ -39659,29 +39714,37 @@ function fuseReciprocalRank(qmdHits, nativeHits, k = RRF_K) {
     entry.nativeHit ??= hit;
     entries.set(hit.id, entry);
   });
+  denseHits.forEach((hit, i) => {
+    const rank = i + 1;
+    const entry = entries.get(hit.id) ?? { id: hit.id, score: 0, bestRank: Infinity };
+    entry.score += 1 / (k + rank);
+    entry.bestRank = Math.min(entry.bestRank, rank);
+    entry.denseHit ??= hit;
+    entries.set(hit.id, entry);
+  });
   return [...entries.values()].sort((a, b) => b.score - a.score || a.bestRank - b.bestRank || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)).map((entry) => ({
     file: entry.id,
     score: entry.score,
-    snippet: entry.qmdHit?.snippet !== void 0 && entry.qmdHit.snippet !== "" ? entry.qmdHit.snippet : entry.nativeHit?.snippet ?? "",
-    collection: entry.qmdHit?.collection ?? entry.nativeHit?.collection ?? "unknown"
+    snippet: entry.qmdHit?.snippet !== void 0 && entry.qmdHit.snippet !== "" ? entry.qmdHit.snippet : entry.nativeHit?.snippet !== void 0 && entry.nativeHit.snippet !== "" ? entry.nativeHit.snippet : entry.denseHit?.snippet ?? "",
+    collection: entry.qmdHit?.collection ?? entry.nativeHit?.collection ?? entry.denseHit?.collection ?? "unknown"
   }));
 }
 var RRF_K;
 var init_rrf_fusion = __esm({
-  "../gsb-h1-reg/packages/qmd-adapter/dist/search/rrf-fusion.js"() {
+  "../bobs-big-brain-registrar/packages/qmd-adapter/dist/search/rrf-fusion.js"() {
     "use strict";
     RRF_K = 60;
   }
 });
 
-// ../gsb-h1-reg/packages/qmd-adapter/dist/native/fts5-backend.js
+// ../bobs-big-brain-registrar/packages/qmd-adapter/dist/native/fts5-backend.js
 function buildFts5MatchQuery(query) {
   const tokens = query.match(/[\p{L}\p{N}]+/gu) ?? [];
   return tokens.map((t) => `"${t}"`).join(" ");
 }
 var import_better_sqlite32, Fts5Backend;
 var init_fts5_backend = __esm({
-  "../gsb-h1-reg/packages/qmd-adapter/dist/native/fts5-backend.js"() {
+  "../bobs-big-brain-registrar/packages/qmd-adapter/dist/native/fts5-backend.js"() {
     "use strict";
     import_better_sqlite32 = __toESM(require("better-sqlite3"), 1);
     Fts5Backend = class {
@@ -39762,7 +39825,7 @@ var init_fts5_backend = __esm({
   }
 });
 
-// ../gsb-h1-reg/packages/qmd-adapter/dist/native/native-index-manager.js
+// ../bobs-big-brain-registrar/packages/qmd-adapter/dist/native/native-index-manager.js
 function getNativeIndexManager(opts) {
   if (opts.indexPath === ":memory:")
     return new NativeIndexManager(opts);
@@ -39775,7 +39838,7 @@ function getNativeIndexManager(opts) {
 }
 var import_node_fs6, import_node_path8, import_better_sqlite33, NativeIndexManager, managerCache;
 var init_native_index_manager = __esm({
-  "../gsb-h1-reg/packages/qmd-adapter/dist/native/native-index-manager.js"() {
+  "../bobs-big-brain-registrar/packages/qmd-adapter/dist/native/native-index-manager.js"() {
     "use strict";
     import_node_fs6 = require("node:fs");
     import_node_path8 = require("node:path");
@@ -39899,13 +39962,734 @@ var init_native_index_manager = __esm({
   }
 });
 
-// ../gsb-h1-reg/packages/qmd-adapter/dist/adapter.js
-var import_node_fs7, import_node_path9, NATIVE_SEARCH_K, QmdAdapter;
-var init_adapter = __esm({
-  "../gsb-h1-reg/packages/qmd-adapter/dist/adapter.js"() {
+// ../bobs-big-brain-registrar/packages/qmd-adapter/dist/rerank/rerank-client.js
+function rerankScore(value) {
+  return value;
+}
+var DEFAULT_RERANK_TIMEOUT_MS, RerankClient;
+var init_rerank_client = __esm({
+  "../bobs-big-brain-registrar/packages/qmd-adapter/dist/rerank/rerank-client.js"() {
+    "use strict";
+    DEFAULT_RERANK_TIMEOUT_MS = 3e3;
+    RerankClient = class {
+      baseUrl;
+      timeoutMs;
+      constructor(options) {
+        this.baseUrl = options.url.replace(/\/+$/, "");
+        this.timeoutMs = options.timeoutMs ?? DEFAULT_RERANK_TIMEOUT_MS;
+      }
+      /**
+       * Score `documents` against `query` via POST /v1/rerank.
+       *
+       * Returns one scored entry per input document (the endpoint scores all
+       * documents; `top_n` is deliberately NOT sent so the caller can cache a
+       * score for every candidate). Returns `null` on ANY failure — the caller
+       * MUST treat that as "serve the fused order".
+       */
+      async rerank(query, documents) {
+        if (documents.length === 0)
+          return [];
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+        try {
+          const response = await fetch(`${this.baseUrl}/v1/rerank`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ model: "reranker", query, documents }),
+            signal: controller.signal
+          });
+          if (!response.ok)
+            return null;
+          const parsed = await response.json();
+          if (!Array.isArray(parsed.results))
+            return null;
+          const scored = [];
+          for (const entry of parsed.results) {
+            if (typeof entry?.index !== "number" || typeof entry.relevance_score !== "number" || Number.isNaN(entry.relevance_score) || entry.index < 0 || entry.index >= documents.length) {
+              return null;
+            }
+            scored.push({ index: entry.index, score: rerankScore(entry.relevance_score) });
+          }
+          return scored;
+        } catch {
+          return null;
+        } finally {
+          clearTimeout(timer);
+        }
+      }
+      /** Probe GET /health. `false` on any failure — never throws. */
+      async healthy() {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+        try {
+          const response = await fetch(`${this.baseUrl}/health`, { signal: controller.signal });
+          return response.ok;
+        } catch {
+          return false;
+        } finally {
+          clearTimeout(timer);
+        }
+      }
+    };
+  }
+});
+
+// ../bobs-big-brain-registrar/packages/qmd-adapter/dist/rerank/rerank-cache.js
+var import_node_fs7, import_node_path9, import_better_sqlite34, RerankCache;
+var init_rerank_cache = __esm({
+  "../bobs-big-brain-registrar/packages/qmd-adapter/dist/rerank/rerank-cache.js"() {
     "use strict";
     import_node_fs7 = require("node:fs");
     import_node_path9 = require("node:path");
+    import_better_sqlite34 = __toESM(require("better-sqlite3"), 1);
+    init_dist2();
+    init_rerank_client();
+    RerankCache = class _RerankCache {
+      db;
+      getStmt;
+      setStmt;
+      modelId;
+      modelVersion;
+      broken = false;
+      constructor(opts) {
+        this.modelId = opts.modelId;
+        this.modelVersion = opts.modelVersion;
+        if (opts.path !== ":memory:") {
+          (0, import_node_fs7.mkdirSync)((0, import_node_path9.dirname)(opts.path), { recursive: true });
+        }
+        this.db = new import_better_sqlite34.default(opts.path);
+        this.db.pragma("journal_mode = WAL");
+        this.db.pragma("busy_timeout = 5000");
+        this.db.exec("CREATE TABLE IF NOT EXISTS rerank_scores (key TEXT NOT NULL, model_id TEXT NOT NULL, model_version TEXT NOT NULL, score REAL NOT NULL, created_ms INTEGER NOT NULL, PRIMARY KEY (key, model_id, model_version))");
+        this.getStmt = this.db.prepare("SELECT score FROM rerank_scores WHERE key = ? AND model_id = ? AND model_version = ?");
+        this.setStmt = this.db.prepare("INSERT INTO rerank_scores (key, model_id, model_version, score, created_ms) VALUES (?, ?, ?, ?, ?) ON CONFLICT(key, model_id, model_version) DO UPDATE SET score = excluded.score, created_ms = excluded.created_ms");
+      }
+      /** Content-addressed cache key for a (query, document-content-hash) pair. */
+      static cacheKey(query, docContentHash) {
+        return computeContentHash(query + "\0" + docContentHash);
+      }
+      /** Cached score, or null on miss (or on any cache failure — degrades silently). */
+      get(query, docContentHash) {
+        if (this.broken)
+          return null;
+        try {
+          const row = this.getStmt.get(_RerankCache.cacheKey(query, docContentHash), this.modelId, this.modelVersion);
+          return row === void 0 ? null : rerankScore(row.score);
+        } catch {
+          this.broken = true;
+          return null;
+        }
+      }
+      /** Store a score. Failures are swallowed (the cache is never load-bearing). */
+      set(query, docContentHash, score) {
+        if (this.broken)
+          return;
+        try {
+          this.setStmt.run(_RerankCache.cacheKey(query, docContentHash), this.modelId, this.modelVersion, score, Date.now());
+        } catch {
+          this.broken = true;
+        }
+      }
+      count() {
+        try {
+          return this.db.prepare("SELECT count(*) AS n FROM rerank_scores").get().n;
+        } catch {
+          return 0;
+        }
+      }
+      close() {
+        try {
+          this.db.close();
+        } catch {
+        }
+      }
+    };
+  }
+});
+
+// ../bobs-big-brain-registrar/packages/qmd-adapter/dist/rerank/rerank-stage.js
+function resolveCitationPath(exportDir, citation) {
+  if (!citation.startsWith("qmd://"))
+    return null;
+  const rest = citation.slice("qmd://".length);
+  const slash = rest.indexOf("/");
+  if (slash <= 0)
+    return null;
+  const collectionName = rest.slice(0, slash);
+  const fileName = rest.slice(slash + 1);
+  if (fileName.length === 0 || (0, import_node_path10.basename)(fileName) !== fileName)
+    return null;
+  const def = getExportableCollections().find((c) => c.name === collectionName);
+  if (def === void 0)
+    return null;
+  return (0, import_node_path10.join)(exportDir, def.sourceSubdir, fileName);
+}
+var import_node_fs8, import_node_path10, DEFAULT_CANDIDATE_WINDOW, DEFAULT_RERANK_TOP_N, DEFAULT_MAX_DOC_CHARS, RerankStage;
+var init_rerank_stage = __esm({
+  "../bobs-big-brain-registrar/packages/qmd-adapter/dist/rerank/rerank-stage.js"() {
+    "use strict";
+    import_node_fs8 = require("node:fs");
+    import_node_path10 = require("node:path");
+    init_dist2();
+    init_collection_registry();
+    DEFAULT_CANDIDATE_WINDOW = 50;
+    DEFAULT_RERANK_TOP_N = 8;
+    DEFAULT_MAX_DOC_CHARS = 1500;
+    RerankStage = class {
+      client;
+      cache;
+      exportDir;
+      candidateWindow;
+      topN;
+      maxDocChars;
+      constructor(options) {
+        this.client = options.client;
+        this.cache = options.cache ?? null;
+        this.exportDir = options.exportDir;
+        this.candidateWindow = options.candidateWindow ?? DEFAULT_CANDIDATE_WINDOW;
+        this.topN = options.topN ?? DEFAULT_RERANK_TOP_N;
+        this.maxDocChars = options.maxDocChars ?? DEFAULT_MAX_DOC_CHARS;
+      }
+      /**
+       * Re-order `fused` by cross-encoder relevance to `query`; return the top-N.
+       * Returns the ORIGINAL `fused` list unchanged on any failure (fail-open).
+       */
+      async apply(query, fused) {
+        try {
+          if (fused.length <= 1)
+            return [...fused];
+          const candidates = fused.slice(0, this.candidateWindow).map((hit, i) => {
+            const text = this.resolveDocText(hit);
+            return { hit, fusedRank: i, text, contentHash: computeContentHash(text) };
+          });
+          const misses = [];
+          for (const candidate of candidates) {
+            const cached = this.cache?.get(query, candidate.contentHash) ?? null;
+            if (cached !== null)
+              candidate.score = cached;
+            else
+              misses.push(candidate);
+          }
+          if (misses.length > 0) {
+            const scored = await this.client.rerank(query, misses.map((c) => c.text));
+            if (scored === null || scored.length !== misses.length) {
+              return [...fused];
+            }
+            for (const { index, score } of scored) {
+              const candidate = misses[index];
+              if (candidate === void 0)
+                return [...fused];
+              candidate.score = score;
+              this.cache?.set(query, candidate.contentHash, score);
+            }
+          }
+          if (candidates.some((c) => c.score === void 0))
+            return [...fused];
+          const reordered = [...candidates].sort((a, b) => b.score - a.score || a.fusedRank - b.fusedRank);
+          return reordered.slice(0, this.topN).map((c) => ({ ...c.hit, score: c.score }));
+        } catch {
+          return [...fused];
+        }
+      }
+      /** Health probe for the underlying rerank service. */
+      async healthy() {
+        return this.client.healthy();
+      }
+      /**
+       * Resolve the document text a hit's citation points at, truncated to
+       * `maxDocChars`. Falls back to the hit's snippet when the export file
+       * cannot be resolved/read — a weaker signal beats dropping the doc.
+       */
+      resolveDocText(hit) {
+        const path = resolveCitationPath(this.exportDir, hit.file);
+        if (path !== null) {
+          try {
+            return (0, import_node_fs8.readFileSync)(path, "utf8").slice(0, this.maxDocChars);
+          } catch {
+          }
+        }
+        return hit.snippet.slice(0, this.maxDocChars);
+      }
+    };
+  }
+});
+
+// ../bobs-big-brain-registrar/packages/qmd-adapter/dist/dense/embed-client.js
+function denseScore(value) {
+  return value;
+}
+var EMBEDDINGGEMMA_QUERY_PREFIX, EMBEDDINGGEMMA_DOCUMENT_PREFIX, DEFAULT_EMBED_TIMEOUT_MS, EmbedClient;
+var init_embed_client = __esm({
+  "../bobs-big-brain-registrar/packages/qmd-adapter/dist/dense/embed-client.js"() {
+    "use strict";
+    EMBEDDINGGEMMA_QUERY_PREFIX = "task: search result | query: ";
+    EMBEDDINGGEMMA_DOCUMENT_PREFIX = "title: none | text: ";
+    DEFAULT_EMBED_TIMEOUT_MS = 5e3;
+    EmbedClient = class {
+      baseUrl;
+      timeoutMs;
+      constructor(options) {
+        this.baseUrl = options.url.replace(/\/+$/, "");
+        this.timeoutMs = options.timeoutMs ?? DEFAULT_EMBED_TIMEOUT_MS;
+      }
+      /**
+       * Embed `texts` via POST /v1/embeddings, applying the EmbeddingGemma
+       * role prefix to each. Returns one vector per input, in input order.
+       * Returns `null` on ANY failure — the caller MUST treat that as
+       * "no dense signal available", never as an error to surface.
+       */
+      async embed(texts, role) {
+        if (texts.length === 0)
+          return [];
+        const prefix = role === "query" ? EMBEDDINGGEMMA_QUERY_PREFIX : EMBEDDINGGEMMA_DOCUMENT_PREFIX;
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+        try {
+          const response = await fetch(`${this.baseUrl}/v1/embeddings`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ model: "embedding", input: texts.map((t) => prefix + t) }),
+            signal: controller.signal
+          });
+          if (!response.ok)
+            return null;
+          const parsed = await response.json();
+          if (!Array.isArray(parsed.data) || parsed.data.length !== texts.length)
+            return null;
+          const vectors = new Array(texts.length);
+          let dims = -1;
+          for (const entry of parsed.data) {
+            if (typeof entry?.index !== "number" || entry.index < 0 || entry.index >= texts.length || !Array.isArray(entry.embedding) || entry.embedding.length === 0 || entry.embedding.some((v) => typeof v !== "number" || !Number.isFinite(v))) {
+              return null;
+            }
+            if (dims === -1)
+              dims = entry.embedding.length;
+            else if (entry.embedding.length !== dims)
+              return null;
+            vectors[entry.index] = Float32Array.from(entry.embedding);
+          }
+          for (let i = 0; i < vectors.length; i++) {
+            if (vectors[i] === void 0)
+              return null;
+          }
+          return vectors;
+        } catch {
+          return null;
+        } finally {
+          clearTimeout(timer);
+        }
+      }
+      /** Probe GET /health. `false` on any failure — never throws. */
+      async healthy() {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+        try {
+          const response = await fetch(`${this.baseUrl}/health`, { signal: controller.signal });
+          return response.ok;
+        } catch {
+          return false;
+        } finally {
+          clearTimeout(timer);
+        }
+      }
+    };
+  }
+});
+
+// ../bobs-big-brain-registrar/packages/qmd-adapter/dist/dense/dense-index.js
+var import_node_fs9, import_node_path11, import_better_sqlite35, sqliteVec, DENSE_SNIPPET_CHARS, DenseVecIndex;
+var init_dense_index = __esm({
+  "../bobs-big-brain-registrar/packages/qmd-adapter/dist/dense/dense-index.js"() {
+    "use strict";
+    import_node_fs9 = require("node:fs");
+    import_node_path11 = require("node:path");
+    import_better_sqlite35 = __toESM(require("better-sqlite3"), 1);
+    sqliteVec = __toESM(require("sqlite-vec"), 1);
+    init_embed_client();
+    DENSE_SNIPPET_CHARS = 160;
+    DenseVecIndex = class {
+      db;
+      dims;
+      constructor(opts) {
+        if (opts.path !== ":memory:") {
+          (0, import_node_fs9.mkdirSync)((0, import_node_path11.dirname)(opts.path), { recursive: true });
+        }
+        this.db = new import_better_sqlite35.default(opts.path);
+        sqliteVec.load(this.db);
+        this.db.pragma("journal_mode = WAL");
+        this.db.pragma("busy_timeout = 5000");
+        this.db.exec("CREATE TABLE IF NOT EXISTS dense_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL); CREATE TABLE IF NOT EXISTS dense_docs (rowid INTEGER PRIMARY KEY, doc_id TEXT NOT NULL UNIQUE, collection TEXT NOT NULL, content_hash TEXT NOT NULL, snippet TEXT NOT NULL, embedded_ms INTEGER NOT NULL)");
+        const storedModel = this.getMeta("model_id");
+        const storedVersion = this.getMeta("model_version");
+        if (storedModel !== null && storedModel !== opts.modelId || storedVersion !== null && storedVersion !== opts.modelVersion) {
+          this.wipe();
+        }
+        this.setMeta("model_id", opts.modelId);
+        this.setMeta("model_version", opts.modelVersion);
+        const storedDims = this.getMeta("dims");
+        this.dims = storedDims === null ? null : Number(storedDims);
+      }
+      getMeta(key) {
+        const row = this.db.prepare("SELECT value FROM dense_meta WHERE key = ?").get(key);
+        return row?.value ?? null;
+      }
+      setMeta(key, value) {
+        this.db.prepare("INSERT INTO dense_meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(key, value);
+      }
+      /** Drop every embedded doc + vector (meta survives; dims reset). */
+      wipe() {
+        this.db.exec("DELETE FROM dense_docs; DROP TABLE IF EXISTS dense_vec");
+        this.db.prepare("DELETE FROM dense_meta WHERE key = ?").run("dims");
+        this.dims = null;
+      }
+      /**
+       * Ensure the vec0 table exists for `dims`-dimensional vectors. A dimension
+       * change (impossible without a model change, but belt-and-braces) wipes and
+       * recreates — mixed-dimension KNN is meaningless.
+       */
+      ensureVecTable(dims) {
+        if (this.dims === dims)
+          return;
+        if (this.dims !== null)
+          this.wipe();
+        this.db.exec(`CREATE VIRTUAL TABLE IF NOT EXISTS dense_vec USING vec0(collection text partition key, embedding float[${dims}])`);
+        this.setMeta("dims", String(dims));
+        this.dims = dims;
+      }
+      /**
+       * Upsert one embedded document. `contentHash` MUST be the hash of the exact
+       * (truncated) text the embedding was computed from — it is the incremental
+       * re-embed key.
+       */
+      upsert(doc) {
+        this.ensureVecTable(doc.embedding.length);
+        const tx = this.db.transaction(() => {
+          const prior = this.db.prepare("SELECT rowid FROM dense_docs WHERE doc_id = ?").get(doc.docId);
+          if (prior !== void 0) {
+            this.db.prepare("DELETE FROM dense_vec WHERE rowid = ?").run(BigInt(prior.rowid));
+            this.db.prepare("DELETE FROM dense_docs WHERE rowid = ?").run(prior.rowid);
+          }
+          const inserted = this.db.prepare("INSERT INTO dense_docs (doc_id, collection, content_hash, snippet, embedded_ms) VALUES (?, ?, ?, ?, ?)").run(doc.docId, doc.collection, doc.contentHash, doc.snippet, Date.now());
+          this.db.prepare("INSERT INTO dense_vec (rowid, collection, embedding) VALUES (?, ?, ?)").run(BigInt(inserted.lastInsertRowid), doc.collection, Buffer.from(doc.embedding.buffer, doc.embedding.byteOffset, doc.embedding.byteLength));
+        });
+        tx();
+      }
+      /** Remove documents by citation id (no-op for ids that are not indexed). */
+      remove(docIds) {
+        const tx = this.db.transaction(() => {
+          for (const docId of docIds) {
+            const prior = this.db.prepare("SELECT rowid FROM dense_docs WHERE doc_id = ?").get(docId);
+            if (prior === void 0)
+              continue;
+            this.db.prepare("DELETE FROM dense_vec WHERE rowid = ?").run(BigInt(prior.rowid));
+            this.db.prepare("DELETE FROM dense_docs WHERE rowid = ?").run(prior.rowid);
+          }
+        });
+        tx();
+      }
+      /** Every indexed doc's (docId, contentHash) — the indexer's diff input. */
+      entries() {
+        return this.db.prepare("SELECT doc_id, content_hash FROM dense_docs").all().map((r) => ({ docId: r.doc_id, contentHash: r.content_hash }));
+      }
+      /**
+       * KNN search: top-`k` nearest docs to `queryEmbedding` (vec0 L2 distance;
+       * inputs are L2-normalized so the ordering equals cosine ordering, and the
+       * reported score is the exact cosine similarity `1 − d²/2`).
+       *
+       * `allowedCollections` (empty = no filter, i.e. scope `all`) is pushed INTO
+       * the KNN via the vec0 `collection` partition key, so the k returned rows are
+       * the k nearest *within scope* — out-of-scope collections (e.g. archive under
+       * a curated search) never occupy a slot. This is the correctness fix that a
+       * post-hoc `.filter()` cannot give: filtering after a top-k over ALL
+       * collections would silently shrink an in-scope result set below k.
+       */
+      search(queryEmbedding, k, allowedCollections = []) {
+        if (this.dims === null || k <= 0)
+          return [];
+        if (queryEmbedding.length !== this.dims)
+          return [];
+        const scopeClause = allowedCollections.length === 0 ? "" : `AND v.collection IN (${allowedCollections.map(() => "?").join(", ")}) `;
+        const rows = this.db.prepare(`SELECT d.doc_id AS id, v.collection AS collection, d.snippet AS snippet, v.distance AS distance FROM dense_vec v JOIN dense_docs d ON d.rowid = v.rowid WHERE v.embedding MATCH ? AND k = ? ${scopeClause}ORDER BY v.distance`).all(Buffer.from(queryEmbedding.buffer, queryEmbedding.byteOffset, queryEmbedding.byteLength), k, ...allowedCollections);
+        return rows.map((r) => ({
+          id: r.id,
+          collection: r.collection,
+          snippet: r.snippet,
+          score: denseScore(1 - r.distance * r.distance / 2)
+        }));
+      }
+      count() {
+        return this.db.prepare("SELECT count(*) AS n FROM dense_docs").get().n;
+      }
+      close() {
+        try {
+          this.db.close();
+        } catch {
+        }
+      }
+    };
+  }
+});
+
+// ../bobs-big-brain-registrar/packages/qmd-adapter/dist/dense/dense-indexer.js
+function delay(ms) {
+  return new Promise((resolve3) => setTimeout(resolve3, ms));
+}
+var import_node_fs10, import_node_path12, DEFAULT_DENSE_MAX_DOC_CHARS, DEFAULT_DENSE_BATCH_SIZE, DenseIndexer;
+var init_dense_indexer = __esm({
+  "../bobs-big-brain-registrar/packages/qmd-adapter/dist/dense/dense-indexer.js"() {
+    "use strict";
+    import_node_fs10 = require("node:fs");
+    import_node_path12 = require("node:path");
+    init_dist2();
+    init_collection_registry();
+    init_dense_index();
+    DEFAULT_DENSE_MAX_DOC_CHARS = 2e3;
+    DEFAULT_DENSE_BATCH_SIZE = 16;
+    DenseIndexer = class {
+      index;
+      client;
+      exportDir;
+      maxDocChars;
+      batchSize;
+      maxBatchRetries;
+      retryBackoffMs;
+      maxRetryBackoffMs;
+      constructor(options) {
+        this.index = options.index;
+        this.client = options.client;
+        this.exportDir = options.exportDir;
+        this.maxDocChars = options.maxDocChars ?? DEFAULT_DENSE_MAX_DOC_CHARS;
+        this.batchSize = options.batchSize ?? DEFAULT_DENSE_BATCH_SIZE;
+        this.maxBatchRetries = options.maxBatchRetries ?? 5;
+        this.retryBackoffMs = options.retryBackoffMs ?? 2e3;
+        this.maxRetryBackoffMs = options.maxRetryBackoffMs ?? 15e3;
+      }
+      /**
+       * Embed one batch, RE-ATTEMPTING on failure with bounded exponential backoff.
+       * Returns the vectors on success, or `null` only after the whole retry budget
+       * is spent with the service still failing (a durable outage). A `null` from
+       * `client.embed` is fail-fast (connection-refused during an auto-restart is
+       * near-instant), so the wall-clock cost of a retry round is dominated by the
+       * backoff, not by timeouts.
+       */
+      async embedBatchWithRetry(texts) {
+        let backoff = this.retryBackoffMs;
+        for (let attempt = 0; attempt <= this.maxBatchRetries; attempt++) {
+          const vectors = await this.client.embed(texts, "document");
+          if (vectors !== null)
+            return vectors;
+          if (attempt === this.maxBatchRetries)
+            break;
+          await delay(backoff);
+          backoff = Math.min(backoff * 2, this.maxRetryBackoffMs);
+        }
+        return null;
+      }
+      /**
+       * Bring the dense index up to date with the export tree: embed new/changed
+       * docs (batched), remove vanished ones, leave unchanged ones untouched.
+       */
+      async sync() {
+        const onDisk = /* @__PURE__ */ new Map();
+        for (const def of getExportableCollections()) {
+          const dir = (0, import_node_path12.join)(this.exportDir, def.sourceSubdir);
+          if (!(0, import_node_fs10.existsSync)(dir))
+            continue;
+          for (const name of (0, import_node_fs10.readdirSync)(dir)) {
+            if (!name.endsWith(".md"))
+              continue;
+            let raw;
+            try {
+              raw = (0, import_node_fs10.readFileSync)((0, import_node_path12.join)(dir, name), "utf8");
+            } catch {
+              continue;
+            }
+            const text = raw.slice(0, this.maxDocChars);
+            onDisk.set(`qmd://${def.name}/${name}`, {
+              collection: def.name,
+              text,
+              contentHash: computeContentHash(text),
+              snippet: raw.slice(0, DENSE_SNIPPET_CHARS)
+            });
+          }
+        }
+        const stored = new Map(this.index.entries().map((e) => [e.docId, e.contentHash]));
+        const toEmbed = [];
+        for (const [docId, info] of onDisk) {
+          if (stored.get(docId) !== info.contentHash)
+            toEmbed.push(docId);
+        }
+        const toRemove = [...stored.keys()].filter((docId) => !onDisk.has(docId));
+        if (toRemove.length > 0)
+          this.index.remove(toRemove);
+        if (toEmbed.length > 0 && !await this.client.healthy()) {
+          return {
+            embedded: 0,
+            removed: toRemove.length,
+            skipped: toEmbed.length,
+            totalDocs: onDisk.size,
+            serviceDown: true
+          };
+        }
+        let embedded = 0;
+        let skipped = 0;
+        for (let start = 0; start < toEmbed.length; start += this.batchSize) {
+          const batchIds = toEmbed.slice(start, start + this.batchSize);
+          const batchDocs = batchIds.map((id) => onDisk.get(id));
+          const vectors = await this.embedBatchWithRetry(batchDocs.map((d) => d?.text ?? ""));
+          if (vectors === null) {
+            if (await this.client.healthy()) {
+              skipped += batchIds.length;
+              continue;
+            }
+            skipped += toEmbed.length - start;
+            return {
+              embedded,
+              removed: toRemove.length,
+              skipped,
+              totalDocs: onDisk.size,
+              serviceDown: true
+            };
+          }
+          for (let i = 0; i < batchIds.length; i++) {
+            const docId = batchIds[i];
+            const info = docId === void 0 ? void 0 : onDisk.get(docId);
+            const embedding = vectors[i];
+            if (docId === void 0 || info === void 0 || embedding === void 0)
+              continue;
+            this.index.upsert({
+              docId,
+              collection: info.collection,
+              contentHash: info.contentHash,
+              snippet: info.snippet,
+              embedding
+            });
+            embedded++;
+          }
+        }
+        return {
+          embedded,
+          removed: toRemove.length,
+          skipped,
+          totalDocs: onDisk.size,
+          serviceDown: false
+        };
+      }
+    };
+  }
+});
+
+// ../bobs-big-brain-registrar/packages/qmd-adapter/dist/weights/weights-manifest.js
+var QMD_WEIGHTS_MANIFEST;
+var init_weights_manifest = __esm({
+  "../bobs-big-brain-registrar/packages/qmd-adapter/dist/weights/weights-manifest.js"() {
+    "use strict";
+    QMD_WEIGHTS_MANIFEST = {
+      schemaVersion: 1,
+      qmd: { npmPackage: "@tobilu/qmd", version: "2.5.3" },
+      note: "Embedding + query-expansion hashes captured under qmd 2.0.1; re-confirm against the canonical 2.5.3 model set before the semantic path ships (bead 0t9.3). The reranker hash was re-verified against the on-disk GGUF on 2026-07-19 (B1) and is actively served by bbb-reranker.service.",
+      models: [
+        {
+          id: "embedding",
+          role: "embedding",
+          file: "hf_ggml-org_embeddinggemma-300M-Q8_0.gguf",
+          sha256: "b5ce9d77a3fc4b3b39ccb5643c36777911cc4eb46a66962eadfa3f5f60490d63",
+          size: 333590944,
+          hfRepo: "ggml-org/embeddinggemma-300M-GGUF"
+        },
+        {
+          id: "reranker",
+          role: "reranker",
+          file: "hf_ggml-org_qwen3-reranker-0.6b-q8_0.gguf",
+          sha256: "22c9979ce4fbcdc5acdc310c6641c32797eff1aa980b8f7a2db8a8ea23429a48",
+          size: 639153184,
+          hfRepo: "ggml-org/qwen3-reranker-0.6B-GGUF"
+        },
+        {
+          id: "query-expansion",
+          role: "query-expansion",
+          file: "hf_tobil_qmd-query-expansion-1.7B-q4_k_m.gguf",
+          sha256: "000dfb1c06efa6a049e9f64ba921c3740e2454f62abab6fa10e77bd30bb2bcc0",
+          size: 1282438912,
+          hfRepo: "tobil/qmd-query-expansion-1.7B-GGUF"
+        }
+      ]
+    };
+  }
+});
+
+// ../bobs-big-brain-registrar/packages/qmd-adapter/dist/adapter.js
+function buildDenseArm(config2) {
+  const dense = config2.dense;
+  if (dense === void 0)
+    return null;
+  try {
+    const pinned = QMD_WEIGHTS_MANIFEST.models.find((m) => m.id === "embedding");
+    const modelVersion = `${pinned?.sha256 ?? "unpinned"}|q:${EMBEDDINGGEMMA_QUERY_PREFIX}|d:${EMBEDDINGGEMMA_DOCUMENT_PREFIX}`;
+    const index = new DenseVecIndex({
+      path: dense.indexPath ?? (0, import_node_path13.join)(getQmdTenantIndexPath(config2.tenantId), "dense-vec.sqlite"),
+      modelId: pinned?.file ?? "unknown-embedding",
+      modelVersion
+    });
+    const queryClient = new EmbedClient({ url: dense.url, timeoutMs: dense.timeoutMs });
+    const onQueryDegraded = dense.onQueryDegraded;
+    const indexClient = new EmbedClient({
+      url: dense.url,
+      timeoutMs: dense.indexTimeoutMs ?? DENSE_INDEX_TIMEOUT_MS
+    });
+    const indexer = new DenseIndexer({
+      index,
+      client: indexClient,
+      exportDir: config2.exportDir,
+      maxDocChars: dense.maxDocChars,
+      batchSize: dense.batchSize
+    });
+    return {
+      index,
+      queryClient,
+      indexer,
+      searchK: dense.searchK ?? DENSE_SEARCH_K,
+      ...onQueryDegraded ? { onQueryDegraded } : {}
+    };
+  } catch {
+    return null;
+  }
+}
+function buildRerankStage(config2) {
+  const rerank = config2.rerank;
+  if (rerank === void 0)
+    return null;
+  try {
+    const client = new RerankClient({ url: rerank.url, timeoutMs: rerank.timeoutMs });
+    const pinned = QMD_WEIGHTS_MANIFEST.models.find((m) => m.id === "reranker");
+    let cache = null;
+    try {
+      cache = new RerankCache({
+        path: rerank.cachePath ?? (0, import_node_path13.join)(getQmdTenantIndexPath(config2.tenantId), "rerank-cache.sqlite"),
+        modelId: pinned?.file ?? "unknown-reranker",
+        modelVersion: pinned?.sha256 ?? "unpinned"
+      });
+    } catch {
+      cache = null;
+    }
+    return new RerankStage({
+      client,
+      cache,
+      exportDir: config2.exportDir,
+      candidateWindow: rerank.candidateWindow,
+      topN: rerank.topN,
+      maxDocChars: rerank.maxDocChars
+    });
+  } catch {
+    return null;
+  }
+}
+var import_node_fs11, import_node_path13, NATIVE_SEARCH_K, DENSE_SEARCH_K, DENSE_INDEX_TIMEOUT_MS, QmdAdapter;
+var init_adapter = __esm({
+  "../bobs-big-brain-registrar/packages/qmd-adapter/dist/adapter.js"() {
+    "use strict";
+    import_node_fs11 = require("node:fs");
+    import_node_path13 = require("node:path");
     init_real_executor();
     init_collection_manager();
     init_collection_registry();
@@ -39915,13 +40699,24 @@ var init_adapter = __esm({
     init_health_check();
     init_config();
     init_native_index_manager();
+    init_rerank_client();
+    init_rerank_cache();
+    init_rerank_stage();
+    init_embed_client();
+    init_dense_index();
+    init_dense_indexer();
+    init_weights_manifest();
     NATIVE_SEARCH_K = 50;
+    DENSE_SEARCH_K = 50;
+    DENSE_INDEX_TIMEOUT_MS = 12e4;
     QmdAdapter = class {
       executor;
       collections;
       search;
       indexLifecycle;
       native;
+      rerankStage;
+      dense;
       exportDir;
       /** The single tenant this adapter's qmd registry + index are bound to. */
       tenantId;
@@ -39950,12 +40745,14 @@ var init_adapter = __esm({
           try {
             this.native = getNativeIndexManager({
               exportDir: config2.exportDir,
-              indexPath: config2.nativeIndexPath ?? (0, import_node_path9.join)(getQmdTenantIndexPath(config2.tenantId), "native-fts5.sqlite")
+              indexPath: config2.nativeIndexPath ?? (0, import_node_path13.join)(getQmdTenantIndexPath(config2.tenantId), "native-fts5.sqlite")
             });
           } catch {
             this.native = null;
           }
         }
+        this.rerankStage = config2.rerank?.enabled === true ? buildRerankStage(config2) : null;
+        this.dense = config2.dense?.enabled === true ? buildDenseArm(config2) : null;
       }
       /**
        * Run a search with curated-only default scope.
@@ -39983,15 +40780,33 @@ var init_adapter = __esm({
         const effectiveScope = scope ?? "curated";
         const qmdResult = await this.search.search(queryText, effectiveScope);
         const nativeHits = this.nativeSearch(queryText, effectiveScope);
+        const denseHits = await this.denseSearch(queryText, effectiveScope);
         if (!qmdResult.ok) {
-          if (nativeHits.length > 0) {
-            return { ok: true, value: fuseReciprocalRank([], nativeHits) };
+          if (nativeHits.length > 0 || denseHits.length > 0) {
+            return {
+              ok: true,
+              value: await this.maybeRerank(queryText, fuseReciprocalRank([], nativeHits, denseHits))
+            };
           }
           return qmdResult;
         }
-        if (nativeHits.length === 0)
-          return qmdResult;
-        return { ok: true, value: fuseReciprocalRank(qmdResult.value, nativeHits) };
+        if (nativeHits.length === 0 && denseHits.length === 0) {
+          return { ok: true, value: await this.maybeRerank(queryText, qmdResult.value) };
+        }
+        return {
+          ok: true,
+          value: await this.maybeRerank(queryText, fuseReciprocalRank(qmdResult.value, nativeHits, denseHits))
+        };
+      }
+      /**
+       * Opt-in rerank pass over the final fused list (B1). Identity when the stage
+       * is not configured; fail-open inside the stage otherwise, so the
+       * deterministic fused order is always the fallback the caller receives.
+       */
+      async maybeRerank(queryText, fused) {
+        if (this.rerankStage === null)
+          return fused;
+        return this.rerankStage.apply(queryText, fused);
       }
       /** Native FTS5 half of the fused query. Any failure degrades to []. */
       nativeSearch(queryText, scope) {
@@ -40001,6 +40816,67 @@ var init_adapter = __esm({
           return this.native.search(queryText, NATIVE_SEARCH_K, resolveScopeCollections(scope));
         } catch {
           return [];
+        }
+      }
+      /**
+       * Dense KNN list for the fusion (B4). Fail-open: dense not configured,
+       * embedder down/slow, empty index, or anything thrown all degrade to [] —
+       * the lexical fusion is always the floor the serving path stands on.
+       */
+      async denseSearch(queryText, scope) {
+        if (this.dense === null)
+          return [];
+        try {
+          const vectors = await this.dense.queryClient.embed([queryText], "query");
+          const queryVec = vectors?.[0];
+          if (queryVec === void 0) {
+            this.notifyDenseDegraded(new Error("embedder returned no vector for the query"));
+            return [];
+          }
+          return this.dense.index.search(queryVec, this.dense.searchK, resolveScopeCollections(scope));
+        } catch (err2) {
+          this.notifyDenseDegraded(err2);
+          return [];
+        }
+      }
+      /**
+       * Tell an observer the dense arm degraded for this query, then carry on
+       * failing open.
+       *
+       * The callback is optional and unset in serving, so this is a no-op there and
+       * the fail-open contract is unchanged. The eval harness sets it to turn a
+       * SILENT degradation into a loud one — see `QmdAdapterConfig.dense.onQueryDegraded`
+       * for why a silently-degraded measurement is worse than a failed one.
+       *
+       * Swallows any throw from the observer: this runs inside the fail-open catch,
+       * and a broken observer must not convert a degraded query into a failed one.
+       */
+      notifyDenseDegraded(reason) {
+        try {
+          this.dense?.onQueryDegraded?.(reason);
+        } catch {
+        }
+      }
+      /**
+       * Bring the dense sidecar index up to date with the export tree (B4).
+       * Returns `null` when the dense arm is not configured; never throws.
+       * Called by `reindex()` after the lexical index update — an embedder outage
+       * reports `serviceDown: true` and leaves the dense index stale (degrade),
+       * it never fails the reindex.
+       */
+      async denseSync() {
+        if (this.dense === null)
+          return null;
+        try {
+          return await this.dense.indexer.sync();
+        } catch {
+          return {
+            embedded: 0,
+            removed: 0,
+            skipped: 0,
+            totalDocs: 0,
+            serviceDown: true
+          };
         }
       }
       /** Check health of qmd and index state (incl. stalenessSeconds when a probe is wired). */
@@ -40019,7 +40895,7 @@ var init_adapter = __esm({
        */
       async ensureCollections() {
         for (const def of getExportableCollections()) {
-          (0, import_node_fs7.mkdirSync)((0, import_node_path9.join)(this.exportDir, def.sourceSubdir), { recursive: true });
+          (0, import_node_fs11.mkdirSync)((0, import_node_path13.join)(this.exportDir, def.sourceSubdir), { recursive: true });
         }
         return this.collections.ensureCollections(this.exportDir);
       }
@@ -40027,78 +40903,71 @@ var init_adapter = __esm({
   }
 });
 
-// ../gsb-h1-reg/packages/qmd-adapter/dist/weights/verify-weights.js
+// ../bobs-big-brain-registrar/packages/qmd-adapter/dist/weights/verify-weights.js
 var init_verify_weights = __esm({
-  "../gsb-h1-reg/packages/qmd-adapter/dist/weights/verify-weights.js"() {
+  "../bobs-big-brain-registrar/packages/qmd-adapter/dist/weights/verify-weights.js"() {
     "use strict";
     init_dist2();
   }
 });
 
-// ../gsb-h1-reg/packages/qmd-adapter/dist/weights/weights-manifest.js
-var init_weights_manifest = __esm({
-  "../gsb-h1-reg/packages/qmd-adapter/dist/weights/weights-manifest.js"() {
-    "use strict";
-  }
-});
-
-// ../gsb-h1-reg/packages/qmd-adapter/dist/weights/index.js
+// ../bobs-big-brain-registrar/packages/qmd-adapter/dist/weights/index.js
 var init_weights = __esm({
-  "../gsb-h1-reg/packages/qmd-adapter/dist/weights/index.js"() {
+  "../bobs-big-brain-registrar/packages/qmd-adapter/dist/weights/index.js"() {
     "use strict";
     init_verify_weights();
     init_weights_manifest();
   }
 });
 
-// ../gsb-h1-reg/packages/qmd-adapter/dist/eval/metrics.js
+// ../bobs-big-brain-registrar/packages/qmd-adapter/dist/eval/metrics.js
 var init_metrics = __esm({
-  "../gsb-h1-reg/packages/qmd-adapter/dist/eval/metrics.js"() {
+  "../bobs-big-brain-registrar/packages/qmd-adapter/dist/eval/metrics.js"() {
     "use strict";
   }
 });
 
-// ../gsb-h1-reg/packages/qmd-adapter/dist/eval/run-eval.js
+// ../bobs-big-brain-registrar/packages/qmd-adapter/dist/eval/run-eval.js
 var init_run_eval = __esm({
-  "../gsb-h1-reg/packages/qmd-adapter/dist/eval/run-eval.js"() {
+  "../bobs-big-brain-registrar/packages/qmd-adapter/dist/eval/run-eval.js"() {
     "use strict";
     init_metrics();
   }
 });
 
-// ../gsb-h1-reg/packages/qmd-adapter/dist/eval/datasets/seed-queries.js
+// ../bobs-big-brain-registrar/packages/qmd-adapter/dist/eval/datasets/seed-queries.js
 var init_seed_queries = __esm({
-  "../gsb-h1-reg/packages/qmd-adapter/dist/eval/datasets/seed-queries.js"() {
+  "../bobs-big-brain-registrar/packages/qmd-adapter/dist/eval/datasets/seed-queries.js"() {
     "use strict";
   }
 });
 
-// ../gsb-h1-reg/packages/qmd-adapter/dist/eval/stratified-report.js
+// ../bobs-big-brain-registrar/packages/qmd-adapter/dist/eval/stratified-report.js
 var init_stratified_report = __esm({
-  "../gsb-h1-reg/packages/qmd-adapter/dist/eval/stratified-report.js"() {
+  "../bobs-big-brain-registrar/packages/qmd-adapter/dist/eval/stratified-report.js"() {
     "use strict";
     init_metrics();
   }
 });
 
-// ../gsb-h1-reg/packages/qmd-adapter/dist/eval/qmd-retrieval.js
+// ../bobs-big-brain-registrar/packages/qmd-adapter/dist/eval/qmd-retrieval.js
 var init_qmd_retrieval = __esm({
-  "../gsb-h1-reg/packages/qmd-adapter/dist/eval/qmd-retrieval.js"() {
+  "../bobs-big-brain-registrar/packages/qmd-adapter/dist/eval/qmd-retrieval.js"() {
     "use strict";
   }
 });
 
-// ../gsb-h1-reg/packages/qmd-adapter/dist/eval/datasets/governed-brain-v1.js
+// ../bobs-big-brain-registrar/packages/qmd-adapter/dist/eval/datasets/governed-brain-v1.js
 var init_governed_brain_v1 = __esm({
-  "../gsb-h1-reg/packages/qmd-adapter/dist/eval/datasets/governed-brain-v1.js"() {
+  "../bobs-big-brain-registrar/packages/qmd-adapter/dist/eval/datasets/governed-brain-v1.js"() {
     "use strict";
   }
 });
 
-// ../gsb-h1-reg/packages/qmd-adapter/dist/eval/datasets/synthetic-v1.js
+// ../bobs-big-brain-registrar/packages/qmd-adapter/dist/eval/datasets/synthetic-v1.js
 var SYNTHETIC_V1_BASELINE;
 var init_synthetic_v1 = __esm({
-  "../gsb-h1-reg/packages/qmd-adapter/dist/eval/datasets/synthetic-v1.js"() {
+  "../bobs-big-brain-registrar/packages/qmd-adapter/dist/eval/datasets/synthetic-v1.js"() {
     "use strict";
     SYNTHETIC_V1_BASELINE = {
       /** 8/8 lexical queries hit. */
@@ -40116,9 +40985,9 @@ var init_synthetic_v1 = __esm({
   }
 });
 
-// ../gsb-h1-reg/packages/qmd-adapter/dist/eval/index.js
+// ../bobs-big-brain-registrar/packages/qmd-adapter/dist/eval/index.js
 var init_eval = __esm({
-  "../gsb-h1-reg/packages/qmd-adapter/dist/eval/index.js"() {
+  "../bobs-big-brain-registrar/packages/qmd-adapter/dist/eval/index.js"() {
     "use strict";
     init_metrics();
     init_run_eval();
@@ -40130,33 +40999,53 @@ var init_eval = __esm({
   }
 });
 
-// ../gsb-h1-reg/packages/qmd-adapter/dist/native/index.js
+// ../bobs-big-brain-registrar/packages/qmd-adapter/dist/native/index.js
 var init_native = __esm({
-  "../gsb-h1-reg/packages/qmd-adapter/dist/native/index.js"() {
+  "../bobs-big-brain-registrar/packages/qmd-adapter/dist/native/index.js"() {
     "use strict";
     init_fts5_backend();
     init_native_index_manager();
   }
 });
 
-// ../gsb-h1-reg/packages/qmd-adapter/dist/reindex/reindex.js
+// ../bobs-big-brain-registrar/packages/qmd-adapter/dist/rerank/index.js
+var init_rerank = __esm({
+  "../bobs-big-brain-registrar/packages/qmd-adapter/dist/rerank/index.js"() {
+    "use strict";
+    init_rerank_client();
+    init_rerank_cache();
+    init_rerank_stage();
+  }
+});
+
+// ../bobs-big-brain-registrar/packages/qmd-adapter/dist/dense/index.js
+var init_dense = __esm({
+  "../bobs-big-brain-registrar/packages/qmd-adapter/dist/dense/index.js"() {
+    "use strict";
+    init_embed_client();
+    init_dense_index();
+    init_dense_indexer();
+  }
+});
+
+// ../bobs-big-brain-registrar/packages/qmd-adapter/dist/reindex/reindex.js
 var init_reindex = __esm({
-  "../gsb-h1-reg/packages/qmd-adapter/dist/reindex/reindex.js"() {
+  "../bobs-big-brain-registrar/packages/qmd-adapter/dist/reindex/reindex.js"() {
     "use strict";
   }
 });
 
-// ../gsb-h1-reg/packages/qmd-adapter/dist/canary/search-canary.js
+// ../bobs-big-brain-registrar/packages/qmd-adapter/dist/canary/search-canary.js
 var init_search_canary = __esm({
-  "../gsb-h1-reg/packages/qmd-adapter/dist/canary/search-canary.js"() {
+  "../bobs-big-brain-registrar/packages/qmd-adapter/dist/canary/search-canary.js"() {
     "use strict";
     init_reindex();
   }
 });
 
-// ../gsb-h1-reg/packages/qmd-adapter/dist/index.js
+// ../bobs-big-brain-registrar/packages/qmd-adapter/dist/index.js
 var init_dist4 = __esm({
-  "../gsb-h1-reg/packages/qmd-adapter/dist/index.js"() {
+  "../bobs-big-brain-registrar/packages/qmd-adapter/dist/index.js"() {
     "use strict";
     init_config();
     init_real_executor();
@@ -40174,12 +41063,14 @@ var init_dist4 = __esm({
     init_native();
     init_rrf_fusion();
     init_search_client();
+    init_rerank();
+    init_dense();
     init_reindex();
     init_search_canary();
   }
 });
 
-// ../gsb-h1-reg/packages/claude-runtime/dist/config.js
+// ../bobs-big-brain-registrar/packages/claude-runtime/dist/config.js
 function getSpoolPath() {
   return resolveTeamKbPath(SPOOL_DIR);
 }
@@ -40190,17 +41081,17 @@ function getSpoolFilename(date) {
 }
 var SPOOL_DIR;
 var init_config2 = __esm({
-  "../gsb-h1-reg/packages/claude-runtime/dist/config.js"() {
+  "../bobs-big-brain-registrar/packages/claude-runtime/dist/config.js"() {
     "use strict";
     init_dist2();
     SPOOL_DIR = "spool";
   }
 });
 
-// ../gsb-h1-reg/packages/claude-runtime/dist/secrets/patterns.js
+// ../bobs-big-brain-registrar/packages/claude-runtime/dist/secrets/patterns.js
 var SECRET_PATTERNS2, PII_PATTERNS;
 var init_patterns = __esm({
-  "../gsb-h1-reg/packages/claude-runtime/dist/secrets/patterns.js"() {
+  "../bobs-big-brain-registrar/packages/claude-runtime/dist/secrets/patterns.js"() {
     "use strict";
     SECRET_PATTERNS2 = [
       {
@@ -40361,7 +41252,7 @@ var init_patterns = __esm({
   }
 });
 
-// ../gsb-h1-reg/packages/claude-runtime/dist/secrets/secret-scanner.js
+// ../bobs-big-brain-registrar/packages/claude-runtime/dist/secrets/secret-scanner.js
 function execWithContext(pattern, text, contextText) {
   if (pattern.regex.global || pattern.regex.sticky) {
     pattern.regex.lastIndex = 0;
@@ -40536,7 +41427,7 @@ function scanForSecrets(content, patterns = SECRET_PATTERNS2) {
 }
 var LIMITS, BASE64_CANDIDATE_RE, HEX_CANDIDATE_RE;
 var init_secret_scanner = __esm({
-  "../gsb-h1-reg/packages/claude-runtime/dist/secrets/secret-scanner.js"() {
+  "../bobs-big-brain-registrar/packages/claude-runtime/dist/secrets/secret-scanner.js"() {
     "use strict";
     init_patterns();
     LIMITS = {
@@ -40556,15 +41447,15 @@ var init_secret_scanner = __esm({
   }
 });
 
-// ../gsb-h1-reg/packages/claude-runtime/dist/secrets/redactor.js
+// ../bobs-big-brain-registrar/packages/claude-runtime/dist/secrets/redactor.js
 var init_redactor = __esm({
-  "../gsb-h1-reg/packages/claude-runtime/dist/secrets/redactor.js"() {
+  "../bobs-big-brain-registrar/packages/claude-runtime/dist/secrets/redactor.js"() {
     "use strict";
     init_patterns();
   }
 });
 
-// ../gsb-h1-reg/packages/claude-runtime/dist/secrets/content-classifier.js
+// ../bobs-big-brain-registrar/packages/claude-runtime/dist/secrets/content-classifier.js
 function classifyContent(content) {
   const credentialMatches = scanForSecrets(content, SECRET_PATTERNS2);
   const piiMatches = scanForSecrets(content, PII_PATTERNS);
@@ -40602,7 +41493,7 @@ function classifyContent(content) {
 }
 var INTERNAL_PATH_PATTERNS;
 var init_content_classifier = __esm({
-  "../gsb-h1-reg/packages/claude-runtime/dist/secrets/content-classifier.js"() {
+  "../bobs-big-brain-registrar/packages/claude-runtime/dist/secrets/content-classifier.js"() {
     "use strict";
     init_secret_scanner();
     init_patterns();
@@ -40614,9 +41505,9 @@ var init_content_classifier = __esm({
   }
 });
 
-// ../gsb-h1-reg/packages/claude-runtime/dist/capture/candidate-builder.js
+// ../bobs-big-brain-registrar/packages/claude-runtime/dist/capture/candidate-builder.js
 var init_candidate_builder = __esm({
-  "../gsb-h1-reg/packages/claude-runtime/dist/capture/candidate-builder.js"() {
+  "../bobs-big-brain-registrar/packages/claude-runtime/dist/capture/candidate-builder.js"() {
     "use strict";
     init_dist();
     init_dist2();
@@ -40624,10 +41515,10 @@ var init_candidate_builder = __esm({
   }
 });
 
-// ../gsb-h1-reg/packages/repo-resolver/dist/types.js
+// ../bobs-big-brain-registrar/packages/repo-resolver/dist/types.js
 var import_zod18, RepoContext, ResolverError;
 var init_types2 = __esm({
-  "../gsb-h1-reg/packages/repo-resolver/dist/types.js"() {
+  "../bobs-big-brain-registrar/packages/repo-resolver/dist/types.js"() {
     "use strict";
     import_zod18 = __toESM(require_zod(), 1);
     RepoContext = import_zod18.z.object({
@@ -40658,17 +41549,17 @@ var init_types2 = __esm({
   }
 });
 
-// ../gsb-h1-reg/packages/repo-resolver/dist/git.js
+// ../bobs-big-brain-registrar/packages/repo-resolver/dist/git.js
 var init_git = __esm({
-  "../gsb-h1-reg/packages/repo-resolver/dist/git.js"() {
+  "../bobs-big-brain-registrar/packages/repo-resolver/dist/git.js"() {
     "use strict";
   }
 });
 
-// ../gsb-h1-reg/packages/repo-resolver/dist/cache.js
+// ../bobs-big-brain-registrar/packages/repo-resolver/dist/cache.js
 var DEFAULT_TTL_MS, RepoContextCache, defaultCache;
 var init_cache = __esm({
-  "../gsb-h1-reg/packages/repo-resolver/dist/cache.js"() {
+  "../bobs-big-brain-registrar/packages/repo-resolver/dist/cache.js"() {
     "use strict";
     DEFAULT_TTL_MS = 5 * 60 * 1e3;
     RepoContextCache = class {
@@ -40731,18 +41622,18 @@ var init_cache = __esm({
   }
 });
 
-// ../gsb-h1-reg/packages/repo-resolver/dist/monorepo.js
+// ../bobs-big-brain-registrar/packages/repo-resolver/dist/monorepo.js
 var MAX_MANIFEST_SIZE;
 var init_monorepo = __esm({
-  "../gsb-h1-reg/packages/repo-resolver/dist/monorepo.js"() {
+  "../bobs-big-brain-registrar/packages/repo-resolver/dist/monorepo.js"() {
     "use strict";
     MAX_MANIFEST_SIZE = 64 * 1024;
   }
 });
 
-// ../gsb-h1-reg/packages/repo-resolver/dist/resolver.js
+// ../bobs-big-brain-registrar/packages/repo-resolver/dist/resolver.js
 var init_resolver = __esm({
-  "../gsb-h1-reg/packages/repo-resolver/dist/resolver.js"() {
+  "../bobs-big-brain-registrar/packages/repo-resolver/dist/resolver.js"() {
     "use strict";
     init_dist2();
     init_git();
@@ -40751,18 +41642,18 @@ var init_resolver = __esm({
   }
 });
 
-// ../gsb-h1-reg/packages/repo-resolver/dist/tenant.js
+// ../bobs-big-brain-registrar/packages/repo-resolver/dist/tenant.js
 var MAX_CONFIG_SIZE;
 var init_tenant = __esm({
-  "../gsb-h1-reg/packages/repo-resolver/dist/tenant.js"() {
+  "../bobs-big-brain-registrar/packages/repo-resolver/dist/tenant.js"() {
     "use strict";
     MAX_CONFIG_SIZE = 64 * 1024;
   }
 });
 
-// ../gsb-h1-reg/packages/repo-resolver/dist/index.js
+// ../bobs-big-brain-registrar/packages/repo-resolver/dist/index.js
 var init_dist5 = __esm({
-  "../gsb-h1-reg/packages/repo-resolver/dist/index.js"() {
+  "../bobs-big-brain-registrar/packages/repo-resolver/dist/index.js"() {
     "use strict";
     init_types2();
     init_resolver();
@@ -40772,10 +41663,10 @@ var init_dist5 = __esm({
   }
 });
 
-// ../gsb-h1-reg/packages/claude-runtime/dist/capture/git-context.js
+// ../bobs-big-brain-registrar/packages/claude-runtime/dist/capture/git-context.js
 var import_node_child_process2, import_node_util2, execFileAsync2;
 var init_git_context = __esm({
-  "../gsb-h1-reg/packages/claude-runtime/dist/capture/git-context.js"() {
+  "../bobs-big-brain-registrar/packages/claude-runtime/dist/capture/git-context.js"() {
     "use strict";
     import_node_child_process2 = require("node:child_process");
     import_node_util2 = require("node:util");
@@ -40783,21 +41674,21 @@ var init_git_context = __esm({
   }
 });
 
-// ../gsb-h1-reg/packages/claude-runtime/dist/capture/context-provider.js
+// ../bobs-big-brain-registrar/packages/claude-runtime/dist/capture/context-provider.js
 var init_context_provider = __esm({
-  "../gsb-h1-reg/packages/claude-runtime/dist/capture/context-provider.js"() {
+  "../bobs-big-brain-registrar/packages/claude-runtime/dist/capture/context-provider.js"() {
     "use strict";
     init_dist5();
     init_git_context();
   }
 });
 
-// ../gsb-h1-reg/packages/claude-runtime/dist/spool/spool-writer.js
+// ../bobs-big-brain-registrar/packages/claude-runtime/dist/spool/spool-writer.js
 async function writeToSpool(candidate, spoolDir, agentId) {
   const dir = spoolDir ?? getSpoolPath();
   const filename = agentId ? `spool-${agentId}.jsonl` : getSpoolFilename();
-  const filepath = (0, import_node_path10.resolve)(dir, filename);
-  const resolvedDir = (0, import_node_path10.resolve)(dir);
+  const filepath = (0, import_node_path14.resolve)(dir, filename);
+  const resolvedDir = (0, import_node_path14.resolve)(dir);
   if (!filepath.startsWith(resolvedDir + "/") && filepath !== resolvedDir) {
     return { ok: false, error: `Path traversal rejected: ${filename}` };
   }
@@ -40819,18 +41710,18 @@ async function writeToSpool(candidate, spoolDir, agentId) {
     return { ok: false, error: `Failed to write to spool: ${msg}` };
   }
 }
-var import_promises2, import_node_path10;
+var import_promises2, import_node_path14;
 var init_spool_writer = __esm({
-  "../gsb-h1-reg/packages/claude-runtime/dist/spool/spool-writer.js"() {
+  "../bobs-big-brain-registrar/packages/claude-runtime/dist/spool/spool-writer.js"() {
     "use strict";
     import_promises2 = require("node:fs/promises");
-    import_node_path10 = require("node:path");
+    import_node_path14 = require("node:path");
     init_dist2();
     init_config2();
   }
 });
 
-// ../gsb-h1-reg/packages/claude-runtime/dist/spool/spool-reader.js
+// ../bobs-big-brain-registrar/packages/claude-runtime/dist/spool/spool-reader.js
 async function verifySpoolManifest(spoolFilePath) {
   const manifestPath2 = `${spoolFilePath}.manifest.json`;
   let manifestRaw;
@@ -40887,67 +41778,67 @@ async function listSpoolFiles(spoolDir) {
   const dir = spoolDir ?? getSpoolPath();
   try {
     const files = await (0, import_promises3.readdir)(dir);
-    const spoolFiles = files.filter((f) => f.startsWith("spool-") && f.endsWith(".jsonl")).sort().map((f) => (0, import_node_path11.join)(dir, f));
+    const spoolFiles = files.filter((f) => f.startsWith("spool-") && f.endsWith(".jsonl")).sort().map((f) => (0, import_node_path15.join)(dir, f));
     return { ok: true, value: spoolFiles };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return { ok: false, error: `Failed to list spool files: ${msg}` };
   }
 }
-var import_node_crypto8, import_promises3, import_node_path11;
+var import_node_crypto8, import_promises3, import_node_path15;
 var init_spool_reader = __esm({
-  "../gsb-h1-reg/packages/claude-runtime/dist/spool/spool-reader.js"() {
+  "../bobs-big-brain-registrar/packages/claude-runtime/dist/spool/spool-reader.js"() {
     "use strict";
     import_node_crypto8 = require("node:crypto");
     import_promises3 = require("node:fs/promises");
-    import_node_path11 = require("node:path");
+    import_node_path15 = require("node:path");
     init_dist();
     init_config2();
   }
 });
 
-// ../gsb-h1-reg/packages/claude-runtime/dist/spool/write-jsonl.js
+// ../bobs-big-brain-registrar/packages/claude-runtime/dist/spool/write-jsonl.js
 var init_write_jsonl = __esm({
-  "../gsb-h1-reg/packages/claude-runtime/dist/spool/write-jsonl.js"() {
+  "../bobs-big-brain-registrar/packages/claude-runtime/dist/spool/write-jsonl.js"() {
     "use strict";
   }
 });
 
-// ../gsb-h1-reg/packages/claude-runtime/dist/spool/failure-bucket.js
+// ../bobs-big-brain-registrar/packages/claude-runtime/dist/spool/failure-bucket.js
 var init_failure_bucket = __esm({
-  "../gsb-h1-reg/packages/claude-runtime/dist/spool/failure-bucket.js"() {
+  "../bobs-big-brain-registrar/packages/claude-runtime/dist/spool/failure-bucket.js"() {
     "use strict";
     init_config2();
     init_write_jsonl();
   }
 });
 
-// ../gsb-h1-reg/packages/claude-runtime/dist/spool/redaction-audit.js
+// ../bobs-big-brain-registrar/packages/claude-runtime/dist/spool/redaction-audit.js
 var init_redaction_audit = __esm({
-  "../gsb-h1-reg/packages/claude-runtime/dist/spool/redaction-audit.js"() {
+  "../bobs-big-brain-registrar/packages/claude-runtime/dist/spool/redaction-audit.js"() {
     "use strict";
     init_config2();
     init_write_jsonl();
   }
 });
 
-// ../gsb-h1-reg/packages/claude-runtime/dist/templates/hook-templates.js
+// ../bobs-big-brain-registrar/packages/claude-runtime/dist/templates/hook-templates.js
 var init_hook_templates = __esm({
-  "../gsb-h1-reg/packages/claude-runtime/dist/templates/hook-templates.js"() {
+  "../bobs-big-brain-registrar/packages/claude-runtime/dist/templates/hook-templates.js"() {
     "use strict";
   }
 });
 
-// ../gsb-h1-reg/packages/claude-runtime/dist/templates/claudemd-templates.js
+// ../bobs-big-brain-registrar/packages/claude-runtime/dist/templates/claudemd-templates.js
 var init_claudemd_templates = __esm({
-  "../gsb-h1-reg/packages/claude-runtime/dist/templates/claudemd-templates.js"() {
+  "../bobs-big-brain-registrar/packages/claude-runtime/dist/templates/claudemd-templates.js"() {
     "use strict";
   }
 });
 
-// ../gsb-h1-reg/packages/claude-runtime/dist/index.js
+// ../bobs-big-brain-registrar/packages/claude-runtime/dist/index.js
 var init_dist6 = __esm({
-  "../gsb-h1-reg/packages/claude-runtime/dist/index.js"() {
+  "../bobs-big-brain-registrar/packages/claude-runtime/dist/index.js"() {
     "use strict";
     init_config2();
     init_patterns();
@@ -40973,22 +41864,22 @@ function resolveConfig() {
   return {
     tenantId,
     basePath,
-    spoolPath: (0, import_node_path12.join)(basePath, "spool"),
-    dbPath: (0, import_node_path12.join)(basePath, "teamkb.db"),
-    feedbackPath: (0, import_node_path12.join)(basePath, "feedback"),
-    exportDir: envExport && envExport.length > 0 ? envExport : (0, import_node_path12.join)(basePath, "kb-export")
+    spoolPath: (0, import_node_path16.join)(basePath, "spool"),
+    dbPath: (0, import_node_path16.join)(basePath, "teamkb.db"),
+    feedbackPath: (0, import_node_path16.join)(basePath, "feedback"),
+    exportDir: envExport && envExport.length > 0 ? envExport : (0, import_node_path16.join)(basePath, "kb-export")
   };
 }
-var import_node_path12;
+var import_node_path16;
 var init_config3 = __esm({
   "src/config.ts"() {
     "use strict";
-    import_node_path12 = require("node:path");
+    import_node_path16 = require("node:path");
     init_dist2();
   }
 });
 
-// ../gsb-h1-reg/packages/policy-engine/dist/rules/secret-detection-rule.js
+// ../bobs-big-brain-registrar/packages/policy-engine/dist/rules/secret-detection-rule.js
 function evaluateSecretDetection(candidate, rule, _context) {
   const matches = scanForSecrets(candidate.content);
   if (matches.length === 0) {
@@ -41009,13 +41900,23 @@ function evaluateSecretDetection(candidate, rule, _context) {
   };
 }
 var init_secret_detection_rule = __esm({
-  "../gsb-h1-reg/packages/policy-engine/dist/rules/secret-detection-rule.js"() {
+  "../bobs-big-brain-registrar/packages/policy-engine/dist/rules/secret-detection-rule.js"() {
     "use strict";
     init_dist6();
   }
 });
 
-// ../gsb-h1-reg/packages/policy-engine/dist/rules/content-length-rule.js
+// ../bobs-big-brain-registrar/packages/policy-engine/dist/deterministic-score.js
+function deterministicScore(value) {
+  return value;
+}
+var init_deterministic_score = __esm({
+  "../bobs-big-brain-registrar/packages/policy-engine/dist/deterministic-score.js"() {
+    "use strict";
+  }
+});
+
+// ../bobs-big-brain-registrar/packages/policy-engine/dist/rules/content-length-rule.js
 function evaluateContentLength(candidate, rule, _context) {
   const min = typeof rule.parameters["min"] === "number" ? rule.parameters["min"] : DEFAULT_MIN;
   const max = typeof rule.parameters["max"] === "number" ? rule.parameters["max"] : DEFAULT_MAX;
@@ -41042,19 +41943,20 @@ function evaluateContentLength(candidate, rule, _context) {
     ruleType: rule.type,
     outcome: "pass",
     reason: `Content length ${length} chars is within bounds [${min}, ${max}]`,
-    score
+    score: deterministicScore(score)
   };
 }
 var DEFAULT_MIN, DEFAULT_MAX;
 var init_content_length_rule = __esm({
-  "../gsb-h1-reg/packages/policy-engine/dist/rules/content-length-rule.js"() {
+  "../bobs-big-brain-registrar/packages/policy-engine/dist/rules/content-length-rule.js"() {
     "use strict";
+    init_deterministic_score();
     DEFAULT_MIN = 10;
     DEFAULT_MAX = 5e4;
   }
 });
 
-// ../gsb-h1-reg/packages/policy-engine/dist/rules/source-trust-rule.js
+// ../bobs-big-brain-registrar/packages/policy-engine/dist/rules/source-trust-rule.js
 function isTrustLevel(value) {
   return value === "high" || value === "medium" || value === "low" || value === "untrusted";
 }
@@ -41070,7 +41972,7 @@ function evaluateSourceTrust(candidate, rule, _context) {
       ruleType: rule.type,
       outcome: "pass",
       reason: `Trust level '${candidate.trustLevel}' meets minimum '${minimumTrust}'`,
-      score
+      score: deterministicScore(score)
     };
   }
   const outcome = rule.action === "flag" ? "flag" : "fail";
@@ -41083,8 +41985,9 @@ function evaluateSourceTrust(candidate, rule, _context) {
 }
 var TRUST_ORDER, DEFAULT_MINIMUM_TRUST;
 var init_source_trust_rule = __esm({
-  "../gsb-h1-reg/packages/policy-engine/dist/rules/source-trust-rule.js"() {
+  "../bobs-big-brain-registrar/packages/policy-engine/dist/rules/source-trust-rule.js"() {
     "use strict";
+    init_deterministic_score();
     TRUST_ORDER = {
       high: 4,
       medium: 3,
@@ -41095,9 +41998,11 @@ var init_source_trust_rule = __esm({
   }
 });
 
-// ../gsb-h1-reg/packages/policy-engine/dist/rules/relevance-score-rule.js
+// ../bobs-big-brain-registrar/packages/policy-engine/dist/rules/relevance-score-rule.js
 function evaluateRelevanceScore(candidate, rule, _context) {
   const minimumScore = typeof rule.parameters["minimumScore"] === "number" ? rule.parameters["minimumScore"] : DEFAULT_MINIMUM_SCORE;
+  const rawRejectSources = rule.parameters["rejectSources"];
+  const rejectSources = Array.isArray(rawRejectSources) ? rawRejectSources.filter((s) => typeof s === "string" && MemorySource.safeParse(s).success) : DEFAULT_REJECT_SOURCES;
   let score = 0;
   if (candidate.title.trim().length > 0) {
     score += 0.2;
@@ -41136,7 +42041,16 @@ function evaluateRelevanceScore(candidate, rule, _context) {
       ruleType: rule.type,
       outcome: "pass",
       reason: `Relevance score ${score.toFixed(2)} meets minimum ${minimumScore.toFixed(2)}`,
-      score
+      score: deterministicScore(score)
+    };
+  }
+  if (rejectSources.includes(candidate.source)) {
+    return {
+      ruleId: rule.id,
+      ruleType: rule.type,
+      outcome: "fail",
+      reason: `Relevance score ${score.toFixed(2)} is below minimum ${minimumScore.toFixed(2)} for import-class source '${candidate.source}' (hard-rejectable per rule parameters)`,
+      score: deterministicScore(score)
     };
   }
   return {
@@ -41144,18 +42058,21 @@ function evaluateRelevanceScore(candidate, rule, _context) {
     ruleType: rule.type,
     outcome: "flag",
     reason: `Relevance score ${score.toFixed(2)} is below minimum ${minimumScore.toFixed(2)}`,
-    score
+    score: deterministicScore(score)
   };
 }
-var DEFAULT_MINIMUM_SCORE;
+var DEFAULT_MINIMUM_SCORE, DEFAULT_REJECT_SOURCES;
 var init_relevance_score_rule = __esm({
-  "../gsb-h1-reg/packages/policy-engine/dist/rules/relevance-score-rule.js"() {
+  "../bobs-big-brain-registrar/packages/policy-engine/dist/rules/relevance-score-rule.js"() {
     "use strict";
+    init_dist();
+    init_deterministic_score();
     DEFAULT_MINIMUM_SCORE = 0.3;
+    DEFAULT_REJECT_SOURCES = ["import", "bulk_import"];
   }
 });
 
-// ../gsb-h1-reg/packages/policy-engine/dist/rules/dedup-check-rule.js
+// ../bobs-big-brain-registrar/packages/policy-engine/dist/rules/dedup-check-rule.js
 function evaluateDedupCheck(candidate, rule, context) {
   if (context.existingHashes === void 0 || context.existingHashes.size === 0) {
     return {
@@ -41182,13 +42099,13 @@ function evaluateDedupCheck(candidate, rule, context) {
   };
 }
 var init_dedup_check_rule = __esm({
-  "../gsb-h1-reg/packages/policy-engine/dist/rules/dedup-check-rule.js"() {
+  "../bobs-big-brain-registrar/packages/policy-engine/dist/rules/dedup-check-rule.js"() {
     "use strict";
     init_dist2();
   }
 });
 
-// ../gsb-h1-reg/packages/policy-engine/dist/rules/tenant-match-rule.js
+// ../bobs-big-brain-registrar/packages/policy-engine/dist/rules/tenant-match-rule.js
 function evaluateTenantMatch(candidate, rule, context) {
   if (context.tenantId === void 0) {
     return {
@@ -41214,12 +42131,12 @@ function evaluateTenantMatch(candidate, rule, context) {
   };
 }
 var init_tenant_match_rule = __esm({
-  "../gsb-h1-reg/packages/policy-engine/dist/rules/tenant-match-rule.js"() {
+  "../bobs-big-brain-registrar/packages/policy-engine/dist/rules/tenant-match-rule.js"() {
     "use strict";
   }
 });
 
-// ../gsb-h1-reg/packages/policy-engine/dist/rules/sensitivity-gate-rule.js
+// ../bobs-big-brain-registrar/packages/policy-engine/dist/rules/sensitivity-gate-rule.js
 function parseBlockedLevels(params) {
   if (!params || !Array.isArray(params["blockedLevels"]))
     return DEFAULT_BLOCKED_LEVELS;
@@ -41247,7 +42164,7 @@ function evaluateSensitivityGate(candidate, rule, _context) {
 }
 var VALID_LEVELS, DEFAULT_BLOCKED_LEVELS;
 var init_sensitivity_gate_rule = __esm({
-  "../gsb-h1-reg/packages/policy-engine/dist/rules/sensitivity-gate-rule.js"() {
+  "../bobs-big-brain-registrar/packages/policy-engine/dist/rules/sensitivity-gate-rule.js"() {
     "use strict";
     init_dist6();
     init_dist();
@@ -41256,7 +42173,7 @@ var init_sensitivity_gate_rule = __esm({
   }
 });
 
-// ../gsb-h1-reg/packages/policy-engine/dist/rules/content-sanitization-rule.js
+// ../bobs-big-brain-registrar/packages/policy-engine/dist/rules/content-sanitization-rule.js
 function evaluateContentSanitization(candidate, rule, _context) {
   const params = rule.parameters;
   const enabledPatternIds = Array.isArray(params["enabledPatterns"]) ? params["enabledPatterns"].filter((v) => typeof v === "string") : void 0;
@@ -41284,7 +42201,7 @@ function evaluateContentSanitization(candidate, rule, _context) {
 }
 var DEFAULT_PATTERNS;
 var init_content_sanitization_rule = __esm({
-  "../gsb-h1-reg/packages/policy-engine/dist/rules/content-sanitization-rule.js"() {
+  "../bobs-big-brain-registrar/packages/policy-engine/dist/rules/content-sanitization-rule.js"() {
     "use strict";
     DEFAULT_PATTERNS = [
       {
@@ -41321,7 +42238,7 @@ var init_content_sanitization_rule = __esm({
   }
 });
 
-// ../gsb-h1-reg/packages/policy-engine/dist/rules/contradiction-check-rule.js
+// ../bobs-big-brain-registrar/packages/policy-engine/dist/rules/contradiction-check-rule.js
 function parseThreshold(params) {
   const raw = params?.["threshold"];
   if (typeof raw !== "number" || Number.isNaN(raw))
@@ -41329,7 +42246,7 @@ function parseThreshold(params) {
   return Math.min(1, Math.max(0, raw));
 }
 function tokenSet(text) {
-  return new Set(text.toLowerCase().match(/[a-z0-9]+/g) ?? []);
+  return new Set(text.toLowerCase().match(TOKEN_PATTERN) ?? []);
 }
 function jaccard(a, b) {
   if (a.size === 0 && b.size === 0)
@@ -41377,26 +42294,30 @@ function evaluateContradictionCheck(candidate, rule, context) {
     ruleType: rule.type,
     outcome: "flag",
     reason: `Potential contradiction: high token overlap with ${suspects.length} active '${candidate.category}' memor${suspects.length === 1 ? "y" : "ies"} \u2014 ${reported}. v1 heuristic (token overlap, not semantic) \u2014 human review required.`,
-    score: suspects[0]?.similarity
+    // Jaccard overlap is pure token arithmetic — a legitimate govern-side
+    // deterministic score, minted via the factory the seam firewall requires.
+    score: suspects[0] !== void 0 ? deterministicScore(suspects[0].similarity) : void 0
   };
 }
-var DEFAULT_THRESHOLD, MAX_REPORTED;
+var DEFAULT_THRESHOLD, MAX_REPORTED, TOKEN_PATTERN;
 var init_contradiction_check_rule = __esm({
-  "../gsb-h1-reg/packages/policy-engine/dist/rules/contradiction-check-rule.js"() {
+  "../bobs-big-brain-registrar/packages/policy-engine/dist/rules/contradiction-check-rule.js"() {
     "use strict";
+    init_deterministic_score();
     DEFAULT_THRESHOLD = 0.6;
     MAX_REPORTED = 5;
+    TOKEN_PATTERN = /[\p{sc=Han}\p{sc=Hiragana}\p{sc=Katakana}\p{sc=Hangul}]|[\p{L}\p{N}]+/gu;
   }
 });
 
-// ../gsb-h1-reg/packages/policy-engine/dist/rules/index.js
+// ../bobs-big-brain-registrar/packages/policy-engine/dist/rules/index.js
 function createRule(type) {
   const evaluator = RULE_REGISTRY[type];
   return evaluator;
 }
 var RULE_REGISTRY;
 var init_rules = __esm({
-  "../gsb-h1-reg/packages/policy-engine/dist/rules/index.js"() {
+  "../bobs-big-brain-registrar/packages/policy-engine/dist/rules/index.js"() {
     "use strict";
     init_secret_detection_rule();
     init_content_length_rule();
@@ -41421,23 +42342,23 @@ var init_rules = __esm({
   }
 });
 
-// ../gsb-h1-reg/packages/policy-engine/dist/recommended-policy.js
+// ../bobs-big-brain-registrar/packages/policy-engine/dist/recommended-policy.js
 function findUncoveredRuleTypes(policy) {
   const enabled = new Set(policy.rules.filter((r) => r.enabled).map((r) => r.type));
   return Object.keys(RULE_REGISTRY).filter((t) => !enabled.has(t)).sort();
 }
 var init_recommended_policy = __esm({
-  "../gsb-h1-reg/packages/policy-engine/dist/recommended-policy.js"() {
+  "../bobs-big-brain-registrar/packages/policy-engine/dist/recommended-policy.js"() {
     "use strict";
     init_dist();
     init_rules();
   }
 });
 
-// ../gsb-h1-reg/packages/policy-engine/dist/pipeline.js
+// ../bobs-big-brain-registrar/packages/policy-engine/dist/pipeline.js
 var PolicyPipeline;
 var init_pipeline2 = __esm({
-  "../gsb-h1-reg/packages/policy-engine/dist/pipeline.js"() {
+  "../bobs-big-brain-registrar/packages/policy-engine/dist/pipeline.js"() {
     "use strict";
     init_rules();
     init_recommended_policy();
@@ -41514,50 +42435,9 @@ var init_pipeline2 = __esm({
   }
 });
 
-// ../gsb-h1-reg/packages/policy-engine/dist/index.js
-var init_dist7 = __esm({
-  "../gsb-h1-reg/packages/policy-engine/dist/index.js"() {
-    "use strict";
-    init_rules();
-    init_secret_detection_rule();
-    init_content_length_rule();
-    init_source_trust_rule();
-    init_relevance_score_rule();
-    init_dedup_check_rule();
-    init_tenant_match_rule();
-    init_sensitivity_gate_rule();
-    init_content_sanitization_rule();
-    init_contradiction_check_rule();
-    init_pipeline2();
-    init_recommended_policy();
-    init_dist6();
-  }
-});
-
-// ../gsb-h1-reg/apps/curator/dist/dedup/dedup-checker.js
-function checkDuplicate(candidate, memoryRepo, tenantId) {
-  const contentHash = computeContentHash(candidate.content);
-  const existing = tenantId !== void 0 ? memoryRepo.findByContentHashAndTenant(contentHash, tenantId) : memoryRepo.findByContentHash(contentHash);
-  if (existing !== null) {
-    return {
-      isDuplicate: true,
-      matchedMemoryId: existing.id,
-      matchType: "exact_hash",
-      contentHash
-    };
-  }
-  return { isDuplicate: false, contentHash };
-}
-var init_dedup_checker = __esm({
-  "../gsb-h1-reg/apps/curator/dist/dedup/dedup-checker.js"() {
-    "use strict";
-    init_dist2();
-  }
-});
-
-// ../gsb-h1-reg/apps/curator/dist/supersession/supersession-detector.js
-function detectSupersession(candidate, memoryRepo, threshold = 0.6) {
-  const existingMemories = memoryRepo.findByTenantAndLifecycle(candidate.tenantId, "active").filter((m) => m.category === candidate.category);
+// ../bobs-big-brain-registrar/packages/policy-engine/dist/supersession/supersession-detector.js
+function detectSupersession(candidate, memorySource, threshold = DEFAULT_SUPERSESSION_THRESHOLD) {
+  const existingMemories = memorySource.findByTenantAndLifecycle(candidate.tenantId, "active").filter((m) => m.category === candidate.category);
   let bestMatch = null;
   for (const memory of existingMemories) {
     const similarity = computeTitleSimilarity(candidate.title, memory.title);
@@ -41589,13 +42469,65 @@ function computeTitleSimilarity(a, b) {
 function tokenize(text) {
   return text.toLowerCase().split(/\s+/).filter((t) => t.length > 0);
 }
+var DEFAULT_SUPERSESSION_THRESHOLD;
 var init_supersession_detector = __esm({
-  "../gsb-h1-reg/apps/curator/dist/supersession/supersession-detector.js"() {
+  "../bobs-big-brain-registrar/packages/policy-engine/dist/supersession/supersession-detector.js"() {
     "use strict";
+    DEFAULT_SUPERSESSION_THRESHOLD = 0.6;
   }
 });
 
-// ../gsb-h1-reg/apps/curator/dist/import/wikilink-parser.js
+// ../bobs-big-brain-registrar/packages/policy-engine/dist/index.js
+var init_dist7 = __esm({
+  "../bobs-big-brain-registrar/packages/policy-engine/dist/index.js"() {
+    "use strict";
+    init_rules();
+    init_secret_detection_rule();
+    init_content_length_rule();
+    init_source_trust_rule();
+    init_relevance_score_rule();
+    init_dedup_check_rule();
+    init_tenant_match_rule();
+    init_sensitivity_gate_rule();
+    init_content_sanitization_rule();
+    init_contradiction_check_rule();
+    init_pipeline2();
+    init_supersession_detector();
+    init_recommended_policy();
+    init_dist6();
+  }
+});
+
+// ../bobs-big-brain-registrar/apps/curator/dist/dedup/dedup-checker.js
+function checkDuplicate(candidate, memoryRepo, tenantId) {
+  const contentHash = computeContentHash(candidate.content);
+  const existing = tenantId !== void 0 ? memoryRepo.findByContentHashAndTenant(contentHash, tenantId) : memoryRepo.findByContentHash(contentHash);
+  if (existing !== null) {
+    return {
+      isDuplicate: true,
+      matchedMemoryId: existing.id,
+      matchType: "exact_hash",
+      contentHash
+    };
+  }
+  return { isDuplicate: false, contentHash };
+}
+var init_dedup_checker = __esm({
+  "../bobs-big-brain-registrar/apps/curator/dist/dedup/dedup-checker.js"() {
+    "use strict";
+    init_dist2();
+  }
+});
+
+// ../bobs-big-brain-registrar/apps/curator/dist/supersession/supersession-detector.js
+var init_supersession_detector2 = __esm({
+  "../bobs-big-brain-registrar/apps/curator/dist/supersession/supersession-detector.js"() {
+    "use strict";
+    init_dist7();
+  }
+});
+
+// ../bobs-big-brain-registrar/apps/curator/dist/import/wikilink-parser.js
 function extractWikiLinks(content) {
   const codeRanges = findCodeRanges(content);
   const links = [];
@@ -41646,13 +42578,13 @@ function isInsideCodeRange(start, end, ranges) {
 }
 var WIKILINK_RE;
 var init_wikilink_parser = __esm({
-  "../gsb-h1-reg/apps/curator/dist/import/wikilink-parser.js"() {
+  "../bobs-big-brain-registrar/apps/curator/dist/import/wikilink-parser.js"() {
     "use strict";
     WIKILINK_RE = /\[\[([^\[\]|][^\[\]|]*?)(?:\|([^\[\]]*))?\]\]/g;
   }
 });
 
-// ../gsb-h1-reg/apps/curator/dist/promotion/promoter.js
+// ../bobs-big-brain-registrar/apps/curator/dist/promotion/promoter.js
 function promote(input, memoryRepo, auditRepo, dryRun = false, linksRepo, evalCallback, now = (/* @__PURE__ */ new Date()).toISOString()) {
   const memoryId = deriveMemoryId(input.candidate.id, input.contentHash);
   const policyEvaluations = input.pipelineResult.evaluations.map((ev, index) => ({
@@ -41818,7 +42750,7 @@ function promote(input, memoryRepo, auditRepo, dryRun = false, linksRepo, evalCa
 }
 var CURATOR_ACTOR;
 var init_promoter = __esm({
-  "../gsb-h1-reg/apps/curator/dist/promotion/promoter.js"() {
+  "../bobs-big-brain-registrar/apps/curator/dist/promotion/promoter.js"() {
     "use strict";
     init_dist2();
     init_dist();
@@ -41828,7 +42760,7 @@ var init_promoter = __esm({
   }
 });
 
-// ../gsb-h1-reg/apps/curator/dist/rejection/rejector.js
+// ../bobs-big-brain-registrar/apps/curator/dist/rejection/rejector.js
 function reject(candidate, pipelineResult, auditRepo, dryRun = false) {
   const reason = pipelineResult.rejectedBy !== void 0 ? `Rejected by rule: ${pipelineResult.rejectedBy}` : `Flagged by rules: ${pipelineResult.flaggedBy?.join(", ") ?? "unknown"}`;
   if (!dryRun) {
@@ -41851,14 +42783,14 @@ function reject(candidate, pipelineResult, auditRepo, dryRun = false) {
 }
 var import_node_crypto9;
 var init_rejector = __esm({
-  "../gsb-h1-reg/apps/curator/dist/rejection/rejector.js"() {
+  "../bobs-big-brain-registrar/apps/curator/dist/rejection/rejector.js"() {
     "use strict";
     import_node_crypto9 = require("node:crypto");
     init_dist();
   }
 });
 
-// ../gsb-h1-reg/apps/curator/dist/origin/origin-gate.js
+// ../bobs-big-brain-registrar/apps/curator/dist/origin/origin-gate.js
 function checkOriginAttestation(candidate, originSecret) {
   if (candidate.origin === void 0) {
     return { verdict: "unattested" };
@@ -41897,25 +42829,267 @@ function rejected(candidate, code, reason) {
 }
 var ORIGIN_ATTESTATION_RULE_TYPE;
 var init_origin_gate = __esm({
-  "../gsb-h1-reg/apps/curator/dist/origin/origin-gate.js"() {
+  "../bobs-big-brain-registrar/apps/curator/dist/origin/origin-gate.js"() {
     "use strict";
     init_dist2();
     ORIGIN_ATTESTATION_RULE_TYPE = "origin_attestation";
   }
 });
 
-// ../gsb-h1-reg/apps/curator/dist/curator.js
+// ../bobs-big-brain-registrar/apps/curator/dist/import-exclusion/brainignore.js
+function compilePattern(raw, source) {
+  let pattern = raw.trim();
+  if (pattern === "" || pattern.startsWith("#"))
+    return null;
+  let negated = false;
+  if (pattern.startsWith("!")) {
+    negated = true;
+    pattern = pattern.slice(1).trim();
+    if (pattern === "")
+      return null;
+  }
+  const anchored = pattern.startsWith("/");
+  if (anchored)
+    pattern = pattern.slice(1);
+  const basenameOnly = !pattern.includes("/");
+  let re = "";
+  let i = 0;
+  while (i < pattern.length) {
+    const ch = pattern[i];
+    if (ch === "*" && pattern[i + 1] === "*") {
+      re += ".*";
+      i += 2;
+      if (pattern[i] === "/")
+        i += 1;
+    } else if (ch === "*") {
+      re += "[^/]*";
+      i += 1;
+    } else if (ch === "?") {
+      re += "[^/]";
+      i += 1;
+    } else {
+      re += ch.replace(/[.+^${}()|[\]\\]/g, "\\$&");
+      i += 1;
+    }
+  }
+  const full = basenameOnly ? `^${re}$` : anchored ? `^${re}$` : `^(?:.*/)?${re}$`;
+  return {
+    pattern: raw.trim().replace(/^!/, "").trim(),
+    negated,
+    source,
+    regex: new RegExp(full, "i"),
+    basenameOnly
+  };
+}
+function normalizePath(p) {
+  let n = p.replace(/\\/g, "/");
+  while (n.startsWith("./"))
+    n = n.slice(2);
+  while (n.startsWith("/"))
+    n = n.slice(1);
+  return n;
+}
+function matchPath(path, ruleset) {
+  const normalized = normalizePath(path);
+  const basename3 = normalized.split("/").pop() ?? normalized;
+  let decision = null;
+  for (const p of ruleset.patterns) {
+    const subject = p.basenameOnly ? basename3 : normalized;
+    if (p.regex.test(subject))
+      decision = p;
+  }
+  return decision !== null && !decision.negated ? decision : null;
+}
+function shannonEntropy(text) {
+  if (text.length === 0)
+    return 0;
+  const counts = /* @__PURE__ */ new Map();
+  for (const ch of text)
+    counts.set(ch, (counts.get(ch) ?? 0) + 1);
+  let entropy = 0;
+  for (const count of counts.values()) {
+    const p = count / text.length;
+    entropy -= p * Math.log2(p);
+  }
+  return entropy;
+}
+function analyzeContent(content, title) {
+  const normalizedTitle = title.trim().toLowerCase();
+  if (UNTITLED_TITLES.has(normalizedTitle)) {
+    return {
+      code: "brainignore_untitled_title",
+      evidence: `title "${title.trim()}" is a placeholder, not a real title`
+    };
+  }
+  const head = content.slice(0, LICENSE_SCAN_WINDOW).toLowerCase();
+  for (const marker of LICENSE_MARKERS) {
+    if (head.includes(marker)) {
+      return {
+        code: "brainignore_license_boilerplate",
+        evidence: `license marker "${marker}" found in the first ${LICENSE_SCAN_WINDOW} chars`
+      };
+    }
+  }
+  for (const line of content.split("\n")) {
+    if (line.length > MINIFIED_LINE_LENGTH) {
+      const whitespace = line.length - line.replace(/\s/g, "").length;
+      const ratio = whitespace / line.length;
+      if (ratio < MINIFIED_WHITESPACE_RATIO) {
+        return {
+          code: "brainignore_minified_content",
+          evidence: `line of ${line.length} chars with whitespace ratio ${ratio.toFixed(3)} (> ${MINIFIED_LINE_LENGTH} chars and < ${MINIFIED_WHITESPACE_RATIO} reads as minified)`
+        };
+      }
+    }
+  }
+  if (content.length >= ENTROPY_MIN_LENGTH) {
+    const entropy = shannonEntropy(content);
+    if (entropy > ENTROPY_THRESHOLD) {
+      return {
+        code: "brainignore_generated_content",
+        evidence: `Shannon entropy ${entropy.toFixed(2)} bits/char over ${content.length} chars (> ${ENTROPY_THRESHOLD} reads as encoded/generated, prose is \u2248 4.2\u20134.8)`
+      };
+    }
+  }
+  return null;
+}
+function evaluateBrainignore(filePaths, content, title, ruleset) {
+  for (const path of filePaths) {
+    const match = matchPath(path, ruleset);
+    if (match !== null) {
+      return {
+        code: "brainignore_path",
+        evidence: `path "${path}" matches ${match.source} pattern "${match.pattern}"`
+      };
+    }
+  }
+  return analyzeContent(content, title);
+}
+var DEFAULT_BRAINIGNORE_PATTERNS, DEFAULT_BRAINIGNORE_RULESET, MINIFIED_LINE_LENGTH, MINIFIED_WHITESPACE_RATIO, ENTROPY_MIN_LENGTH, ENTROPY_THRESHOLD, LICENSE_SCAN_WINDOW, LICENSE_MARKERS, UNTITLED_TITLES;
+var init_brainignore = __esm({
+  "../bobs-big-brain-registrar/apps/curator/dist/import-exclusion/brainignore.js"() {
+    "use strict";
+    DEFAULT_BRAINIGNORE_PATTERNS = [
+      // -- vendored / generated directory trees ---------------------------------
+      "**/node_modules/**",
+      "**/site-packages/**",
+      "**/bower_components/**",
+      "**/vendor/**",
+      "**/.venv/**",
+      "**/venv/**",
+      "**/__pycache__/**",
+      "**/.git/**",
+      "**/.next/**",
+      "**/coverage/**",
+      "**/dist/**",
+      "**/build/**",
+      // -- minified / generated file names --------------------------------------
+      "*.min.js",
+      "*.min.css",
+      "*.map",
+      "*.bundle.js",
+      "*.chunk.js",
+      // -- lockfiles (machine-written dependency state, never knowledge) --------
+      "package-lock.json",
+      "npm-shrinkwrap.json",
+      "pnpm-lock.yaml",
+      "yarn.lock",
+      "Cargo.lock",
+      "poetry.lock",
+      "uv.lock",
+      "Pipfile.lock",
+      "Gemfile.lock",
+      "composer.lock",
+      "go.sum",
+      "flake.lock",
+      // -- repo boilerplate templates (CoC / SECURITY / SUPPORT / license) ------
+      "CODE_OF_CONDUCT*",
+      "SECURITY.md",
+      "SUPPORT.md",
+      "PULL_REQUEST_TEMPLATE*",
+      "**/ISSUE_TEMPLATE/**",
+      "LICENSE*",
+      "LICENCE*",
+      "NOTICE*",
+      "PATENTS*"
+    ];
+    DEFAULT_BRAINIGNORE_RULESET = {
+      patterns: DEFAULT_BRAINIGNORE_PATTERNS.map((p) => {
+        const compiled = compilePattern(p, "default");
+        if (compiled === null)
+          throw new Error(`invalid default brainignore pattern: ${p}`);
+        return compiled;
+      }),
+      overridePath: null
+    };
+    MINIFIED_LINE_LENGTH = 1e3;
+    MINIFIED_WHITESPACE_RATIO = 0.1;
+    ENTROPY_MIN_LENGTH = 1024;
+    ENTROPY_THRESHOLD = 5.2;
+    LICENSE_SCAN_WINDOW = 600;
+    LICENSE_MARKERS = [
+      "apache license",
+      "mit license",
+      "gnu general public license",
+      "gnu lesser general public license",
+      "mozilla public license",
+      "permission is hereby granted, free of charge",
+      "redistribution and use in source and binary forms"
+    ];
+    UNTITLED_TITLES = /* @__PURE__ */ new Set(["untitled", "untitled document", "no title"]);
+  }
+});
+
+// ../bobs-big-brain-registrar/apps/curator/dist/import-exclusion/import-exclusion-gate.js
+function checkImportExclusion(candidate, ruleset = DEFAULT_BRAINIGNORE_RULESET) {
+  if (!IMPORT_SOURCES.has(candidate.source)) {
+    return { verdict: "not_applicable" };
+  }
+  const match = evaluateBrainignore(candidate.metadata.filePaths, candidate.content, candidate.title, ruleset);
+  if (match === null) {
+    return { verdict: "clear" };
+  }
+  return {
+    verdict: "rejected",
+    match,
+    pipelineResult: {
+      candidateId: candidate.id,
+      outcome: "rejected",
+      evaluations: [
+        {
+          ruleId: match.code,
+          ruleType: IMPORT_EXCLUSION_RULE_TYPE,
+          outcome: "fail",
+          reason: `Import exclusion (brainignore): ${match.evidence}`
+        }
+      ],
+      rejectedBy: match.code
+    }
+  };
+}
+var IMPORT_EXCLUSION_RULE_TYPE, IMPORT_SOURCES;
+var init_import_exclusion_gate = __esm({
+  "../bobs-big-brain-registrar/apps/curator/dist/import-exclusion/import-exclusion-gate.js"() {
+    "use strict";
+    init_brainignore();
+    IMPORT_EXCLUSION_RULE_TYPE = "import_exclusion";
+    IMPORT_SOURCES = /* @__PURE__ */ new Set(["import", "bulk_import"]);
+  }
+});
+
+// ../bobs-big-brain-registrar/apps/curator/dist/curator.js
 var Curator;
 var init_curator = __esm({
-  "../gsb-h1-reg/apps/curator/dist/curator.js"() {
+  "../bobs-big-brain-registrar/apps/curator/dist/curator.js"() {
     "use strict";
     init_dist2();
     init_dist7();
     init_dedup_checker();
-    init_supersession_detector();
+    init_supersession_detector2();
     init_promoter();
     init_rejector();
     init_origin_gate();
+    init_import_exclusion_gate();
     Curator = class {
       deps;
       config;
@@ -41964,6 +43138,16 @@ var init_curator = __esm({
             reason
           };
         }
+        const importGate = checkImportExclusion(candidate, this.config.importExclusions);
+        if (importGate.verdict === "rejected") {
+          const reason = reject(candidate, importGate.pipelineResult, this.deps.auditRepo, suppressReject);
+          return {
+            candidateId: candidate.id,
+            outcome: "rejected",
+            pipelineResult: importGate.pipelineResult,
+            reason
+          };
+        }
         const policies = this.deps.policyRepo.findByTenant(this.config.tenantId);
         const policy = policies.find((p) => p.enabled);
         if (policy === void 0) {
@@ -41983,9 +43167,11 @@ var init_curator = __esm({
           existingHashes: hashSet,
           tenantId: this.config.tenantId,
           // contradiction_check lookup (E1): tenant-scoped ACTIVE memories filtered
-          // to the requested category. Queried lazily — the store is only hit when
-          // a contradiction rule actually runs.
-          getActiveMemoriesInCategory: (category) => this.deps.memoryRepo.findByTenantAndLifecycle(this.config.tenantId, "active").filter((m) => m.category === category).map((m) => ({ id: m.id, content: m.content }))
+          // to the requested category AT THE STORE QUERY — loading the whole active
+          // set and filtering in JS deserialized a 17k-row corpus per candidate to
+          // keep ~6%. Queried lazily — the store is only hit when a contradiction
+          // rule actually runs.
+          getActiveMemoriesInCategory: (category) => this.deps.memoryRepo.findByTenantAndLifecycleAndCategory(this.config.tenantId, "active", category).map((m) => ({ id: m.id, content: m.content }))
         });
         if (pipelineResult.outcome === "rejected") {
           const reason = reject(candidate, pipelineResult, this.deps.auditRepo, suppressReject);
@@ -42050,7 +43236,7 @@ var init_curator = __esm({
         };
       }
       promoteCandidate(candidate, contentHash, pipelineResult) {
-        const supersession = detectSupersession(candidate, this.deps.memoryRepo, this.config.supersessionThreshold ?? 0.6);
+        const supersession = detectSupersession(candidate, this.deps.memoryRepo, this.config.supersessionThreshold ?? DEFAULT_SUPERSESSION_THRESHOLD);
         const memory = promote({
           candidate,
           contentHash,
@@ -42070,7 +43256,7 @@ var init_curator = __esm({
   }
 });
 
-// ../gsb-h1-reg/apps/curator/dist/intake/spool-intake.js
+// ../bobs-big-brain-registrar/apps/curator/dist/intake/spool-intake.js
 async function ingestFromSpool(candidateRepo, spoolDir, opts) {
   const detailed = await ingestFromSpoolDetailed(candidateRepo, spoolDir, opts);
   if (!detailed.ok)
@@ -42129,23 +43315,23 @@ async function ingestFromSpoolDetailed(candidateRepo, spoolDir, opts) {
 async function archiveIngestedFile(spoolFilePath, archiveDir) {
   try {
     await (0, import_promises4.mkdir)(archiveDir, { recursive: true });
-    const dest = (0, import_node_path13.join)(archiveDir, (0, import_node_path13.basename)(spoolFilePath));
+    const dest = (0, import_node_path17.join)(archiveDir, (0, import_node_path17.basename)(spoolFilePath));
     await (0, import_promises4.rename)(spoolFilePath, dest);
     try {
       await (0, import_promises4.rename)(`${spoolFilePath}.manifest.json`, `${dest}.manifest.json`);
     } catch {
     }
   } catch (e) {
-    process.stderr.write(`[spool-intake] archive skipped for ${(0, import_node_path13.basename)(spoolFilePath)}: ${e instanceof Error ? e.message : String(e)}
+    process.stderr.write(`[spool-intake] archive skipped for ${(0, import_node_path17.basename)(spoolFilePath)}: ${e instanceof Error ? e.message : String(e)}
 `);
   }
 }
 async function quarantineTamperedFile(spoolFilePath, spoolDir, quarantineDirOverride, expected, actual) {
   try {
-    const baseDir = quarantineDirOverride ?? (0, import_node_path13.join)(spoolDir ?? ".", "quarantine");
+    const baseDir = quarantineDirOverride ?? (0, import_node_path17.join)(spoolDir ?? ".", "quarantine");
     await (0, import_promises4.mkdir)(baseDir, { recursive: true });
-    const name = (0, import_node_path13.basename)(spoolFilePath);
-    const dest = (0, import_node_path13.join)(baseDir, name);
+    const name = (0, import_node_path17.basename)(spoolFilePath);
+    const dest = (0, import_node_path17.join)(baseDir, name);
     const evidence = {
       spoolFile: name,
       detectedAt: (/* @__PURE__ */ new Date()).toISOString(),
@@ -42164,21 +43350,29 @@ async function quarantineTamperedFile(spoolFilePath, spoolDir, quarantineDirOver
     return null;
   }
 }
-var import_promises4, import_node_path13;
+var import_promises4, import_node_path17;
 var init_spool_intake = __esm({
-  "../gsb-h1-reg/apps/curator/dist/intake/spool-intake.js"() {
+  "../bobs-big-brain-registrar/apps/curator/dist/intake/spool-intake.js"() {
     "use strict";
     import_promises4 = require("node:fs/promises");
-    import_node_path13 = require("node:path");
+    import_node_path17 = require("node:path");
     init_dist6();
     init_dist2();
   }
 });
 
-// ../gsb-h1-reg/apps/curator/dist/merge/merge-gate.js
+// ../bobs-big-brain-registrar/apps/curator/dist/import-exclusion/load-brainignore.js
+var init_load_brainignore = __esm({
+  "../bobs-big-brain-registrar/apps/curator/dist/import-exclusion/load-brainignore.js"() {
+    "use strict";
+    init_brainignore();
+  }
+});
+
+// ../bobs-big-brain-registrar/apps/curator/dist/merge/merge-gate.js
 var MERGE_EPOCH_MS;
 var init_merge_gate = __esm({
-  "../gsb-h1-reg/apps/curator/dist/merge/merge-gate.js"() {
+  "../bobs-big-brain-registrar/apps/curator/dist/merge/merge-gate.js"() {
     "use strict";
     init_dist2();
     init_dist7();
@@ -42188,31 +43382,31 @@ var init_merge_gate = __esm({
   }
 });
 
-// ../gsb-h1-reg/apps/curator/dist/import/markdown-parser.js
+// ../bobs-big-brain-registrar/apps/curator/dist/import/markdown-parser.js
 var init_markdown_parser = __esm({
-  "../gsb-h1-reg/apps/curator/dist/import/markdown-parser.js"() {
+  "../bobs-big-brain-registrar/apps/curator/dist/import/markdown-parser.js"() {
     "use strict";
   }
 });
 
-// ../gsb-h1-reg/apps/curator/dist/import/vault-walker.js
+// ../bobs-big-brain-registrar/apps/curator/dist/import/vault-walker.js
 var init_vault_walker = __esm({
-  "../gsb-h1-reg/apps/curator/dist/import/vault-walker.js"() {
+  "../bobs-big-brain-registrar/apps/curator/dist/import/vault-walker.js"() {
     "use strict";
   }
 });
 
-// ../gsb-h1-reg/apps/curator/dist/import/collision-detector.js
+// ../bobs-big-brain-registrar/apps/curator/dist/import/collision-detector.js
 var init_collision_detector = __esm({
-  "../gsb-h1-reg/apps/curator/dist/import/collision-detector.js"() {
+  "../bobs-big-brain-registrar/apps/curator/dist/import/collision-detector.js"() {
     "use strict";
     init_dist2();
   }
 });
 
-// ../gsb-h1-reg/apps/curator/dist/import/import-pipeline.js
+// ../bobs-big-brain-registrar/apps/curator/dist/import/import-pipeline.js
 var init_import_pipeline = __esm({
-  "../gsb-h1-reg/apps/curator/dist/import/import-pipeline.js"() {
+  "../bobs-big-brain-registrar/apps/curator/dist/import/import-pipeline.js"() {
     "use strict";
     init_dist2();
     init_dist();
@@ -42222,9 +43416,9 @@ var init_import_pipeline = __esm({
   }
 });
 
-// ../gsb-h1-reg/apps/curator/dist/import/index.js
+// ../bobs-big-brain-registrar/apps/curator/dist/import/index.js
 var init_import = __esm({
-  "../gsb-h1-reg/apps/curator/dist/import/index.js"() {
+  "../bobs-big-brain-registrar/apps/curator/dist/import/index.js"() {
     "use strict";
     init_markdown_parser();
     init_vault_walker();
@@ -42234,24 +43428,27 @@ var init_import = __esm({
   }
 });
 
-// ../gsb-h1-reg/apps/curator/dist/index.js
+// ../bobs-big-brain-registrar/apps/curator/dist/index.js
 var init_dist8 = __esm({
-  "../gsb-h1-reg/apps/curator/dist/index.js"() {
+  "../bobs-big-brain-registrar/apps/curator/dist/index.js"() {
     "use strict";
     init_curator();
     init_spool_intake();
     init_dedup_checker();
-    init_supersession_detector();
+    init_supersession_detector2();
     init_promoter();
     init_rejector();
     init_origin_gate();
+    init_import_exclusion_gate();
+    init_brainignore();
+    init_load_brainignore();
     init_merge_gate();
     init_import();
     init_import();
   }
 });
 
-// ../gsb-h1-reg/apps/git-exporter/dist/formatter/frontmatter.js
+// ../bobs-big-brain-registrar/apps/git-exporter/dist/formatter/frontmatter.js
 function extractFrontmatter(memory) {
   return {
     id: memory.id,
@@ -42302,12 +43499,12 @@ function escapeYamlString(s) {
   return s.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 }
 var init_frontmatter = __esm({
-  "../gsb-h1-reg/apps/git-exporter/dist/formatter/frontmatter.js"() {
+  "../bobs-big-brain-registrar/apps/git-exporter/dist/formatter/frontmatter.js"() {
     "use strict";
   }
 });
 
-// ../gsb-h1-reg/apps/git-exporter/dist/formatter/markdown-formatter.js
+// ../bobs-big-brain-registrar/apps/git-exporter/dist/formatter/markdown-formatter.js
 function formatMemoryAsMarkdown(memory, resolveLinks) {
   const frontmatter = renderFrontmatter(extractFrontmatter(memory));
   const content = resolveLinks ? resolveLinks(memory.content) : memory.content;
@@ -42319,16 +43516,22 @@ ${content}
 `;
 }
 var init_markdown_formatter = __esm({
-  "../gsb-h1-reg/apps/git-exporter/dist/formatter/markdown-formatter.js"() {
+  "../bobs-big-brain-registrar/apps/git-exporter/dist/formatter/markdown-formatter.js"() {
     "use strict";
     init_frontmatter();
   }
 });
 
-// ../gsb-h1-reg/apps/git-exporter/dist/formatter/directory-mapper.js
+// ../bobs-big-brain-registrar/apps/git-exporter/dist/formatter/directory-mapper.js
 function getDirectory(memory) {
   if (memory.lifecycle === "archived" || memory.lifecycle === "superseded") {
     return "archive";
+  }
+  return getActiveDirectory(memory);
+}
+function getActiveDirectory(memory) {
+  if (memory.source === "bulk_import") {
+    return "bulk";
   }
   return getCategoryDirectory(memory.category);
 }
@@ -42353,7 +43556,7 @@ function getRelativePath2(memory) {
 }
 var UnknownCategoryError;
 var init_directory_mapper = __esm({
-  "../gsb-h1-reg/apps/git-exporter/dist/formatter/directory-mapper.js"() {
+  "../bobs-big-brain-registrar/apps/git-exporter/dist/formatter/directory-mapper.js"() {
     "use strict";
     UnknownCategoryError = class extends Error {
       category;
@@ -42366,7 +43569,7 @@ var init_directory_mapper = __esm({
   }
 });
 
-// ../gsb-h1-reg/apps/git-exporter/dist/diff/change-detector.js
+// ../bobs-big-brain-registrar/apps/git-exporter/dist/diff/change-detector.js
 function detectChanges(memoryRepo, exportStateRepo, config2) {
   const exportState = exportStateRepo.get(config2.targetId);
   let memories;
@@ -42393,12 +43596,12 @@ function detectChanges(memoryRepo, exportStateRepo, config2) {
   for (const memory of memories) {
     try {
       if (memory.lifecycle === "archived" || memory.lifecycle === "superseded") {
-        const categoryDir = getCategoryDirectory(memory.category);
-        const fromPath = (0, import_node_path14.join)(config2.outputDir, categoryDir, `${memory.id}.md`);
-        const toPath = (0, import_node_path14.join)(config2.outputDir, getRelativePath2(memory));
+        const activeDir = getActiveDirectory(memory);
+        const fromPath = (0, import_node_path18.join)(config2.outputDir, activeDir, `${memory.id}.md`);
+        const toPath = (0, import_node_path18.join)(config2.outputDir, getRelativePath2(memory));
         toArchive.push({ memory, fromPath, toPath });
       } else {
-        const filePath = (0, import_node_path14.join)(config2.outputDir, getRelativePath2(memory));
+        const filePath = (0, import_node_path18.join)(config2.outputDir, getRelativePath2(memory));
         toWrite.push({ memory, filePath });
       }
     } catch (err2) {
@@ -42411,16 +43614,16 @@ function detectChanges(memoryRepo, exportStateRepo, config2) {
   }
   return { toWrite, toArchive, toRemove: [], quarantined };
 }
-var import_node_path14;
+var import_node_path18;
 var init_change_detector = __esm({
-  "../gsb-h1-reg/apps/git-exporter/dist/diff/change-detector.js"() {
+  "../bobs-big-brain-registrar/apps/git-exporter/dist/diff/change-detector.js"() {
     "use strict";
     init_directory_mapper();
-    import_node_path14 = require("node:path");
+    import_node_path18 = require("node:path");
   }
 });
 
-// ../gsb-h1-reg/apps/git-exporter/dist/writer/file-writer.js
+// ../bobs-big-brain-registrar/apps/git-exporter/dist/writer/file-writer.js
 function assertPathSafe(filePath, allowedRoot) {
   if (filePath.includes("\0")) {
     throw new Error("Unsafe file path: Path contains null byte");
@@ -42430,8 +43633,8 @@ function assertPathSafe(filePath, allowedRoot) {
     throw new Error("Unsafe file path: Path contains directory traversal (..)");
   }
   if (allowedRoot !== void 0) {
-    const resolved = (0, import_node_path15.resolve)(filePath);
-    const resolvedRoot = (0, import_node_path15.resolve)(allowedRoot);
+    const resolved = (0, import_node_path19.resolve)(filePath);
+    const resolvedRoot = (0, import_node_path19.resolve)(allowedRoot);
     if (!resolved.startsWith(resolvedRoot + "/") && resolved !== resolvedRoot) {
       throw new Error(`Path traversal rejected: ${filePath} is outside ${allowedRoot}`);
     }
@@ -42439,40 +43642,40 @@ function assertPathSafe(filePath, allowedRoot) {
 }
 function writeFile3(filePath, content, exportRoot) {
   assertPathSafe(filePath, exportRoot);
-  (0, import_node_fs8.mkdirSync)((0, import_node_path15.dirname)(filePath), { recursive: true });
-  (0, import_node_fs8.writeFileSync)(filePath, content, "utf8");
+  (0, import_node_fs12.mkdirSync)((0, import_node_path19.dirname)(filePath), { recursive: true });
+  (0, import_node_fs12.writeFileSync)(filePath, content, "utf8");
 }
 function archiveFile(fromPath, toPath, content, exportRoot) {
   assertPathSafe(toPath, exportRoot);
   if (exportRoot !== void 0) {
     assertPathSafe(fromPath, exportRoot);
   }
-  (0, import_node_fs8.mkdirSync)((0, import_node_path15.dirname)(toPath), { recursive: true });
-  if ((0, import_node_fs8.existsSync)(fromPath)) {
-    (0, import_node_fs8.unlinkSync)(fromPath);
+  (0, import_node_fs12.mkdirSync)((0, import_node_path19.dirname)(toPath), { recursive: true });
+  if ((0, import_node_fs12.existsSync)(fromPath)) {
+    (0, import_node_fs12.unlinkSync)(fromPath);
   }
-  (0, import_node_fs8.writeFileSync)(toPath, content, "utf8");
+  (0, import_node_fs12.writeFileSync)(toPath, content, "utf8");
 }
 function removeFile(filePath, exportRoot) {
   if (exportRoot !== void 0) {
     assertPathSafe(filePath, exportRoot);
   }
-  if ((0, import_node_fs8.existsSync)(filePath)) {
-    (0, import_node_fs8.unlinkSync)(filePath);
+  if ((0, import_node_fs12.existsSync)(filePath)) {
+    (0, import_node_fs12.unlinkSync)(filePath);
     return true;
   }
   return false;
 }
-var import_node_fs8, import_node_path15;
+var import_node_fs12, import_node_path19;
 var init_file_writer = __esm({
-  "../gsb-h1-reg/apps/git-exporter/dist/writer/file-writer.js"() {
+  "../bobs-big-brain-registrar/apps/git-exporter/dist/writer/file-writer.js"() {
     "use strict";
-    import_node_fs8 = require("node:fs");
-    import_node_path15 = require("node:path");
+    import_node_fs12 = require("node:fs");
+    import_node_path19 = require("node:path");
   }
 });
 
-// ../gsb-h1-reg/apps/git-exporter/dist/exporter.js
+// ../bobs-big-brain-registrar/apps/git-exporter/dist/exporter.js
 function isSensitivityRestricted(level) {
   const idx = Sensitivity.options.indexOf(level);
   return idx >= CONFIDENTIAL_INDEX;
@@ -42492,8 +43695,8 @@ function runExport(memoryRepo, exportStateRepo, config2, nowFn = () => (/* @__PU
     }
     try {
       const content = formatMemoryAsMarkdown(item.memory);
-      if ((0, import_node_fs9.existsSync)(item.filePath)) {
-        const existing = (0, import_node_fs9.readFileSync)(item.filePath, "utf8");
+      if ((0, import_node_fs13.existsSync)(item.filePath)) {
+        const existing = (0, import_node_fs13.readFileSync)(item.filePath, "utf8");
         if (existing === content) {
           unchanged++;
           continue;
@@ -42542,31 +43745,31 @@ function runExport(memoryRepo, exportStateRepo, config2, nowFn = () => (/* @__PU
     totalProcessed: changeset.toWrite.length + changeset.toArchive.length + changeset.toRemove.length
   };
 }
-var import_node_fs9, CONFIDENTIAL_INDEX;
+var import_node_fs13, CONFIDENTIAL_INDEX;
 var init_exporter = __esm({
-  "../gsb-h1-reg/apps/git-exporter/dist/exporter.js"() {
+  "../bobs-big-brain-registrar/apps/git-exporter/dist/exporter.js"() {
     "use strict";
     init_dist();
     init_change_detector();
     init_markdown_formatter();
     init_file_writer();
-    import_node_fs9 = require("node:fs");
+    import_node_fs13 = require("node:fs");
     CONFIDENTIAL_INDEX = Sensitivity.options.indexOf("confidential");
   }
 });
 
-// ../gsb-h1-reg/apps/git-exporter/dist/cli.js
+// ../bobs-big-brain-registrar/apps/git-exporter/dist/cli.js
 var init_cli = __esm({
-  "../gsb-h1-reg/apps/git-exporter/dist/cli.js"() {
+  "../bobs-big-brain-registrar/apps/git-exporter/dist/cli.js"() {
     "use strict";
     init_dist3();
     init_exporter();
   }
 });
 
-// ../gsb-h1-reg/apps/git-exporter/dist/index.js
+// ../bobs-big-brain-registrar/apps/git-exporter/dist/index.js
 var init_dist9 = __esm({
-  "../gsb-h1-reg/apps/git-exporter/dist/index.js"() {
+  "../bobs-big-brain-registrar/apps/git-exporter/dist/index.js"() {
     "use strict";
     init_frontmatter();
     init_markdown_formatter();
@@ -42637,7 +43840,7 @@ function commitAnchor(auditDir) {
   };
   const git = (args) => (0, import_node_child_process3.execFileSync)("git", args, { cwd: auditDir, stdio: "ignore", env });
   try {
-    if (!(0, import_node_fs10.existsSync)((0, import_node_path16.join)(auditDir, ".git"))) git(["init", "-q"]);
+    if (!(0, import_node_fs14.existsSync)((0, import_node_path20.join)(auditDir, ".git"))) git(["init", "-q"]);
     git(["add", "anchors.jsonl"]);
     git(["commit", "-q", "-m", `anchor ${(/* @__PURE__ */ new Date()).toISOString()}`]);
     try {
@@ -42653,9 +43856,9 @@ function commitAnchor(auditDir) {
 }
 function anchorChainHead(auditRepo, basePath, tenantId) {
   try {
-    const auditDir = (0, import_node_path16.join)(basePath, "audit");
-    (0, import_node_fs10.mkdirSync)(auditDir, { recursive: true });
-    const rec = appendAnchor(auditRepo, (0, import_node_path16.join)(auditDir, "anchors.jsonl"), { tenantId });
+    const auditDir = (0, import_node_path20.join)(basePath, "audit");
+    (0, import_node_fs14.mkdirSync)(auditDir, { recursive: true });
+    const rec = appendAnchor(auditRepo, (0, import_node_path20.join)(auditDir, "anchors.jsonl"), { tenantId });
     return {
       chainHead: rec.chainHead,
       chainedRows: rec.chainedRows,
@@ -42665,14 +43868,14 @@ function anchorChainHead(auditRepo, basePath, tenantId) {
     return void 0;
   }
 }
-var import_node_child_process3, import_node_fs10, import_node_path16;
+var import_node_child_process3, import_node_fs14, import_node_path20;
 var init_anchor = __esm({
   "src/anchor.ts"() {
     "use strict";
     init_dist3();
     import_node_child_process3 = require("node:child_process");
-    import_node_fs10 = require("node:fs");
-    import_node_path16 = require("node:path");
+    import_node_fs14 = require("node:fs");
+    import_node_path20 = require("node:path");
   }
 });
 
@@ -42690,9 +43893,9 @@ function isContention(err2) {
   return err2.code === "EAGAIN" || err2.code === "EWOULDBLOCK";
 }
 async function acquireWriteLock(basePath, timeoutMs = DEFAULT_TIMEOUT_MS) {
-  (0, import_node_fs11.mkdirSync)(basePath, { recursive: true });
-  const lockPath = (0, import_node_path17.join)(basePath, LOCK_FILENAME);
-  const fd = (0, import_node_fs11.openSync)(lockPath, "a");
+  (0, import_node_fs15.mkdirSync)(basePath, { recursive: true });
+  const lockPath = (0, import_node_path21.join)(basePath, LOCK_FILENAME);
+  const fd = (0, import_node_fs15.openSync)(lockPath, "a");
   const deadline = Date.now() + Math.max(0, timeoutMs);
   for (; ; ) {
     const err2 = await tryFlockExclusive(fd);
@@ -42704,7 +43907,7 @@ async function acquireWriteLock(basePath, timeoutMs = DEFAULT_TIMEOUT_MS) {
           } catch {
           } finally {
             try {
-              (0, import_node_fs11.closeSync)(fd);
+              (0, import_node_fs15.closeSync)(fd);
             } catch {
             }
           }
@@ -42713,14 +43916,14 @@ async function acquireWriteLock(basePath, timeoutMs = DEFAULT_TIMEOUT_MS) {
     }
     if (!isContention(err2)) {
       try {
-        (0, import_node_fs11.closeSync)(fd);
+        (0, import_node_fs15.closeSync)(fd);
       } catch {
       }
       throw err2;
     }
     if (Date.now() >= deadline) {
       try {
-        (0, import_node_fs11.closeSync)(fd);
+        (0, import_node_fs15.closeSync)(fd);
       } catch {
       }
       throw new WriteLockBusyError();
@@ -42728,12 +43931,12 @@ async function acquireWriteLock(basePath, timeoutMs = DEFAULT_TIMEOUT_MS) {
     await sleep(RETRY_INTERVAL_MS);
   }
 }
-var import_node_fs11, import_node_path17, import_fs_ext, LOCK_FILENAME, DEFAULT_TIMEOUT_MS, RETRY_INTERVAL_MS, WriteLockBusyError, sleep;
+var import_node_fs15, import_node_path21, import_fs_ext, LOCK_FILENAME, DEFAULT_TIMEOUT_MS, RETRY_INTERVAL_MS, WriteLockBusyError, sleep;
 var init_write_lock = __esm({
   "src/write-lock.ts"() {
     "use strict";
-    import_node_fs11 = require("node:fs");
-    import_node_path17 = require("node:path");
+    import_node_fs15 = require("node:fs");
+    import_node_path21 = require("node:path");
     import_fs_ext = require("fs-ext");
     LOCK_FILENAME = ".write.lock";
     DEFAULT_TIMEOUT_MS = 8e3;
@@ -42774,7 +43977,7 @@ async function runGovernLocked(config2) {
       );
     }
     const ingestResult = await ingestFromSpool(candidateRepo, config2.spoolPath, {
-      archiveIngestedDir: (0, import_node_path18.join)(config2.spoolPath, "ingested")
+      archiveIngestedDir: (0, import_node_path22.join)(config2.spoolPath, "ingested")
     });
     const ingested = ingestResult.ok ? ingestResult.value.length : 0;
     const curation = sweepInbox(config2, { candidateRepo, memoryRepo, policyRepo, auditRepo });
@@ -42794,7 +43997,15 @@ async function runGovernLocked(config2) {
     let indexUpdated = false;
     let indexError;
     try {
-      const adapter = new QmdAdapter({ tenantId: config2.tenantId, exportDir: config2.exportDir });
+      const adapter = new QmdAdapter({
+        tenantId: config2.tenantId,
+        exportDir: config2.exportDir,
+        // Dense arm ON by default via the registrar's shared production seam
+        // (#328); TEAMKB_DENSE_ENABLED=false is the emergency kill switch. This
+        // site was the vps.1 drift class — the plugin bypasses the API, so
+        // wiring the API alone would leave local mode lexical-only.
+        dense: getDefaultDenseConfig()
+      });
       const ensure = await adapter.ensureCollections();
       if (!ensure.ok) throw new Error(ensure.error.message);
       const upd = await adapter.update();
@@ -42924,12 +44135,12 @@ function sweepInbox(config2, deps) {
 function isMemberAuthored(candidate) {
   return candidate.metadata?.proposedByRole === "member";
 }
-var import_node_crypto11, import_node_path18, SWEEP_RECEIPT_MEMORY_ID;
+var import_node_crypto11, import_node_path22, SWEEP_RECEIPT_MEMORY_ID;
 var init_govern = __esm({
   "src/govern.ts"() {
     "use strict";
     import_node_crypto11 = require("node:crypto");
-    import_node_path18 = require("node:path");
+    import_node_path22 = require("node:path");
     init_dist8();
     init_dist9();
     init_dist2();
@@ -42958,11 +44169,11 @@ function isMissingNativeDep(e) {
   );
 }
 function manifestPath(basePath) {
-  return (0, import_node_path19.join)(basePath, "audit", "exceptions.manifest.json");
+  return (0, import_node_path23.join)(basePath, "audit", "exceptions.manifest.json");
 }
 function loadExceptionManifest(basePath) {
   const p = manifestPath(basePath);
-  if (!(0, import_node_fs12.existsSync)(p)) return null;
+  if (!(0, import_node_fs16.existsSync)(p)) return null;
   try {
     return readManifest(p);
   } catch (e) {
@@ -43012,16 +44223,16 @@ async function startLocalServer() {
 `
   );
 }
-var import_node_crypto12, import_node_fs12, import_zod19, import_node_path19, VERSION2, config, CATEGORIES2, NATIVE_DEP_HINT, server2;
+var import_node_crypto12, import_node_fs16, import_zod19, import_node_path23, VERSION2, config, CATEGORIES2, NATIVE_DEP_HINT, server2;
 var init_local_server = __esm({
   "src/local-server.ts"() {
     "use strict";
     import_node_crypto12 = require("node:crypto");
-    import_node_fs12 = require("node:fs");
+    import_node_fs16 = require("node:fs");
     init_mcp();
     init_stdio2();
     import_zod19 = __toESM(require_zod(), 1);
-    import_node_path19 = require("node:path");
+    import_node_path23 = require("node:path");
     init_dist3();
     init_dist4();
     init_dist2();
@@ -43031,7 +44242,7 @@ var init_local_server = __esm({
     init_govern();
     init_anchor();
     init_write_lock();
-    VERSION2 = "1.1.0";
+    VERSION2 = "1.2.0";
     config = resolveConfig();
     CATEGORIES2 = [
       "decision",
@@ -43055,7 +44266,15 @@ var init_local_server = __esm({
       async (params) => {
         const scope = params.scope ?? "curated";
         const limit = params.limit ?? 10;
-        const adapter = new QmdAdapter({ tenantId: config.tenantId, exportDir: config.exportDir });
+        const adapter = new QmdAdapter({
+          tenantId: config.tenantId,
+          exportDir: config.exportDir,
+          // Dense arm ON by default via the registrar's shared production seam
+          // (#328); TEAMKB_DENSE_ENABLED=false is the emergency kill switch. This
+          // site was the vps.1 drift class — the plugin bypasses the API, so
+          // wiring the API alone would leave local mode lexical-only.
+          dense: getDefaultDenseConfig()
+        });
         const res = await adapter.query(params.query, scope, config.tenantId);
         if (!res.ok) {
           return jsonResult2({
@@ -43153,7 +44372,7 @@ var init_local_server = __esm({
         }
         try {
           const auditRepo = new AuditRepository(db);
-          const result = verifyAnchors(auditRepo, (0, import_node_path19.join)(config.basePath, "audit", "anchors.jsonl"));
+          const result = verifyAnchors(auditRepo, (0, import_node_path23.join)(config.basePath, "audit", "anchors.jsonl"));
           const manifest = loadExceptionManifest(config.basePath);
           const rowsById = buildRowsById(auditRepo);
           const classified = classifyChainBreaks(result.chain.breaks, manifest, rowsById);
@@ -43217,6 +44436,8 @@ var init_local_server = __esm({
           origin = void 0;
         }
         const candidate = {
+          // Pinned literal (5bm.6): the registrar rejects unversioned/other-version
+          // spool lines rather than silently stripping unknown fields.
           schemaVersion: "1",
           id,
           status: "inbox",

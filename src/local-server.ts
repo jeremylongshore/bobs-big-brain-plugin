@@ -28,7 +28,7 @@ import {
   type ExceptionManifest,
   type StoredRowTuple,
 } from '@qmd-team-intent-kb/store';
-import { QmdAdapter } from '@qmd-team-intent-kb/qmd-adapter';
+import { getDefaultDenseConfig, QmdAdapter } from '@qmd-team-intent-kb/qmd-adapter';
 import { loadOrCreateOriginSecret, mintOriginToken, rerankCitedHits } from '@qmd-team-intent-kb/common';
 import { writeToSpool } from '@qmd-team-intent-kb/claude-runtime';
 import { validateTransition } from '@qmd-team-intent-kb/schema';
@@ -38,7 +38,9 @@ import { runGovern } from './govern.js';
 import { anchorChainHead } from './anchor.js';
 import { acquireWriteLock, WriteLockBusyError } from './write-lock.js';
 
-const VERSION = '1.1.0';
+// Keep in lock-step with package.json + .mcp.json (the gybo.4 'one consistent
+// 1.2.0 runtime' cleanup — serverInfo previously lagged at 1.1.0).
+const VERSION = '1.2.0';
 const config = resolveConfig();
 
 const CATEGORIES = [
@@ -172,7 +174,15 @@ server.tool(
   async (params) => {
     const scope = params.scope ?? 'curated';
     const limit = params.limit ?? 10;
-    const adapter = new QmdAdapter({ tenantId: config.tenantId, exportDir: config.exportDir });
+    const adapter = new QmdAdapter({
+        tenantId: config.tenantId,
+        exportDir: config.exportDir,
+        // Dense arm ON by default via the registrar's shared production seam
+        // (#328); TEAMKB_DENSE_ENABLED=false is the emergency kill switch. This
+        // site was the vps.1 drift class — the plugin bypasses the API, so
+        // wiring the API alone would leave local mode lexical-only.
+        dense: getDefaultDenseConfig(),
+      });
     // Pass the bound tenant explicitly: adapter.query() is fail-closed on an
     // undefined tenantId (the c5k.2 hardening), so a local search that omits it
     // is refused and silently returns zero hits. In local mode the query tenant
@@ -394,6 +404,8 @@ server.tool(
       origin = undefined;
     }
     const candidate: MemoryCandidate = {
+      // Pinned literal (5bm.6): the registrar rejects unversioned/other-version
+      // spool lines rather than silently stripping unknown fields.
       schemaVersion: '1',
       id,
       status: 'inbox',
