@@ -12,7 +12,8 @@ installable Claude Code + Cowork plugin (a local stdio MCP server); the engines 
 
 - **Native dependency descriptions now match the v1.2.0 runtime.** Current install guidance names
   all three external native packages (`better-sqlite3`, `fs-ext`, and `sqlite-vec`); the plugin
-  manifest description now matches that count. Historical release notes remain unchanged. (#61)
+  manifest, marketplace metadata, and bootstrap guidance now match that count. Historical release
+  notes remain unchanged. (#61)
 
 ### Changed
 
