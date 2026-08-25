@@ -15,6 +15,8 @@
 
 ---
 
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/U5S225PTME)
+
 ## 📍 This product lives in two homes
 
 | | Repo | What it is |
