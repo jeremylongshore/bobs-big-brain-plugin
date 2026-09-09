@@ -53,6 +53,11 @@ jobs:
       - name: Smoke — capture -> govern -> audit-verify -> search
         run: node smoke/smoke.mjs
 
+      # Public-flip contribution surface: synthetic fixtures must remain
+      # runnable against the committed bundle and must not need a real brain.
+      - name: Smoke — synthetic golden-set contribution surface
+        run: node scripts/run-golden-set.mjs
+
       # B1 (auto-govern the remote brain_capture inbox): seed remote-shape
       # candidates directly in the throwaway `candidates` table, then drive the
       # sweep — proves promote/quarantine/duplicate/keep-in-inbox + idempotency.
