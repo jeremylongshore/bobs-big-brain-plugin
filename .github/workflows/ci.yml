@@ -47,6 +47,12 @@ jobs:
       - name: Install (no frozen lockfile — package.json was just trimmed)
         run: npm install --no-audit --no-fund
 
+      # audit-harness v1.4 pins package.json itself. Restore the reviewed file
+      # after the CI-only dependency trim so verification compares canonical
+      # repository bytes instead of the runner's temporary install manifest.
+      - name: Restore the canonical package manifest
+        run: git checkout -- package.json
+
       - name: Lint (eslint)
         run: npm run lint
 
