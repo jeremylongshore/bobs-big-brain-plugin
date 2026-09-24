@@ -1,0 +1,28 @@
+{
+  "format": "bobs-big-brain/golden-set/v1",
+  "name": "synthetic-local-governance-v1",
+  "description": "Synthetic local-mode cases covering promotion, policy rejection, and duplicate detection.",
+  "cases": [
+    {
+      "id": "promote-synthetic-rotation-fact",
+      "title": "Synthetic rotation schedule",
+      "content": "The synthetic staging worker rotates its test logs at 04:00 UTC.",
+      "category": "reference",
+      "expectedStatus": "promoted"
+    },
+    {
+      "id": "keep-synthetic-short-noise-inbox",
+      "title": "Synthetic short note",
+      "content": "Synthetic note.",
+      "category": "reference",
+      "expectedStatus": "inbox"
+    },
+    {
+      "id": "mark-repeated-synthetic-fact-duplicate",
+      "title": "Repeated synthetic rotation schedule",
+      "content": "The synthetic staging worker rotates its test logs at 04:00 UTC.",
+      "category": "reference",
+      "expectedStatus": "duplicate"
+    }
+  ]
+}
