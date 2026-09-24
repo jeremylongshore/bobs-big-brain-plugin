@@ -12,6 +12,11 @@ Every teammate needs two things: a **desktop Claude** (Claude Code is quickest) 
 (so their machine can reach the brain over the private network — the one genuinely-manual
 prerequisite; the GUI *Allow* dialogs can't be automated).
 
+Join Tailscale from the **one-time team invite** before running the installer. Open the invite in a
+private browser window and sign in with a passkey or your current identity provider; your login does
+not need to end in `@intentsolutions.io`. In the Tailscale app, select the team tailnet labeled
+`intentsolutions.io` (`tail70fc2c`).
+
 ## Claude Code or Cowork (recommended)
 
 ### macOS — one click (Claude Code)
