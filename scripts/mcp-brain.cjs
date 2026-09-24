@@ -3,16 +3,17 @@
 // stdio MCP server exactly the way the headless agent does, but from a shell
 // session that doesn't have native MCP tool wiring.
 //
-// Usage:  node mcp-brain.cjs <tool-name> '<json-args>'
-//        node mcp-brain.cjs --multi '<json>'    # send multiple calls in one session
+// Usage:  node scripts/mcp-brain.cjs <tool-name> '<json-args>'
+//        node scripts/mcp-brain.cjs --multi '<json>'    # send multiple calls in one session
 // Output: pretty-printed JSON result on stdout (single) or JSONL on stdout (multi).
 
 const { Client } = require('@modelcontextprotocol/sdk/client/index.js');
 const { StdioClientTransport } = require('@modelcontextprotocol/sdk/client/stdio.js');
 const { join } = require('node:path');
 
-const PLUGIN = process.env.BBB_PLUGIN_ROOT
-  || join(process.env.HOME, '000-projects/bobs-big-brain-plugin');
+// Resolve the plugin root from this file's location (scripts/..) so the client
+// works from any checkout; BBB_PLUGIN_ROOT still overrides it.
+const PLUGIN = process.env.BBB_PLUGIN_ROOT || join(__dirname, '..');
 const RUNTIME = join(PLUGIN, 'plugin-runtime', 'governed-brain.cjs');
 
 (async () => {
