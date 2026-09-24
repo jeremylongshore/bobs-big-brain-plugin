@@ -21,8 +21,16 @@
  * Env:
  *   TEAMKB_API_URL    — brain API base (e.g. http://team-server:3847). Required for results.
  *   TEAMKB_API_TOKEN  — per-user bearer token (sent as Authorization: Bearer).
+ *   TEAMKB_ORIGIN_SECRET — OPTIONAL admin-distributed origin-token secret (H1).
+ *                       When set, brain_capture mints a write-time provenance
+ *                       attestation (origin { tokenHmac, channel:'team-mcp',
+ *                       mintedAt }) the server verifies before promotion. When
+ *                       unset, captures are sent WITHOUT origin (unattested —
+ *                       exactly the pre-H1 behavior). Never auto-generated
+ *                       client-side: a freshly-invented secret would mint
+ *                       tokens the server's secret rejects at promotion.
  */
-import { createHash } from 'node:crypto';
+import { createHash, createHmac } from 'node:crypto';
 import { mkdir, readdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
@@ -37,6 +45,31 @@ const API_TOKEN = process.env['TEAMKB_API_TOKEN'];
 // lets a teammate target another tenant. NEVER hardcode 'local' here (that would
 // silently route team writes into a tenant the team brain never reads).
 const TENANT_ID = process.env['TEAMKB_TENANT_ID']?.trim() || 'intent-solutions';
+// H1 write-time provenance: the ADMIN-DISTRIBUTED origin secret (see header).
+// Env-only by design — no ~/.teamkb/origin-secret fallback in team mode: a box
+// that also ran LOCAL mode has its own auto-generated local secret there, and
+// minting team captures with it would poison this member's proposals (the
+// server's secret rejects them at promotion as origin_token_invalid).
+const ORIGIN_SECRET = process.env['TEAMKB_ORIGIN_SECRET']?.trim() || undefined;
+/** The capture channel team-mode proposals claim (must be on the server's allowlist, H3). */
+const TEAM_ORIGIN_CHANNEL = 'team-mcp';
+
+/**
+ * Mint the H1 origin token: HMAC-SHA256 (lowercase hex) over the candidate
+ * identity tuple `(candidateId, tenantId, capturedAt)`, NUL-joined. Hand-rolled
+ * with node:crypto — byte-identical to the Registrar's
+ * `@qmd-team-intent-kb/common` mintOriginToken, NOT imported (team mode stays
+ * dependency-free). Exported for unit tests.
+ */
+export function mintOriginToken(
+  secret: string,
+  candidateId: string,
+  tenantId: string,
+  capturedAt: string,
+): string {
+  const payload = [candidateId, tenantId, capturedAt].join(String.fromCharCode(0));
+  return createHmac('sha256', secret).update(payload, 'utf8').digest('hex');
+}
 
 // Category enum, copied verbatim from local-server.ts (NOT imported — team mode
 // stays dependency-free: no @qmd-team-intent-kb/* in the bundle).
@@ -91,16 +124,20 @@ export async function errorResult(res: Response): Promise<ReturnType<typeof json
   return jsonResult({ ok: false, status: res.status, error: msg });
 }
 
-// ─── IDEMPOTENCY + DURABLE OUTBOX (jfv.9) ─────────────────────────────────────
-// An automated/hook-driven capture must neither DUPLICATE (a re-run mints a second
-// inbox row) nor SILENTLY LOSE (a fetch throw drops the proposal — team mode has no
-// local spool, unlike local mode). Two guards:
-//  • the candidate id is a UUIDv5 over (tenant, title, content) — a re-send of the
-//    same proposal is the SAME id, so it can't fan out into duplicate rows. Pairs
-//    with the server's content-hash dedup (candidate-service intake).
-//  • a fetch throw / 5xx queues the candidate to a flat ~/.teamkb-outbox/ dir; the
-//    next SUCCESSFUL capture drains it. So an unattended hook under a network blip
-//    keeps the proposal instead of dropping it.
+// ─── IDEMPOTENCY + DURABLE OUTBOX (jfv.9 + session-stable seam) ───────────────
+// An automated/hook-driven capture must neither DUPLICATE nor SILENTLY LOSE.
+//
+// Identity (Property 1):
+//  • When sessionId is present: UUIDv5 over (tenant, sessionId, "session-end") so
+//    the key exists BEFORE content. Re-distillation / re-serialization cannot mint
+//    a second id for the same session (Alex Spinov seam review).
+//  • When sessionId is absent (manual /brain-save): fall back to
+//    (tenant, title, content) for content-stable ad-hoc captures.
+//
+// Outbox (Property 2): stores the FINAL serialized POST body bytes (not a rebuild
+// recipe). Drain POSTs that file verbatim — never re-derives id or re-builds the
+// candidate from title/content args. A durable outbox that stored "intent" and
+// rebuilt on drain would quietly reintroduce the Property 1 failure mode.
 
 // Fixed namespace UUID for candidate-id derivation (RFC-4122 §4.3 UUIDv5 seed).
 const CANDIDATE_ID_NAMESPACE = '6ba7b8f0-9dad-11d1-80b4-00c04fd430c8';
@@ -115,8 +152,28 @@ function uuidv5(name: string, namespace: string): string {
   return `${x.slice(0, 8)}-${x.slice(8, 12)}-${x.slice(12, 16)}-${x.slice(16, 20)}-${x.slice(20, 32)}`;
 }
 
-/** Deterministic candidate id — same (tenant,title,content) → same id, so a retry can't duplicate. */
-export function deriveCandidateId(tenant: string, title: string, content: string): string {
+/**
+ * Deterministic candidate id.
+ * - With sessionId: stable before content. Include learningIndex (0..N) so a
+ *   multi-learning SessionEnd can mint up to N distinct slots; re-distill of the
+ *   *same* slot collapses. Without learningIndex, defaults to 0 (single-slot).
+ * - Without sessionId: content-derived (manual /brain-save; backward compatible).
+ */
+export function deriveCandidateId(
+  tenant: string,
+  title: string,
+  content: string,
+  sessionId?: string,
+  learningIndex?: number,
+): string {
+  const sid = sessionId?.trim();
+  if (sid !== undefined && sid !== '') {
+    const idx =
+      typeof learningIndex === 'number' && Number.isInteger(learningIndex) && learningIndex >= 0
+        ? learningIndex
+        : 0;
+    return uuidv5(`${tenant}\n${sid}\nsession-end\n${idx}`, CANDIDATE_ID_NAMESPACE);
+  }
   return uuidv5(`${tenant}\n${title}\n${content}`, CANDIDATE_ID_NAMESPACE);
 }
 
@@ -127,16 +184,17 @@ export function outboxDir(): string {
 }
 
 /**
- * Queue a candidate that could not be delivered (network throw / 5xx). Async +
- * non-blocking (this is a long-running MCP server — sync FS would block the event
- * loop). Returns true iff it was durably written, so the caller can report an honest
- * outcome when even the outbox write failed (the capture would otherwise be lost).
+ * Queue a candidate that could not be delivered (network throw / 5xx).
+ * FREEZES the final JSON body that would have been POSTed — drain replays these
+ * bytes, it does not rebuild the candidate. Async + non-blocking.
  */
 async function enqueueOutbox(candidate: { id: string }): Promise<boolean> {
   const dir = outboxDir();
   try {
     await mkdir(dir, { recursive: true, mode: 0o700 });
-    await writeFile(join(dir, `${candidate.id}.json`), JSON.stringify(candidate), { mode: 0o600 });
+    // Freeze exact POST body (not args-to-rebuild). Filename is advisory; body is authority.
+    const body = JSON.stringify(candidate);
+    await writeFile(join(dir, `${candidate.id}.json`), body, { mode: 0o600 });
     return true;
   } catch (e) {
     process.stderr.write(
@@ -354,26 +412,30 @@ server.tool(
 
 /**
  * Propose a candidate to the team brain (exported for unit testing). Idempotent +
- * durable (jfv.9): the id is a UUIDv5 over (tenant,title,content) so a retry can't
- * duplicate; a network throw / 5xx queues to the durable outbox instead of dropping,
- * and a successful send drains any backlog.
+ * durable: session-stable id when sessionId is set; content-derived otherwise.
+ * Network throw / 5xx freezes the POST body in the durable outbox; success drains.
+ * Response includes `intake` when the server reports created vs already_exists.
  */
 export async function capture(
   title: string,
   content: string,
   category: string | undefined,
   filePaths: string[] | undefined,
+  sessionId?: string,
+  learningIndex?: number,
 ): Promise<ReturnType<typeof jsonResult>> {
   if (API_URL === undefined || API_URL === '') {
     return jsonResult({ ok: false, error: 'unconfigured — set TEAMKB_API_URL to your team brain' });
   }
-  // Build the FULL MemoryCandidate client-side (the server safeParses it with no
-  // defaults) — identical shape to local mode, tenant-scoped to TENANT_ID. The id
-  // is a UUIDv5 over (tenant, title, content), NOT random (jfv.9): a re-send of the
-  // same proposal is the SAME id, so a retried/hook-driven capture can't fan out
-  // into duplicate inbox rows.
+  // Build the FULL MemoryCandidate client-side once. This object (serialized) is
+  // what gets POSTed and, on failure, FROZEN in the outbox — drain never rebuilds it.
+  // The H1 origin token binds (id, tenantId, capturedAt); freezing the body means
+  // an outbox replay re-sends the SAME identity tuple + token, so the attestation
+  // stays valid across retries.
+  const candidateId = deriveCandidateId(TENANT_ID, title, content, sessionId, learningIndex);
+  const capturedAt = new Date().toISOString();
   const candidate = {
-    id: deriveCandidateId(TENANT_ID, title, content),
+    id: candidateId,
     status: 'inbox',
     source: 'mcp',
     content,
@@ -382,21 +444,38 @@ export async function capture(
     trustLevel: 'medium',
     author: { type: 'ai', id: 'governed-brain' },
     tenantId: TENANT_ID,
-    metadata: { filePaths: filePaths ?? [], tags: [] as string[] },
+    metadata: {
+      filePaths: filePaths ?? [],
+      tags: [] as string[],
+      ...(sessionId?.trim() ? { sessionId: sessionId.trim() } : {}),
+      ...(typeof learningIndex === 'number' && Number.isInteger(learningIndex)
+        ? { learningIndex }
+        : {}),
+    },
     prePolicyFlags: { potentialSecret: false, lowConfidence: false, duplicateSuspect: false },
-    capturedAt: new Date().toISOString(),
+    capturedAt,
+    // H1 write-time provenance — only when the admin distributed the secret.
+    // Unset → no origin field at all (unattested; identical to pre-H1 bodies).
+    ...(ORIGIN_SECRET !== undefined
+      ? {
+          origin: {
+            tokenHmac: mintOriginToken(ORIGIN_SECRET, candidateId, TENANT_ID, capturedAt),
+            channel: TEAM_ORIGIN_CHANNEL,
+            mintedAt: capturedAt,
+          },
+        }
+      : {}),
   };
+  const body = JSON.stringify(candidate);
   let res: Response;
   try {
     res = await fetch(`${API_URL.replace(/\/+$/, '')}/api/candidates`, {
       method: 'POST',
       headers: authHeaders(),
-      body: JSON.stringify(candidate),
+      body,
     });
   } catch (e) {
-    // API unreachable (dead / off-tailnet). DON'T drop it — queue to the durable
-    // outbox; the next successful capture drains it. If even the queue write fails,
-    // report honestly (ok:false) — the capture would otherwise be silently lost.
+    // API unreachable (dead / off-tailnet). DON'T drop it — freeze body in outbox.
     const queued = await enqueueOutbox(candidate);
     return jsonResult({
       ok: queued,
@@ -411,6 +490,7 @@ export async function capture(
   if (!res.ok) {
     // 5xx = transient server error → queue (retry later). 4xx = a real rejection
     // (validation/auth/disclosure) → surface it; queuing would just loop.
+    // Note: 200 already_exists is res.ok — handled below.
     if (res.status >= 500) {
       const queued = await enqueueOutbox(candidate);
       return jsonResult({
@@ -425,29 +505,77 @@ export async function capture(
     }
     return errorResult(res);
   }
-  // Delivered — opportunistically drain any previously-queued proposals now that
-  // connectivity is confirmed. Best-effort: a drain failure never fails this capture.
+  // Delivered (201 created or 200 already_exists). Read body once, then drain.
+  let intake: string | undefined;
+  try {
+    const text = await res.text();
+    try {
+      const parsed = JSON.parse(text) as { intake?: string };
+      if (typeof parsed.intake === 'string') intake = parsed.intake;
+    } catch {
+      /* non-JSON body — still ok */
+    }
+  } catch {
+    intake = undefined;
+  }
   const drained = await drainOutbox();
+  // Prefer body.intake for knowledge; do not invent already_exists from bare 200
+  // (old servers / proxies may return 200 without meaning collapse).
+  const known =
+    intake === 'created' || intake === 'already_exists'
+      ? intake
+      : res.status === 201
+        ? 'created'
+        : 'unknown';
+  const already = known === 'already_exists';
   return jsonResult({
     ok: true,
     candidateId: candidate.id,
     tenantId: TENANT_ID,
+    intake: known,
+    alreadyExists: already,
     ...(drained > 0 ? { outboxDrained: drained } : {}),
-    message:
-      'Proposed to the team brain inbox. This is a PROPOSAL — the deterministic govern pipeline decides if/when it is promoted (an admin governs, or auto-govern once enabled). It is not durable memory yet.',
+    message: already
+      ? 'Idempotent: this proposal already exists in the team brain inbox (same session slot or same content). Safe to retry; not a new capture.'
+      : known === 'unknown'
+        ? 'Proposed to the team brain inbox (server did not report created vs already_exists). This is a PROPOSAL — not durable memory until promoted.'
+        : 'Proposed to the team brain inbox. This is a PROPOSAL — the deterministic govern pipeline decides if/when it is promoted (an admin governs, or auto-govern once enabled). It is not durable memory yet.',
   });
 }
 
 server.tool(
   'brain_capture',
-  "Propose a fact, decision, pattern, or convention to your team's governed brain — a PROPOSAL, not a promotion. Member-allowed: the server queues it as a candidate and the deterministic govern pipeline disposes; it is not durable memory until promoted. Proxies to the brain over the tailnet (team mode).",
+  "Propose a fact, decision, pattern, or convention to your team's governed brain — a PROPOSAL, not a promotion. Member-allowed: the server queues it as a candidate and the deterministic govern pipeline disposes; it is not durable memory until promoted. Proxies to the brain over the tailnet (team mode). For SessionEnd: pass sessionId + learningIndex (0..4) so each learning is its own slot and re-distill of that slot collapses.",
   {
     title: z.string().min(1).describe('Short, specific title for the memory'),
     content: z.string().min(1).describe('The fact to remember, in full'),
     category: z.enum(CATEGORIES).optional().describe('Memory category (default: reference)'),
     filePaths: z.array(z.string()).optional().describe('Related file paths, if any'),
+    sessionId: z
+      .string()
+      .optional()
+      .describe(
+        'Stable session id (Claude Code session). With learningIndex, forms a per-learning slot so re-distill does not duplicate and multi-learning sessions keep separate rows.',
+      ),
+    learningIndex: z
+      .number()
+      .int()
+      .min(0)
+      .max(4)
+      .optional()
+      .describe(
+        '0-based index of this learning within the session (SessionEnd: 0..4 for up to 5 learnings). Defaults to 0 when sessionId is set.',
+      ),
   },
-  async (params) => capture(params.title, params.content, params.category, params.filePaths),
+  async (params) =>
+    capture(
+      params.title,
+      params.content,
+      params.category,
+      params.filePaths,
+      params.sessionId,
+      params.learningIndex,
+    ),
 );
 
 server.tool(

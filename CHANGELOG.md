@@ -17,13 +17,39 @@ installable Claude Code + Cowork plugin (a local stdio MCP server); the engines 
 
 ### Fixed
 
-- **`/brain` now retries with keywords when a full-sentence question returns nothing.** Retrieval is
-  keyword-AND, so a natural question ("what did the team ship this week?") could return zero even when
-  the topic is well covered — a new user running the suggested proof query saw an empty result and
-  assumed the setup was broken. The `/brain` skill now drops filler/question words and retries once
-  with the strong keywords before reporting empty, and the onboarding proof query is now a keyword
-  query (`shipped this week`) in the README and the macOS installer. (The deeper retrieval-side
-  OR-fallback is tracked separately.)
+- **Native dependency descriptions now match the v1.2.0 runtime.** Current install guidance names
+  all three external native packages (`better-sqlite3`, `fs-ext`, and `sqlite-vec`); the plugin
+  manifest, marketplace metadata, and bootstrap guidance now match that count. Historical release
+  notes remain unchanged. (#61)
+
+### Changed
+
+- Hardened the public `brain` (1.2.1) and `brain-save` (1.0.1) skills for skills.sh. Both now carry
+  explicit model/effort metadata and runtime-contract references. `brain-save` now branches correctly
+  between local governance and team proposals, reports mode-specific status and audit availability,
+  documents team authentication and durable outbox semantics, and derives lifecycle UUIDs from cited
+  memory filenames.
+
+- **Engine repos renamed (2026-07-19).** The sibling engines moved to their public product names:
+  `jeremylongshore/qmd-team-intent-kb` → `jeremylongshore/bobs-big-brain-registrar` (govern) and
+  `jeremylongshore/intentional-cognition-os` → `jeremylongshore/bobs-big-brain-compiler` (compile).
+  Repointed here: the eight `link:../bobs-big-brain-registrar/*` build-only devDeps (+ lockfile
+  re-resolve), the `ci.yml` anchor-conformance sibling checkout, `bin/init.mjs`'s local-sibling ICO
+  CLI path, `gsb.lock.json` engine names, and docs/prose. **npm names are unchanged** — the published
+  `governed-second-brain` package, the `@qmd-team-intent-kb/*` package scope, and the
+  `npx intentional-cognition-os@^1.14.0` compile fallback all stay as-is.
+
+## [1.2.0] - 2026-07-18
+
+### Changed
+
+- **Local-mode `brain_search` now runs the full retrieval stack.** After rebundling the in-process
+  engine against the INTKB upgrades, local search runs native-FTS5 + `qmd` reciprocal-rank fusion
+  inside `adapter.query()`, then replicates the API's freshness/category rerank in
+  `src/local-server.ts` (read-only store lookup for `{category, updatedAt}`, fused scores normalized to
+  `[0,1]` before the freshness multiply, raw-order fallback if the store can't open). Local mode stays
+  network-free while matching the team path's ranking; two 2026-07-16 incident queries that returned 0
+  hits now return the correct governed memory with a `qmd://` citation. (#48)
 
 ### Added
 
@@ -32,6 +58,52 @@ installable Claude Code + Cowork plugin (a local stdio MCP server); the engines 
   config on Claude Desktop**, and **cannot** run in claude.ai in a browser or the phone apps — plus a
   **Windows** path (`/plugin` commands + `%USERPROFILE%\.teamkb\team.json`) alongside the macOS
   one-click installer.
+
+### Fixed
+
+- **SessionEnd multi-learning slots + hook wiring.** `deriveCandidateId` now takes
+  `learningIndex` (0..4): key = `(tenant, sessionId, session-end, index)` so up to 5 learnings
+  per session stay distinct while re-distill of the same index collapses. Autocapture hook
+  resolves `session_id` / `sessionId` / transcript-path fallback and **requires**
+  `brain_capture({ sessionId, learningIndex })` in the distiller prompt. Client no longer
+  invents `already_exists` from bare HTTP 200 without `intake`. Skill docs corrected (inbox
+  does dedupe at intake).
+- **Session-stable capture idempotency + frozen outbox contract (Property 1/2 seam).**
+  `deriveCandidateId` uses session keys when `sessionId` is provided; without `sessionId` keeps
+  content-hash UUIDv5 for manual `/brain-save`. Outbox freezes final POST body; drain replays
+  file bytes only. Surfaces `intake` / `alreadyExists` from the server.
+- **`/brain` now retries with keywords when a full-sentence question returns nothing.** Retrieval is
+  keyword-AND, so a natural question ("what did the team ship this week?") could return zero even when
+  the topic is well covered — a new user running the suggested proof query saw an empty result and
+  assumed the setup was broken. The `/brain` skill now drops filler/question words and retries once
+  with the strong keywords before reporting empty, and the onboarding proof query is now a keyword
+  query (`shipped this week`) in the README and the macOS installer. (The deeper retrieval-side
+  OR-fallback is tracked separately.)
+- **README + GitHub description corrected for rebundled local retrieval and the two-mode network
+  story.** The `brain_search` tool-surface row now states local search runs native-FTS5 + `qmd` RRF
+  fusion then a freshness/category rerank (it was silent on both); the stale `governed-second-brain`
+  umbrella links point to `bobs-big-brain-umbrella`; and the blanket "No daemon, no network"
+  description becomes "local needs no daemon or network; team connects to the one brain over your
+  tailnet" (the old line mis-described team mode). (#49)
+
+### Added (internal)
+
+- **Advisory MiniMax-M3 two-lane PR reviewer** (`.github/workflows/minimax-review.yml` + `REVIEW.md`).
+  A defect lane (secret/credential leaks, mode-boundary breaks, rebundle drift, honesty-word
+  violations) and an adversarial claims lane (audits the PR description + changed docs against the
+  actual diff). Advisory only — never a required check; uses the fork-safe `pull_request` trigger with
+  a same-repo guard so forked PRs never receive the API key. (#47)
+
+## [1.1.2] - 2026-07-16
+
+### Fixed
+
+- **Local mode now starts from a clean Claude/Codex marketplace install.** The MCP manifest runs a
+  dependency-free bootstrap that provisions the exact lockfile-pinned `better-sqlite3` and `fs-ext`
+  native modules on first local start. Team mode still starts with zero installation and never loads
+  the local store. Concurrent starts serialize the one-time install and stale locks fail safely.
+- Added a clean-copy regression smoke that begins without `node_modules`, starts the shipped MCP
+  artifact, and proves disposable capture → govern → status → audit verification plus cleanup.
 
 ## [1.1.1] - 2026-07-13
 
@@ -104,9 +176,9 @@ installable Claude Code + Cowork plugin (a local stdio MCP server); the engines 
   - **team** (`TEAMKB_API_URL` set): a remote proxy to your team's single governed brain over the
     tailnet, with a per-user token. Exposes the unified `brain_search` (read); capture/govern stay
     governed server-side.
-  This absorbs the former standalone `intent-brain` plugin as this plugin's team mode — one plugin,
-  one tool surface (`brain_*`), the same `/brain` and `/brain-save` skills in both modes. Only your
-  data + `TEAMKB_API_URL` + token are private; the plugin code is public.
+    This absorbs the former standalone `intent-brain` plugin as this plugin's team mode — one plugin,
+    one tool surface (`brain_*`), the same `/brain` and `/brain-save` skills in both modes. Only your
+    data + `TEAMKB_API_URL` + token are private; the plugin code is public.
 - `src/index.ts` mode dispatcher; `src/remote-server.ts` (the tailnet proxy, moved in from
   `qmd-team-intent-kb` and renamed `teamkb_search` → `brain_search`); `smoke-team.mjs` (a stub-API
   team-mode smoke proving dispatch → proxy → `qmd://` citation → bearer forwarding).

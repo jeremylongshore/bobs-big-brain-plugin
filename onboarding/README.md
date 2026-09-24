@@ -6,7 +6,7 @@ The brain is a **plugin** inside a **desktop** Claude (Claude Code or Cowork) �
 
 | Path | Who | Needs | Mode |
 |---|---|---|---|
-| **Team** | Intent Solutions teammates | Tailscale (`@intentsolutions.io`) + personal token from Jeremy + desktop Claude | Remote team brain via `~/.teamkb/team.json` |
+| **Team** | Intent Solutions teammates | Tailscale (team invite, any login) + personal token from Jeremy + desktop Claude | Remote team brain via `~/.teamkb/team.json` |
 | **Local (public)** | Anyone | Desktop Claude only | In-process personal brain on your machine — no Tailscale, no token |
 
 | Where you run Claude | Works? |
@@ -15,11 +15,16 @@ The brain is a **plugin** inside a **desktop** Claude (Claude Code or Cowork) �
 | **Claude Desktop** | Manual MCP config (see live page Advanced). |
 | **claude.ai web / phone** | No. |
 
+Team path only: join Tailscale from the **one-time team invite** before pasting the team prompt. Open
+the invite in a private browser window and sign in with a passkey or your current identity provider;
+your login does not need to end in `@intentsolutions.io`. In the Tailscale app, select the team
+tailnet labeled `intentsolutions.io` (`tail70fc2c`).
+
 ---
 
 ## Team path (invite-only)
 
-1. Tailscale + `@intentsolutions.io`
+1. Tailscale, joined from the team invite and set to the `intentsolutions.io` tailnet
 2. Desktop Claude
 3. **One paste** — full install + `team.json` (token + **required** `tenantId: intent-solutions`)
 4. Proof: `/brain shipped this week` → `qmd://` citations
@@ -45,7 +50,7 @@ Install and connect me to Bob's Big Brain (the Intent Solutions team brain). Run
 
 3) Tell me to fully quit and reopen Claude Code or Cowork. After I restart I will run: /brain shipped this week and I should get an answer with qmd:// citations.
 
-Prereqs: Tailscale with @intentsolutions.io, desktop Claude. Do not rewrite the plugin manifest. Public marketplace only.
+Prereqs: Tailscale joined to the intentsolutions.io team tailnet (via the team invite), desktop Claude. Do not rewrite the plugin manifest. Public marketplace only.
 ```
 
 **Health check (optional):** `curl -sS -m 8 http://100.109.119.103:3847/api/health` → `"status":"healthy"`.
