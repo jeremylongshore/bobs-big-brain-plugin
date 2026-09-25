@@ -98,6 +98,17 @@ try {
   // 4. status — the governed memory is durably stored.
   const st = parse(await client.callTool({ name: 'brain_status', arguments: {} }));
   ok(st.total >= 1, `brain_status total=${st.total}`);
+  ok(st.mode === 'local', 'brain_status reports local mode');
+  ok(st.tenantId === 'local', 'brain_status reports the bound tenant');
+  ok(st.basePath === BASE, 'brain_status reports the configured brain root');
+  ok(
+    st.exportDir === join(BASE, 'kb-export'),
+    'brain_status reports the configured export tree',
+  );
+  ok(
+    st.qmdIndexPath === join(BASE, 'qmd-index', 'local'),
+    'brain_status reports the tenant-scoped qmd index',
+  );
 
   // 5. search — best-effort: only a hit if qmd is on PATH in this runner.
   const sr = parse(

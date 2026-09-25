@@ -85,6 +85,24 @@ Do not rewrite the plugin manifest. Do not invent tokens. Do not connect me to a
 
 Empty brain on first install is **normal**. Capture with `/brain-save`, then search with keywords.
 
+### Your own brain root and tenant (forkers / BYO brain)
+
+Forkers can run their own governed brain entirely on-device. Leave
+`TEAMKB_API_URL` unset, choose a private brain root, and choose a tenant name:
+
+```bash
+export TEAMKB_BASE_PATH="$HOME/.teamkb-my-fork"
+export TEAMKB_TENANT_ID="my-fork"
+npx governed-second-brain init "$HOME/my-notes" --index-only \
+  --base "$TEAMKB_BASE_PATH" --tenant "$TEAMKB_TENANT_ID"
+```
+
+This uses no API key or network. The qmd index is derived at
+`$TEAMKB_BASE_PATH/qmd-index/$TEAMKB_TENANT_ID`; `brain_govern` refreshes it
+from the governed Markdown export. `brain_status` shows the resolved tenant
+and qmd path, which is the quickest way to catch a wrong-root or wrong-tenant
+configuration before grounding `/brain` on the fork's own corpus.
+
 ---
 
 ## Day to day
