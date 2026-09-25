@@ -6,7 +6,7 @@ name: Smoke (full chain)
 #
 # This tests the SHIPPED artifact (plugin-runtime/governed-brain.cjs, which
 # inlines the private INTKB packages), so the build is intentionally NOT run here
-# — it needs the sibling qmd-team-intent-kb monorepo that only exists locally.
+# — it needs the sibling bobs-big-brain-registrar monorepo that only exists locally.
 
 on:
   push:
@@ -22,9 +22,9 @@ jobs:
     name: Full-chain smoke (zero egress)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 20
 
@@ -32,13 +32,19 @@ jobs:
         run: node smoke/check-lock.mjs
 
       # The committed bundle inlines INTKB, so CI never builds — and the build-only
-      # devDeps are `link:../qmd-team-intent-kb/*`, which don't exist here. Strip
+      # devDeps are `link:../bobs-big-brain-registrar/*`, which don't exist here. Strip
       # them, then install just the prod deps (the MCP SDK for the smoke client +
       # better-sqlite3, the bundle's one external native dep).
       - name: Install runtime deps for the committed bundle
         run: |
           node -e "const p=require('./package.json'); delete p.devDependencies; require('fs').writeFileSync('package.json', JSON.stringify(p,null,2))"
           npm install --no-audit --no-fund
+
+      # Reproduce the actual marketplace failure: a copied plugin-runtime has no
+      # parent node_modules and no install hook. The bootstrap must provision the
+      # lockfile-pinned native modules, then complete capture -> govern -> audit.
+      - name: Smoke — clean marketplace install bootstrap
+        run: npm run bootstrap-clean-install:test
 
       - name: Install pinned qmd (best-effort — enables the search assertion)
         continue-on-error: true
@@ -56,6 +62,11 @@ jobs:
         run: |
           node --test smoke/skill-contract.test.mjs
           SKIP_PAGE=1 node smoke/onboarding-assert.mjs
+
+      # Public-flip contribution surface: synthetic fixtures must remain
+      # runnable against the committed bundle and must not need a real brain.
+      - name: Smoke — synthetic golden-set contribution surface
+        run: node scripts/run-golden-set.mjs
 
       # B1 (auto-govern the remote brain_capture inbox): seed remote-shape
       # candidates directly in the throwaway `candidates` table, then drive the

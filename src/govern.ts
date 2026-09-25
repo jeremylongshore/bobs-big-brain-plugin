@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import { ingestFromSpool, Curator } from '@qmd-team-intent-kb/curator';
 import { runExport } from '@qmd-team-intent-kb/git-exporter';
-import { computeContentHash } from '@qmd-team-intent-kb/common';
+import { computeContentHash, loadOrCreateOriginSecret } from '@qmd-team-intent-kb/common';
 import { AuditEvent } from '@qmd-team-intent-kb/schema';
 import type { MemoryCandidate } from '@qmd-team-intent-kb/schema';
 import {
@@ -13,7 +13,7 @@ import {
   AuditRepository,
   ExportStateRepository,
 } from '@qmd-team-intent-kb/store';
-import { QmdAdapter } from '@qmd-team-intent-kb/qmd-adapter';
+import { getDefaultDenseConfig, QmdAdapter } from '@qmd-team-intent-kb/qmd-adapter';
 import type { BrainConfig } from './config.js';
 import { seedDefaultPolicy } from './seed-policy.js';
 import { anchorChainHead } from './anchor.js';
@@ -147,7 +147,15 @@ async function runGovernLocked(config: BrainConfig): Promise<GovernSummary> {
     let indexUpdated = false;
     let indexError: string | undefined;
     try {
-      const adapter = new QmdAdapter({ tenantId: config.tenantId, exportDir: config.exportDir });
+      const adapter = new QmdAdapter({
+        tenantId: config.tenantId,
+        exportDir: config.exportDir,
+        // Dense arm ON by default via the registrar's shared production seam
+        // (#328); TEAMKB_DENSE_ENABLED=false is the emergency kill switch. This
+        // site was the vps.1 drift class — the plugin bypasses the API, so
+        // wiring the API alone would leave local mode lexical-only.
+        dense: getDefaultDenseConfig(),
+      });
       const ensure = await adapter.ensureCollections();
       if (!ensure.ok) throw new Error(ensure.error.message);
       const upd = await adapter.update();
@@ -251,9 +259,20 @@ function sweepInbox(config: BrainConfig, deps: SweepDeps): SweepResult {
   };
   if (inbox.length === 0) return res;
 
+  // H1 write-time provenance: verify origin-claiming candidates with the SAME
+  // per-installation secret brain_capture mints with (~/.teamkb/origin-secret;
+  // TEAMKB_ORIGIN_SECRET overrides). Best-effort resolution — an unreadable
+  // secret must not wedge the sweep; origin-CLAIMING candidates then reject
+  // fail-closed as `origin_token_unverifiable` while unattested ones flow.
+  let originSecret: string | undefined;
+  try {
+    originSecret = loadOrCreateOriginSecret(config.basePath);
+  } catch {
+    originSecret = undefined;
+  }
   const curator = new Curator(
     { candidateRepo, memoryRepo, policyRepo, auditRepo },
-    { tenantId: config.tenantId, suppressRejectionReceipts: true },
+    { tenantId: config.tenantId, suppressRejectionReceipts: true, originSecret },
   );
 
   // Tenant-scoped intra-batch dedup set, extended as promotions land (mirrors

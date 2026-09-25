@@ -8,7 +8,7 @@ bundle `plugin-runtime/governed-brain.cjs` (esbuild inlines the private packages
 
 ## The CI constraint (why not everything runs in plain CI)
 
-The build-only devDeps are `link:../qmd-team-intent-kb/*` — a **private sibling monorepo
+The build-only devDeps are `link:../bobs-big-brain-registrar/*` — a **sibling monorepo
 that does not exist in a fresh GitHub Actions checkout**. So `build` and the full
 `typecheck` cannot run in generic CI (same reason `smoke.yml` never builds). CI therefore
 gates the surface that is reachable **without** the sibling monorepo, and the full stack
@@ -25,6 +25,7 @@ is validated locally + by the committed-bundle smoke.
 | L3 unit — anchor verifier | `pnpm verify-anchors:test` (zero-dep `node:test`) | CI `ci.yml` + local |
 | L3 unit — anchor-on-transition | `pnpm anchor-on-transition:test` (esbuilds `src/anchor.ts` → needs sibling) | local |
 | L5 system — full chain (zero egress) | `smoke/smoke.mjs`, `smoke/audit-verify-banner.test.mjs` (drive the committed bundle) | `smoke.yml` + local |
+| L5 system — synthetic golden set | `scripts/run-golden-set.mjs` (versioned fixture + expected deterministic outcomes) | `smoke.yml` + local |
 | L5 system — B1 auto-govern inbox sweep | `smoke/b1-inbox-sweep.mjs` (seeds remote-shape candidates in a throwaway `candidates` table, drives the sweep: promote/quarantine/duplicate/keep-in-inbox + idempotency) | `smoke.yml` + local |
 | Policy pin | `audit-harness verify` (this file + any future `features/*.feature`) | CI `ci.yml` + local |
 
@@ -51,11 +52,12 @@ never down.**
 ## Run it
 
 ```bash
-pnpm install            # from a checkout that is a sibling of qmd-team-intent-kb
+pnpm install            # from a checkout that is a sibling of bobs-big-brain-registrar
 pnpm lint
 pnpm typecheck:ci       # or: pnpm typecheck (full, needs the sibling monorepo)
 pnpm test:coverage
 pnpm verify-anchors:test
+node scripts/run-golden-set.mjs
 ```
 
 ## One entrypoint — `pnpm test:plugin` (Governed Second Brain)

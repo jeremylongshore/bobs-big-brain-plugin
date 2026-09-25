@@ -35,7 +35,7 @@ await esbuild.build({
   format: 'cjs',
   target: 'node20',
   outfile: 'plugin-runtime/governed-brain.cjs',
-  external: ['better-sqlite3', 'bindings', 'fs-ext'],
+  external: ['better-sqlite3', 'bindings', 'fs-ext', 'sqlite-vec'],
   alias: { zod: zodAlias },
   logLevel: 'info',
 });
@@ -65,4 +65,4 @@ try {
   console.error('   re-run `npm run build`.');
   process.exit(1);
 }
-console.error('✓ plugin-runtime is self-contained (better-sqlite3, bindings, fs-ext)');
+console.error('✓ plugin-runtime is self-contained (better-sqlite3, bindings, fs-ext, sqlite-vec)');

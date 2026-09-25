@@ -1,6 +1,6 @@
 // Team-mode smoke: prove the dispatcher selects TEAM mode when TEAMKB_API_URL is
-// set; that the team tool surface is search + capture + transition (the local-only
-// brain_status / brain_audit_verify / brain_govern are NOT exposed); that each tool
+// set; that the team tool surface includes the read-only status probe plus search,
+// capture, and transition (brain_audit_verify / brain_govern remain local-only); that each tool
 // proxies to the brain API with the per-user bearer token and the correct body; and
 // that an admin-gated 403 on transition surfaces a clear member-facing message. Uses
 // a tiny stub API on loopback — no real brain, no native module, no ~/.teamkb.
@@ -10,6 +10,7 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 
 let seenSearchAuth = null;
 let seenSearchBody = null;
+let seenStatusAuth = null;
 let seenCaptureAuth = null;
 let seenCaptureBody = null;
 let seenTransitionBody = null;
@@ -19,6 +20,12 @@ const api = createServer((req, res) => {
   let raw = '';
   req.on('data', (c) => (raw += c));
   req.on('end', () => {
+    if (req.method === 'GET' && req.url === '/api/health') {
+      seenStatusAuth = req.headers['authorization'] ?? null;
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ status: 'healthy', version: 'smoke-1.0.0' }));
+      return;
+    }
     if (req.method === 'POST' && req.url === '/api/search') {
       seenSearchAuth = req.headers['authorization'] ?? null;
       seenSearchBody = raw;
@@ -94,7 +101,14 @@ for (const t of ['brain_govern', 'brain_audit_verify']) {
   if (tools.includes(t)) fail(`team mode unexpectedly exposed local-only tool ${t}`);
 }
 
-// 4. brain_search proxies, returns the cited shape, forwards the bearer + query.
+// 4. brain_status performs the auth-free read-only health probe.
+const status = JSON.parse(text(await client.callTool({ name: 'brain_status', arguments: {} })));
+console.log('STATUS:', JSON.stringify(status, null, 2));
+if (status.mode !== 'team' || status.healthy !== true) fail(`status not healthy team mode: ${JSON.stringify(status)}`);
+if (status.version !== 'smoke-1.0.0') fail(`status version not forwarded: ${status.version}`);
+if (seenStatusAuth !== null) fail('status health probe must not send the bearer token');
+
+// 5. brain_search proxies, returns the cited shape, forwards the bearer + query.
 const out = JSON.parse(text(await client.callTool({ name: 'brain_search', arguments: { query: 'doctrine' } })));
 console.log('SEARCH:', JSON.stringify(out, null, 2));
 if (out.source !== 'brain-api') fail(`expected source=brain-api, got ${out.source}`);
@@ -103,7 +117,7 @@ if (!out.results?.[0]?.citation?.startsWith('qmd://')) fail('missing qmd:// cita
 if (seenSearchAuth !== 'Bearer smoke-token') fail(`search token not forwarded (saw: ${seenSearchAuth})`);
 if (!seenSearchBody?.includes('"query":"doctrine"')) fail('query not forwarded to the API');
 
-// 5. brain_capture POSTs a full candidate to /api/candidates: tenant=intent-solutions, status=inbox, source=mcp, default category, bearer forwarded.
+// 6. brain_capture POSTs a full candidate to /api/candidates: tenant=intent-solutions, status=inbox, source=mcp, default category, bearer forwarded.
 const cap = JSON.parse(
   text(await client.callTool({ name: 'brain_capture', arguments: { title: 'Smoke fact', content: 'A captured proposal from the team smoke.' } })),
 );
@@ -117,7 +131,7 @@ if (capBody.status !== 'inbox') fail(`capture status expected inbox, got ${capBo
 if (capBody.source !== 'mcp') fail(`capture source expected mcp, got ${capBody.source}`);
 if (capBody.category !== 'reference') fail(`capture default category expected reference, got ${capBody.category}`);
 
-// 6. brain_transition is admin-gated: a member token gets a clear 403, nothing applied, and the body carries an Author OBJECT (not a string).
+// 7. brain_transition is admin-gated: a member token gets a clear 403, nothing applied, and the body carries an Author OBJECT (not a string).
 const tr = JSON.parse(
   text(await client.callTool({ name: 'brain_transition', arguments: { memoryId: '00000000-0000-0000-0000-000000000000', to: 'archived', reason: 'smoke retire' } })),
 );
@@ -129,4 +143,4 @@ if (typeof trBody.actor !== 'object' || trBody.actor?.type !== 'human') fail(`tr
 
 await client.close();
 api.close();
-console.log('\n✓ team-mode smoke complete (dispatch → search/capture/transition surface → proxy → bearer + tenant + author-object → admin-gated 403 message)');
+console.log('\n✓ team-mode smoke complete (dispatch → status/search/capture/transition → proxy → bearer + tenant + author-object → admin-gated 403 message)');

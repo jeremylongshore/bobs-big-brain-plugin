@@ -72,11 +72,23 @@ if (plugin) {
   } else {
     fail('plugin.json missing governed-brain stdio MCP');
   }
+  // The MCP entry launches plugin-runtime/bootstrap.cjs, which provisions the
+  // lockfile-pinned native modules on first start and then loads
+  // governed-brain.cjs. A direct governed-brain.cjs entry is also accepted.
   const args = plugin.mcpServers?.['governed-brain']?.args ?? [];
+  const bootstrapLoadsBundle = (() => {
+    try {
+      return readFileSync(join(ROOT, 'plugin-runtime', 'bootstrap.cjs'), 'utf8').includes('governed-brain.cjs');
+    } catch {
+      return false;
+    }
+  })();
   if (args.some((a) => String(a).includes('governed-brain.cjs'))) {
     ok('plugin.json points at governed-brain.cjs');
+  } else if (args.some((a) => String(a).includes('plugin-runtime/bootstrap.cjs')) && bootstrapLoadsBundle) {
+    ok('plugin.json points at bootstrap.cjs, which loads governed-brain.cjs');
   } else {
-    fail('plugin.json MCP args must reference governed-brain.cjs');
+    fail('plugin.json MCP args must reference governed-brain.cjs (directly or via bootstrap.cjs)');
   }
 }
 

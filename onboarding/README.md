@@ -1,31 +1,34 @@
-# Onboarding — Bob's Big Brain (Governed Second Brain)
+# Onboarding — Bob's Big Brain
 
 The brain is a **plugin** inside a **desktop** Claude (Claude Code or Cowork) — never a website.
 
-**Live walkthrough (copy-paste prompts):** https://demos.intentsolutions.io/bbb/
+**Live walkthrough (copy-paste prompts, dual path):** https://demos.intentsolutions.io/bbb/
 
 | Path | Who | Needs | Mode |
 |---|---|---|---|
-| **Team** | Intent Solutions teammates | Tailscale (`@intentsolutions.io`) + personal token + desktop Claude | Remote team brain via `~/.teamkb/team.json` |
-| **Local (public)** | Anyone | Desktop Claude only | In-process personal brain — no Tailscale, no token |
+| **Team** | Intent Solutions teammates | Tailscale (team invite, any login) + personal token from Jeremy + desktop Claude | Remote team brain via `~/.teamkb/team.json` |
+| **Local (public)** | Anyone | Desktop Claude only | In-process personal brain on your machine — no Tailscale, no token |
 
 | Where you run Claude | Works? |
 |---|---|
 | **Claude Code** or **Cowork** | Yes — recommended. Same paste prompts on Mac, Windows, Linux. |
-| **Claude Desktop** | Manual MCP config (see live page). |
+| **Claude Desktop** | Manual MCP config (see live page Advanced). |
 | **claude.ai web / phone** | No. |
 
-There is **no OS-specific installer.** One paste-to-Claude path for everyone.
+Team path only: join Tailscale from the **one-time team invite** before pasting the team prompt. Open
+the invite in a private browser window and sign in with a passkey or your current identity provider;
+your login does not need to end in `@intentsolutions.io`. In the Tailscale app, select the team
+tailnet labeled `intentsolutions.io` (`tail70fc2c`).
 
 ---
 
 ## Team path (invite-only)
 
-1. Tailscale + `@intentsolutions.io`
+1. Tailscale, joined from the team invite and set to the `intentsolutions.io` tailnet
 2. Desktop Claude
-3. **One paste** — install plugin + write `team.json` (token + required `tenantId: intent-solutions`)
-4. Restart → `/brain shipped this week` → `qmd://` citations
-5. Optional: standing order in `~/.claude/CLAUDE.md` / `AGENTS.md`
+3. **One paste** — full install + `team.json` (token + **required** `tenantId: intent-solutions`)
+4. Proof: `/brain shipped this week` → `qmd://` citations
+5. Optional: standing order in `~/.claude/CLAUDE.md` / `AGENTS.md` so Claude searches first
 
 ### Paste to Claude (team)
 
@@ -47,14 +50,16 @@ Install and connect me to Bob's Big Brain (the Intent Solutions team brain). Run
 
 3) Tell me to fully quit and reopen Claude Code or Cowork. After I restart I will run: /brain shipped this week and I should get an answer with qmd:// citations.
 
-Prereqs: Tailscale with @intentsolutions.io, desktop Claude. Do not rewrite the plugin manifest. Public marketplace only.
+Prereqs: Tailscale joined to the intentsolutions.io team tailnet (via the team invite), desktop Claude. Do not rewrite the plugin manifest. Public marketplace only.
 ```
 
-**Health check:** `curl -sS -m 8 http://100.109.119.103:3847/api/health` → `"status":"healthy"`.
+**Health check (optional):** `curl -sS -m 8 http://100.109.119.103:3847/api/health` → `"status":"healthy"`.
 
 ---
 
 ## Local path (public / personal)
+
+No Tailscale. No token. Same plugin, in-process over `~/.teamkb` on your machine.
 
 ### Paste to Claude (local)
 
@@ -78,16 +83,16 @@ Install Bob's Big Brain (Governed Second Brain) for me as a LOCAL personal brain
 Do not rewrite the plugin manifest. Do not invent tokens. Do not connect me to any remote team API.
 ```
 
+Empty brain on first install is **normal**. Capture with `/brain-save`, then search with keywords.
+
 ---
 
-## Commands
+## Day to day
 
-| Command | Role |
-|---|---|
-| **`/brain`** | **Read** — search the brain. Use 1–2 **keywords**, not full sentences. Hits return `qmd://` citations. |
-| **`/brain-save`** | **Write** — capture one fact/decision. Explicit only (never auto). Team: governed shared brain. Local: on your machine. |
+- **`/brain …`** — read (keywords, not full sentences)
+- **`/brain-save …`** — write (team: governed for everyone; local: stays on your machine)
 
-Examples: `/brain shipped this week` · `/brain backup` · `/brain-save we use SOPS + age for secrets`
+Installing the plugin **connects** the brain. A short standing order in `~/.claude/CLAUDE.md` / `AGENTS.md` / `~/.grok/AGENTS.md` is what makes Claude **look there first** without being asked. Copy-paste blocks for both team and local standing orders are on the live page (Step 5 / Step 4).
 
 ---
 
@@ -97,7 +102,7 @@ Examples: `/brain shipped this week` · `/brain backup` · `/brain-save we use S
 real environment variable  →  ~/.teamkb/team.json  →  (absent → local mode)
 ```
 
-`team.json` (team only, mode `600`):
+`team.json` shape (team only, mode `600`):
 
 ```json
 {
@@ -107,14 +112,25 @@ real environment variable  →  ~/.teamkb/team.json  →  (absent → local mode
 }
 ```
 
-**Fail-closed:** broken `team.json` refuses to start — no silent fall back to local.
+**Fail-closed:** present-but-broken `team.json` refuses to start — it does not silently fall back to local.
+
+---
+
+## Troubleshooting (paste to Claude)
+
+Team and local diagnostic prompts live on the live page under **Troubleshooting**. Real team-mode causes we have already hit:
+
+- **Rotated token** → ask Jeremy for reissue
+- **Missing `tenantId`** → empty search results with a “valid” token
+- **Off Tailscale** → API unreachable
+- **Full-sentence queries** → 0 hits; use keywords
 
 ---
 
 ## Admin notes (Jeremy)
 
-- Public marketplace: `jeremylongshore/bobs-big-brain-plugin` — no org membership / `gh` login
-- Hand teammates: **token + page link**
-- Token only in `team.json` mode `600`
-- Live page: `~/demos/bbb/index.html` → https://demos.intentsolutions.io/bbb/
-- Automated tests: `pnpm test:plugin` · `pnpm test:plugin:live` · see `tests/TESTING.md` + `onboarding/DOGFOOD.md`
+- Public marketplace: `jeremylongshore/bobs-big-brain-plugin` → no org membership / `gh` login required
+- Hand teammates: **token + page link** (or the team paste block). Prefer token not embedded in scripts
+- Token only in `team.json` mode `600` — never `~/.claude.json` / shell history / chat if avoidable
+- Live page source: `~/demos/bbb/index.html` → https://demos.intentsolutions.io/bbb/
+- Legacy macOS `.command` kept in-tree; page no longer leads with OS installers
