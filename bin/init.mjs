@@ -90,11 +90,12 @@ async function confirm(question) {
 
 async function preflight(folder, args, fileCount) {
   log('');
-  log(C.bold('  Bob's Big Brain — pre-flight'));
+  log(C.bold("  Bob's Big Brain — pre-flight"));
   log('  ' + C.dim('─'.repeat(58)));
   log(`  Mode        ${args.indexOnly ? C.green('index-only (no LLM egress)') : C.yellow('full compile (egresses to Anthropic)')}`);
   log(`  Source      ${folder}  ${C.dim(`(${fileCount} text file${fileCount === 1 ? '' : 's'})`)}`);
   log(`  Brain       ${args.base}  ${C.dim(`(tenant: ${args.tenant})`)}`);
+  log(`  qmd index   ${qmdIndexPath(args)}  ${C.dim('(derived, tenant-scoped)')}`);
   log('');
   log('  This will:');
   log(`    • ${C.bold('read')} every text file (.md/.txt/.mdx) under the source folder`);
@@ -165,6 +166,10 @@ function checkQmd() {
     log(C.yellow('    will return nothing until you install qmd 2.x and re-run. See https://github.com/tobi/qmd'));
     return false;
   }
+}
+
+function qmdIndexPath(args) {
+  return join(args.base, 'qmd-index', args.tenant);
 }
 
 async function buildBrain(folder, files, args) {
@@ -294,6 +299,7 @@ function registerMcp(args) {
 function printNextSteps(args, qmdOk, registered) {
   log('');
   log('  ' + C.green('✓ Brain built.') + ` ${C.dim(args.base)}`);
+  log('  ' + C.dim(`qmd index: ${qmdIndexPath(args)}`));
   log('  ' + C.dim('─'.repeat(58)));
   if (registered) {
     log('  ' + C.green(`✓ MCP server 'governed-brain' registered with Claude Code`) + C.dim(` (scope: ${args.scope})`));

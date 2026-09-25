@@ -41857,6 +41857,9 @@ var init_dist6 = __esm({
 });
 
 // src/config.ts
+function resolveQmdIndexPath(basePath, tenantId) {
+  return (0, import_node_path16.join)(basePath, "qmd-index", tenantId);
+}
 function resolveConfig() {
   const tenantId = (process.env["TEAMKB_TENANT_ID"] ?? "local").trim() || "local";
   const basePath = getTeamKbBasePath();
@@ -41867,7 +41870,8 @@ function resolveConfig() {
     spoolPath: (0, import_node_path16.join)(basePath, "spool"),
     dbPath: (0, import_node_path16.join)(basePath, "teamkb.db"),
     feedbackPath: (0, import_node_path16.join)(basePath, "feedback"),
-    exportDir: envExport && envExport.length > 0 ? envExport : (0, import_node_path16.join)(basePath, "kb-export")
+    exportDir: envExport && envExport.length > 0 ? envExport : (0, import_node_path16.join)(basePath, "kb-export"),
+    qmdIndexPath: resolveQmdIndexPath(basePath, tenantId)
   };
 }
 var import_node_path16;
@@ -44192,6 +44196,15 @@ __export(local_server_exports, {
 function jsonResult2(obj) {
   return { content: [{ type: "text", text: JSON.stringify(obj, null, 2) }] };
 }
+function localConfigReceipt() {
+  return {
+    mode: "local",
+    tenantId: config.tenantId,
+    basePath: config.basePath,
+    exportDir: config.exportDir,
+    qmdIndexPath: config.qmdIndexPath
+  };
+}
 function isMissingNativeDep(e) {
   const msg = e instanceof Error ? e.message : String(e);
   return /better[_-]sqlite3|MODULE_NOT_FOUND|Cannot find module|did not self-register|NODE_MODULE_VERSION|invalid ELF/i.test(
@@ -44249,7 +44262,7 @@ async function startLocalServer() {
   process.on("SIGTERM", () => void shutdown("SIGTERM"));
   await server2.connect(transport);
   process.stderr.write(
-    `[governed-brain:local] started \u2014 tenant=${config.tenantId} base=${config.basePath} (local, in-process, no network)
+    `[governed-brain:local] started \u2014 tenant=${config.tenantId} base=${config.basePath} qmd=${config.qmdIndexPath} (local, in-process, no network)
 `
   );
 }
@@ -44358,14 +44371,15 @@ var init_local_server = __esm({
     );
     server2.tool(
       "brain_status",
-      "Report the health of your governed brain \u2014 counts of memories by lifecycle state and category. Read-only.",
+      "Report the health and local storage routing of your governed brain \u2014 counts by lifecycle/category plus tenant and qmd paths. Read-only.",
       async () => {
         let db;
         try {
           db = createDatabase({ path: config.dbPath, readonly: true });
         } catch (e) {
-          if (isMissingNativeDep(e)) return jsonResult2({ total: 0, note: NATIVE_DEP_HINT });
+          if (isMissingNativeDep(e)) return jsonResult2({ ...localConfigReceipt(), total: 0, note: NATIVE_DEP_HINT });
           return jsonResult2({
+            ...localConfigReceipt(),
             total: 0,
             byLifecycle: {},
             byCategory: {},
@@ -44375,6 +44389,7 @@ var init_local_server = __esm({
         try {
           const repo = new MemoryRepository(db);
           return jsonResult2({
+            ...localConfigReceipt(),
             total: repo.count(),
             byLifecycle: repo.countByLifecycle(),
             byCategory: repo.countByCategory()
