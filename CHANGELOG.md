@@ -10,6 +10,26 @@ installable Claude Code + Cowork plugin (a local stdio MCP server); the engines 
 
 ### Changed
 
+- **Onboarding is one universal path.** `onboarding/README.md` (and the live page at
+  `demos.intentsolutions.io/bbb/`) lead with a single paste-to-Claude prompt for Mac *and* Windows —
+  install from the public marketplace + write `~/.teamkb/team.json` with required `tenantId`. No
+  OS-specific installer is required; the macOS `.command` is demoted to a legacy footnote.
+
+### Fixed
+
+- **Native dependency descriptions now match the v1.2.0 runtime.** Current install guidance names
+  all three external native packages (`better-sqlite3`, `fs-ext`, and `sqlite-vec`); the plugin
+  manifest, marketplace metadata, and bootstrap guidance now match that count. Historical release
+  notes remain unchanged. (#61)
+
+### Changed
+
+- Hardened the public `brain` (1.2.1) and `brain-save` (1.0.1) skills for skills.sh. Both now carry
+  explicit model/effort metadata and runtime-contract references. `brain-save` now branches correctly
+  between local governance and team proposals, reports mode-specific status and audit availability,
+  documents team authentication and durable outbox semantics, and derives lifecycle UUIDs from cited
+  memory filenames.
+
 - **Engine repos renamed (2026-07-19).** The sibling engines moved to their public product names:
   `jeremylongshore/qmd-team-intent-kb` → `jeremylongshore/bobs-big-brain-registrar` (govern) and
   `jeremylongshore/intentional-cognition-os` → `jeremylongshore/bobs-big-brain-compiler` (compile).
@@ -156,9 +176,9 @@ installable Claude Code + Cowork plugin (a local stdio MCP server); the engines 
   - **team** (`TEAMKB_API_URL` set): a remote proxy to your team's single governed brain over the
     tailnet, with a per-user token. Exposes the unified `brain_search` (read); capture/govern stay
     governed server-side.
-  This absorbs the former standalone `intent-brain` plugin as this plugin's team mode — one plugin,
-  one tool surface (`brain_*`), the same `/brain` and `/brain-save` skills in both modes. Only your
-  data + `TEAMKB_API_URL` + token are private; the plugin code is public.
+    This absorbs the former standalone `intent-brain` plugin as this plugin's team mode — one plugin,
+    one tool surface (`brain_*`), the same `/brain` and `/brain-save` skills in both modes. Only your
+    data + `TEAMKB_API_URL` + token are private; the plugin code is public.
 - `src/index.ts` mode dispatcher; `src/remote-server.ts` (the tailnet proxy, moved in from
   `qmd-team-intent-kb` and renamed `teamkb_search` → `brain_search`); `smoke-team.mjs` (a stub-API
   team-mode smoke proving dispatch → proxy → `qmd://` citation → bearer forwarding).

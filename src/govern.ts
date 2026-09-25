@@ -13,7 +13,7 @@ import {
   AuditRepository,
   ExportStateRepository,
 } from '@qmd-team-intent-kb/store';
-import { QmdAdapter } from '@qmd-team-intent-kb/qmd-adapter';
+import { getDefaultDenseConfig, QmdAdapter } from '@qmd-team-intent-kb/qmd-adapter';
 import type { BrainConfig } from './config.js';
 import { seedDefaultPolicy } from './seed-policy.js';
 import { anchorChainHead } from './anchor.js';
@@ -147,7 +147,15 @@ async function runGovernLocked(config: BrainConfig): Promise<GovernSummary> {
     let indexUpdated = false;
     let indexError: string | undefined;
     try {
-      const adapter = new QmdAdapter({ tenantId: config.tenantId, exportDir: config.exportDir });
+      const adapter = new QmdAdapter({
+        tenantId: config.tenantId,
+        exportDir: config.exportDir,
+        // Dense arm ON by default via the registrar's shared production seam
+        // (#328); TEAMKB_DENSE_ENABLED=false is the emergency kill switch. This
+        // site was the vps.1 drift class — the plugin bypasses the API, so
+        // wiring the API alone would leave local mode lexical-only.
+        dense: getDefaultDenseConfig(),
+      });
       const ensure = await adapter.ensureCollections();
       if (!ensure.ok) throw new Error(ensure.error.message);
       const upd = await adapter.update();

@@ -22,9 +22,9 @@ jobs:
     name: Full-chain smoke (zero egress)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 20
 
@@ -52,6 +52,11 @@ jobs:
 
       - name: Smoke — capture -> govern -> audit-verify -> search
         run: node smoke/smoke.mjs
+
+      # Public-flip contribution surface: synthetic fixtures must remain
+      # runnable against the committed bundle and must not need a real brain.
+      - name: Smoke — synthetic golden-set contribution surface
+        run: node scripts/run-golden-set.mjs
 
       # B1 (auto-govern the remote brain_capture inbox): seed remote-shape
       # candidates directly in the throwaway `candidates` table, then drive the

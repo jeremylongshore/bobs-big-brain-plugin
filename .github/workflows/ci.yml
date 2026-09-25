@@ -28,9 +28,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 20
 
@@ -46,6 +46,12 @@ jobs:
 
       - name: Install (no frozen lockfile — package.json was just trimmed)
         run: npm install --no-audit --no-fund
+
+      # audit-harness v1.4 pins package.json itself. Restore the reviewed file
+      # after the CI-only dependency trim so verification compares canonical
+      # repository bytes instead of the runner's temporary install manifest.
+      - name: Restore the canonical package manifest
+        run: git checkout -- package.json
 
       - name: Lint (eslint)
         run: npm run lint
@@ -80,21 +86,21 @@ jobs:
     timeout-minutes: 12
     steps:
       - name: Checkout the plugin
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           path: bobs-big-brain-plugin
       - name: Checkout the sibling store (public)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: jeremylongshore/bobs-big-brain-registrar
           path: bobs-big-brain-registrar
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           # Pin explicitly — both repos live in subdirs, so there is no root
           # package.json for action-setup to read packageManager from. Match the
           # sibling INTKB's pinned pnpm so its --frozen-lockfile install resolves.
           version: 9.15.4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 20
       - name: Build the sibling store (tsc -b → the dist the plugin's link dep resolves to)
