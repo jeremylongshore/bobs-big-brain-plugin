@@ -36643,7 +36643,7 @@ var init_enums = __esm({
 });
 
 // ../bobs-big-brain-registrar/packages/schema/dist/common.js
-var import_zod4, Uuid, Sha256Hash, IsoDatetime, NonEmptyString, SemVer, Tag, Author, TenantId, ContentMetadata;
+var import_zod4, Uuid, Sha256Hash, IsoDatetime, NonEmptyString, SemVer, Tag, SubjectKey, Author, TenantId, ContentMetadata;
 var init_common = __esm({
   "../bobs-big-brain-registrar/packages/schema/dist/common.js"() {
     "use strict";
@@ -36655,6 +36655,7 @@ var init_common = __esm({
     NonEmptyString = import_zod4.z.string().trim().min(1);
     SemVer = import_zod4.z.string().regex(/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/, "Must be a valid semver string");
     Tag = import_zod4.z.string().regex(/^[a-z0-9][a-z0-9-]*$/, "Must be a lowercase tag");
+    SubjectKey = import_zod4.z.string().max(96).regex(/^[a-z0-9][a-z0-9-]*(\.[a-z0-9][a-z0-9-]*)*$/, 'Must be a lowercase dot/hyphen slug (e.g. "hosting.gcp")');
     Author = import_zod4.z.object({
       type: AuthorType,
       id: NonEmptyString,
@@ -36671,6 +36672,13 @@ var init_common = __esm({
       confidence: Confidence.optional(),
       sensitivity: Sensitivity.optional(),
       tags: import_zod4.z.array(Tag).default([]),
+      /**
+       * Explicit subject keys this memory is about (see {@link SubjectKey}).
+       * Optional: absent on every legacy record, which then falls back to the
+       * same-category title-similarity near-duplicate path. Bounded so a candidate
+       * cannot declare an unbounded fan-out of subjects.
+       */
+      subjects: import_zod4.z.array(SubjectKey).max(8).optional(),
       /**
        * The role of the token that proposed this candidate, stamped server-side at
        * intake (R8, bead compile-then-govern-jfv.6.7). Never client-supplied — the
@@ -38493,6 +38501,16 @@ var init_audit_chain = __esm({
 });
 
 // ../bobs-big-brain-registrar/packages/store/dist/repositories/audit-repository.js
+function rowToChainPosition(row) {
+  return {
+    entryHash: row.entry_hash,
+    sequence: row.seq,
+    // NULL predates the version column and therefore means v1. Preserve any
+    // future explicit value so this public pointer surface never launders an
+    // unknown version into a known one.
+    hashVersion: row.hash_version ?? 1
+  };
+}
 function rowToEvent(row) {
   const flatResult = AuditRowSchema.safeParse(row);
   if (!flatResult.success) {
@@ -38559,6 +38577,8 @@ var init_audit_repository = __esm({
       stmtFindInRange;
       stmtCountByTenantAndAction;
       stmtLastHash;
+      stmtFindChainTip;
+      stmtFindChainPosition;
       stmtFindAllChronological;
       /** Atomic (BEGIN IMMEDIATE) prev-read + INSERT — see the constructor. */
       appendTxn;
@@ -38577,6 +38597,17 @@ var init_audit_repository = __esm({
       SELECT entry_hash FROM audit_events
       WHERE entry_hash IS NOT NULL
       ORDER BY seq DESC
+      LIMIT 1
+    `);
+        this.stmtFindChainTip = db.prepare(`
+      SELECT entry_hash, seq, hash_version FROM audit_events
+      WHERE entry_hash IS NOT NULL
+      ORDER BY seq DESC
+      LIMIT 1
+    `);
+        this.stmtFindChainPosition = db.prepare(`
+      SELECT entry_hash, seq, hash_version FROM audit_events
+      WHERE entry_hash = ?
       LIMIT 1
     `);
         this.stmtFindAllChronological = db.prepare(`
@@ -38665,6 +38696,16 @@ var init_audit_repository = __esm({
        */
       findAllChronological() {
         return this.stmtFindAllChronological.all();
+      }
+      /** Return the current global governance-receipt chain tip, or null for an empty chain. */
+      findChainTip() {
+        const row = this.stmtFindChainTip.get();
+        return row === void 0 ? null : rowToChainPosition(row);
+      }
+      /** Resolve a previously observed receipt hash to its stable chain position. */
+      findChainPosition(entryHash) {
+        const row = this.stmtFindChainPosition.get(entryHash);
+        return row === void 0 ? null : rowToChainPosition(row);
       }
       /**
        * Return all events associated with the given memory, in chronological order.
@@ -41722,6 +41763,33 @@ var init_spool_writer = __esm({
 });
 
 // ../bobs-big-brain-registrar/packages/claude-runtime/dist/spool/spool-reader.js
+function parseBatchReceipt(value) {
+  if (value === null || typeof value !== "object")
+    return null;
+  const r = value;
+  const batchId = r["batchId"];
+  const tenantId = r["tenantId"];
+  const scope = r["scope"];
+  const source = r["source"];
+  const trustLevel = r["trustLevel"];
+  const candidateCount = r["candidateCount"];
+  const maxCandidates = r["maxCandidates"];
+  const scopes = /* @__PURE__ */ new Set(["wiki", "outputs", "all"]);
+  const sources = /* @__PURE__ */ new Set(["import", "bulk_import"]);
+  const trustLevels = /* @__PURE__ */ new Set(["high", "medium", "low", "untrusted"]);
+  if (typeof batchId !== "string" || batchId.length < 1 || batchId.length > 128 || typeof tenantId !== "string" || tenantId.length < 1 || !scopes.has(String(scope)) || !sources.has(String(source)) || !trustLevels.has(String(trustLevel)) || typeof candidateCount !== "number" || !Number.isSafeInteger(candidateCount) || candidateCount < 0 || typeof maxCandidates !== "number" || !Number.isSafeInteger(maxCandidates) || maxCandidates < 1) {
+    return null;
+  }
+  return {
+    batchId,
+    tenantId,
+    scope,
+    source,
+    trustLevel,
+    candidateCount,
+    maxCandidates
+  };
+}
 async function verifySpoolManifest(spoolFilePath) {
   const manifestPath2 = `${spoolFilePath}.manifest.json`;
   let manifestRaw;
@@ -41740,22 +41808,40 @@ async function verifySpoolManifest(spoolFilePath) {
       };
     }
     expected = manifest.spoolFileSha256;
+    const candidateIds = Array.isArray(manifest.candidateIds) ? manifest.candidateIds.filter((id) => typeof id === "string") : void 0;
+    let batchReceipt;
+    if (manifest.batchReceipt !== void 0) {
+      const parsedReceipt = parseBatchReceipt(manifest.batchReceipt);
+      if (parsedReceipt === null) {
+        return {
+          ok: false,
+          error: `Manifest ${manifestPath2} contains an invalid batchReceipt`
+        };
+      }
+      batchReceipt = parsedReceipt;
+    }
+    const metadata = { candidateIds, batchReceipt };
+    let content;
+    try {
+      content = await (0, import_promises3.readFile)(spoolFilePath, "utf8");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      return { ok: false, error: `Failed to read spool file for verification: ${msg}` };
+    }
+    const actual = (0, import_node_crypto8.createHash)("sha256").update(content, "utf8").digest("hex");
+    return {
+      ok: true,
+      value: {
+        ...metadata,
+        status: actual === expected ? "verified" : "tampered",
+        expected,
+        actual
+      }
+    };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return { ok: false, error: `Manifest ${manifestPath2} is not valid JSON: ${msg}` };
   }
-  let content;
-  try {
-    content = await (0, import_promises3.readFile)(spoolFilePath, "utf8");
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    return { ok: false, error: `Failed to read spool file for verification: ${msg}` };
-  }
-  const actual = (0, import_node_crypto8.createHash)("sha256").update(content, "utf8").digest("hex");
-  return {
-    ok: true,
-    value: { status: actual === expected ? "verified" : "tampered", expected, actual }
-  };
 }
 async function readSpoolFile(filepath) {
   try {
@@ -42440,20 +42526,61 @@ var init_pipeline2 = __esm({
 });
 
 // ../bobs-big-brain-registrar/packages/policy-engine/dist/supersession/supersession-detector.js
-function detectSupersession(candidate, memorySource, threshold = DEFAULT_SUPERSESSION_THRESHOLD) {
-  const existingMemories = memorySource.findByTenantAndLifecycle(candidate.tenantId, "active").filter((m) => m.category === candidate.category);
-  let bestMatch = null;
-  for (const memory of existingMemories) {
-    const similarity = computeTitleSimilarity(candidate.title, memory.title);
-    if (similarity >= threshold && (bestMatch === null || similarity > bestMatch.similarity)) {
-      bestMatch = {
+function planSupersession(candidate, memorySource, options = {}) {
+  const threshold = options.threshold ?? DEFAULT_SUPERSESSION_THRESHOLD;
+  const cap = options.maxSupersedes ?? DEFAULT_MAX_SUPERSEDES_PER_PROMOTION;
+  const active = memorySource.findByTenantAndLifecycle(candidate.tenantId, "active");
+  const candidateSubjects = new Set(candidate.metadata.subjects ?? []);
+  if (candidateSubjects.size > 0) {
+    const authoritative = AUTHORITATIVE_CATEGORIES.has(candidate.category);
+    const matches = [];
+    for (const memory of active) {
+      const shared = (memory.metadata?.subjects ?? []).filter((s) => candidateSubjects.has(s)).sort()[0];
+      if (shared === void 0)
+        continue;
+      if (!authoritative && memory.category !== candidate.category)
+        continue;
+      if (memory.promotedAt !== void 0 && memory.promotedAt > candidate.capturedAt)
+        continue;
+      matches.push({
         supersededMemoryId: memory.id,
         supersededTitle: memory.title,
-        similarity
+        similarity: 1,
+        basis: "subject",
+        subject: shared
+      });
+    }
+    if (matches.length > cap) {
+      return {
+        matches: [],
+        blocked: {
+          reason: "cap_exceeded",
+          wouldSupersede: matches.length,
+          cap,
+          subjects: [...candidateSubjects].sort()
+        }
+      };
+    }
+    if (matches.length > 0) {
+      matches.sort((a, b) => a.supersededMemoryId.localeCompare(b.supersededMemoryId));
+      return { matches };
+    }
+  }
+  let best = null;
+  for (const memory of active) {
+    if (memory.category !== candidate.category)
+      continue;
+    const similarity = computeTitleSimilarity(candidate.title, memory.title);
+    if (similarity >= threshold && (best === null || similarity > best.similarity)) {
+      best = {
+        supersededMemoryId: memory.id,
+        supersededTitle: memory.title,
+        similarity,
+        basis: "title"
       };
     }
   }
-  return bestMatch;
+  return { matches: best === null ? [] : [best] };
 }
 function computeTitleSimilarity(a, b) {
   const tokensA = new Set(tokenize(a));
@@ -42473,11 +42600,17 @@ function computeTitleSimilarity(a, b) {
 function tokenize(text) {
   return text.toLowerCase().split(/\s+/).filter((t) => t.length > 0);
 }
-var DEFAULT_SUPERSESSION_THRESHOLD;
+var DEFAULT_SUPERSESSION_THRESHOLD, AUTHORITATIVE_CATEGORIES, DEFAULT_MAX_SUPERSEDES_PER_PROMOTION;
 var init_supersession_detector = __esm({
   "../bobs-big-brain-registrar/packages/policy-engine/dist/supersession/supersession-detector.js"() {
     "use strict";
     DEFAULT_SUPERSESSION_THRESHOLD = 0.6;
+    AUTHORITATIVE_CATEGORIES = /* @__PURE__ */ new Set([
+      "decision",
+      "architecture",
+      "convention"
+    ]);
+    DEFAULT_MAX_SUPERSEDES_PER_PROMOTION = 25;
   }
 });
 
@@ -42591,6 +42724,15 @@ var init_wikilink_parser = __esm({
 // ../bobs-big-brain-registrar/apps/curator/dist/promotion/promoter.js
 function promote(input, memoryRepo, auditRepo, dryRun = false, linksRepo, evalCallback, now = (/* @__PURE__ */ new Date()).toISOString()) {
   const memoryId = deriveMemoryId(input.candidate.id, input.contentHash);
+  const supersessions = [];
+  for (const m of [
+    ...input.supersession !== void 0 ? [input.supersession] : [],
+    ...input.supersessions ?? []
+  ]) {
+    if (!supersessions.some((x) => x.supersededMemoryId === m.supersededMemoryId)) {
+      supersessions.push(m);
+    }
+  }
   const policyEvaluations = input.pipelineResult.evaluations.map((ev, index) => ({
     policyId: derivePolicyEvaluationId(memoryId, ev.ruleId, String(index)),
     ruleId: ev.ruleId,
@@ -42621,15 +42763,15 @@ function promote(input, memoryRepo, auditRepo, dryRun = false, linksRepo, evalCa
   });
   if (!dryRun) {
     memoryRepo.connection.transaction(() => {
-      if (input.supersession !== void 0) {
-        const oldMemory = memoryRepo.findById(input.supersession.supersededMemoryId);
+      for (const sup of supersessions) {
+        const oldMemory = memoryRepo.findById(sup.supersededMemoryId);
         if (oldMemory !== null) {
           const updatedOld = CuratedMemory.parse({
             ...oldMemory,
             lifecycle: "superseded",
             supersession: {
               supersededBy: memoryId,
-              reason: `Title similarity: ${input.supersession.similarity.toFixed(2)}`,
+              reason: sup.basis === "subject" ? `Subject match: ${sup.subject ?? "unknown"}` : `Title similarity: ${sup.similarity.toFixed(2)}`,
               linkedAt: now
             },
             updatedAt: now
@@ -42641,31 +42783,36 @@ function promote(input, memoryRepo, auditRepo, dryRun = false, linksRepo, evalCa
           // the 'superseded' action + the superseding memory id as discriminator,
           // so two clones supersede-by-the-same-memory mint the same audit id and
           // hence the same v2 entry_hash at the same chain position.
-          id: deriveAuditEventId(input.supersession.supersededMemoryId, "superseded", memoryId),
+          id: deriveAuditEventId(sup.supersededMemoryId, "superseded", memoryId),
           action: "superseded",
-          memoryId: input.supersession.supersededMemoryId,
+          memoryId: sup.supersededMemoryId,
           tenantId: input.candidate.tenantId,
           actor: { type: "system", id: "curator" },
           reason: `Superseded by ${memoryId}`,
           details: {
             newMemoryId: memoryId,
-            similarity: input.supersession.similarity
+            similarity: sup.similarity,
+            // Legacy title matches keep their exact pre-existing receipt
+            // shape; only subject matches add the basis + subject key.
+            ...sup.basis === "subject" ? { basis: sup.basis, subject: sup.subject ?? "unknown" } : {}
           },
           timestamp: now
         }));
       }
       memoryRepo.insert(memory);
-      if (input.supersession !== void 0 && linksRepo) {
+      for (const sup of supersessions) {
+        if (linksRepo === void 0)
+          break;
         linksRepo.insert({
           // Content-derived (bead 8da.5): a graph edge's identity is its
           // (source, target, type) triple, stable across clones for the same
           // logical promotion. Not part of the audit chain, but kept deterministic
           // so the whole promotion is byte-reproducible across clones.
-          id: deriveLinkId(memoryId, input.supersession.supersededMemoryId, "supersedes"),
+          id: deriveLinkId(memoryId, sup.supersededMemoryId, "supersedes"),
           sourceMemoryId: memoryId,
-          targetMemoryId: input.supersession.supersededMemoryId,
+          targetMemoryId: sup.supersededMemoryId,
           linkType: "supersedes",
-          weight: input.supersession.similarity,
+          weight: sup.similarity,
           createdBy: "curator",
           source: "curator",
           importBatchId: null,
@@ -43082,7 +43229,7 @@ var init_import_exclusion_gate = __esm({
 });
 
 // ../bobs-big-brain-registrar/apps/curator/dist/curator.js
-var Curator;
+var DEFAULT_MAX_SUPERSEDES_PER_RUN, Curator;
 var init_curator = __esm({
   "../bobs-big-brain-registrar/apps/curator/dist/curator.js"() {
     "use strict";
@@ -43094,6 +43241,7 @@ var init_curator = __esm({
     init_rejector();
     init_origin_gate();
     init_import_exclusion_gate();
+    DEFAULT_MAX_SUPERSEDES_PER_RUN = 200;
     Curator = class {
       deps;
       config;
@@ -43103,6 +43251,8 @@ var init_curator = __esm({
        * digestion batch must not emit 17k identical warnings.
        */
       warnedDormantPolicies = /* @__PURE__ */ new Set();
+      /** Subject-key retirements applied so far by this instance (the per-run budget meter). */
+      subjectSupersessionsApplied = 0;
       constructor(deps, config2) {
         this.deps = deps;
         this.config = config2;
@@ -43240,20 +43390,54 @@ var init_curator = __esm({
         };
       }
       promoteCandidate(candidate, contentHash, pipelineResult) {
-        const supersession = detectSupersession(candidate, this.deps.memoryRepo, this.config.supersessionThreshold ?? DEFAULT_SUPERSESSION_THRESHOLD);
+        const plan = planSupersession(candidate, this.deps.memoryRepo, {
+          threshold: this.config.supersessionThreshold ?? DEFAULT_SUPERSESSION_THRESHOLD,
+          maxSupersedes: this.config.maxSupersedesPerPromotion ?? DEFAULT_MAX_SUPERSEDES_PER_PROMOTION
+        });
+        let toApply = plan.matches;
+        let report;
+        const subjectCount = toApply.filter((m) => m.basis === "subject").length;
+        const runBudget = this.config.maxSupersedesPerRun ?? DEFAULT_MAX_SUPERSEDES_PER_RUN;
+        if (plan.blocked !== void 0) {
+          report = {
+            status: "blocked",
+            wouldSupersede: [],
+            blockedReason: `subject match exceeds per-promotion cap (${plan.blocked.cap})`,
+            blockedCount: plan.blocked.wouldSupersede
+          };
+          toApply = [];
+        } else if (this.config.supersessionMode === "report") {
+          if (toApply.length > 0) {
+            report = { status: "report", wouldSupersede: toApply };
+          }
+          toApply = [];
+        } else if (subjectCount > 0 && this.subjectSupersessionsApplied + subjectCount > runBudget) {
+          report = {
+            status: "blocked",
+            wouldSupersede: [],
+            blockedReason: `per-run subject-supersession budget exhausted (${runBudget})`,
+            blockedCount: subjectCount
+          };
+          toApply = [];
+        }
         const memory = promote({
           candidate,
           contentHash,
           pipelineResult,
-          supersession: supersession ?? void 0
+          supersessions: toApply
         }, this.deps.memoryRepo, this.deps.auditRepo, this.config.dryRun, this.deps.linksRepo);
+        if (this.config.dryRun !== true) {
+          this.subjectSupersessionsApplied += toApply.filter((m) => m.basis === "subject").length;
+        }
         return {
           candidateId: candidate.id,
           outcome: "promoted",
           memoryId: memory.id,
-          supersedes: supersession?.supersededMemoryId,
+          supersedes: toApply[0]?.supersededMemoryId,
+          ...toApply.length > 0 ? { supersededIds: toApply.map((m) => m.supersededMemoryId) } : {},
+          ...report !== void 0 ? { supersessionReport: report } : {},
           pipelineResult,
-          reason: supersession !== null ? `Promoted (supersedes ${supersession.supersededMemoryId})` : "Promoted"
+          reason: toApply.length > 0 ? `Promoted (supersedes ${toApply.map((m) => m.supersededMemoryId).join(", ")})` : report?.status === "blocked" ? `Promoted (supersession blocked: ${report.blockedReason})` : "Promoted"
         };
       }
     };
@@ -43261,6 +43445,45 @@ var init_curator = __esm({
 });
 
 // ../bobs-big-brain-registrar/apps/curator/dist/intake/spool-intake.js
+function requiresBatchReceipt(candidates, broadLimit = DEFAULT_BROAD_IMPORT_CANDIDATE_LIMIT, manifest) {
+  return manifest?.batchReceipt !== void 0 || candidates.some((candidate) => candidate.source === "bulk_import") || candidates.length > broadLimit;
+}
+function validateBatchReceipt(receipt, manifest, candidates) {
+  if (receipt === void 0)
+    return "missing batchReceipt in the spool manifest";
+  if (manifest?.status !== "verified") {
+    return "batchReceipt requires a manifest whose spool-file hash verifies";
+  }
+  if (receipt.candidateCount !== candidates.length) {
+    return `batchReceipt candidateCount=${receipt.candidateCount} does not match parsed candidate count=${candidates.length}`;
+  }
+  if (receipt.candidateCount > receipt.maxCandidates) {
+    return `batchReceipt candidateCount=${receipt.candidateCount} exceeds maxCandidates=${receipt.maxCandidates}`;
+  }
+  const candidateIds = manifest.candidateIds;
+  if (candidateIds === void 0 || candidateIds.length !== candidates.length) {
+    return "batchReceipt requires manifest candidateIds for every parsed candidate";
+  }
+  const expectedIds = new Set(candidateIds);
+  if (expectedIds.size !== candidates.length || candidates.some((c) => !expectedIds.has(c.id))) {
+    return "manifest candidateIds do not match the parsed candidate IDs";
+  }
+  for (const candidate of candidates) {
+    if (candidate.tenantId !== receipt.tenantId) {
+      return `candidate ${candidate.id} tenantId does not match batchReceipt tenantId`;
+    }
+    if (candidate.source !== receipt.source) {
+      return `candidate ${candidate.id} source does not match batchReceipt source`;
+    }
+    if (candidate.trustLevel !== receipt.trustLevel) {
+      return `candidate ${candidate.id} trustLevel does not match batchReceipt trustLevel`;
+    }
+  }
+  if (receipt.source === "bulk_import" && receipt.trustLevel !== "low" && receipt.trustLevel !== "untrusted") {
+    return "bulk_import batchReceipt must use trustLevel 'low' or 'untrusted'";
+  }
+  return null;
+}
 async function ingestFromSpool(candidateRepo, spoolDir, opts) {
   const detailed = await ingestFromSpoolDetailed(candidateRepo, spoolDir, opts);
   if (!detailed.ok)
@@ -43275,11 +43498,17 @@ async function ingestFromSpoolDetailed(candidateRepo, spoolDir, opts) {
   const ingested = [];
   const tampered = [];
   const rejected2 = [];
+  const admissionRejected = [];
+  const importBatchRepo = opts?.importBatchRepo;
   for (const filepath of filesResult.value) {
+    let manifest;
     if (verifyManifest) {
       const verify = await verifySpoolManifest(filepath);
-      if (!verify.ok)
+      if (!verify.ok) {
+        admissionRejected.push({ spoolFile: filepath, reason: verify.error });
         continue;
+      }
+      manifest = verify.value;
       if (verify.value.status === "tampered") {
         const quarantinedTo = await quarantineTamperedFile(filepath, spoolDir, opts?.quarantineDir, verify.value.expected, verify.value.actual);
         tampered.push({
@@ -43294,27 +43523,108 @@ async function ingestFromSpoolDetailed(candidateRepo, spoolDir, opts) {
     const readResult = await readSpoolFile(filepath);
     if (!readResult.ok)
       continue;
-    for (const candidate of readResult.value) {
-      const existing = candidateRepo.findById(candidate.id);
-      if (existing !== null)
+    const candidates = readResult.value;
+    if (requiresBatchReceipt(candidates, DEFAULT_BROAD_IMPORT_CANDIDATE_LIMIT, manifest)) {
+      if (manifest === void 0) {
+        const verify = await verifySpoolManifest(filepath);
+        if (!verify.ok) {
+          admissionRejected.push({ spoolFile: filepath, reason: verify.error });
+          continue;
+        }
+        manifest = verify.value;
+      }
+      const receiptError = validateBatchReceipt(manifest.batchReceipt, manifest, candidates);
+      if (receiptError !== null) {
+        admissionRejected.push({
+          spoolFile: filepath,
+          reason: receiptError,
+          batchId: manifest.batchReceipt?.batchId
+        });
         continue;
+      }
+      if (importBatchRepo === void 0) {
+        admissionRejected.push({
+          spoolFile: filepath,
+          reason: "durable import batch repository is required for broad/bulk admission",
+          batchId: manifest.batchReceipt?.batchId
+        });
+        continue;
+      }
+    }
+    const receipt = manifest?.batchReceipt;
+    let batchCreated = 0;
+    let batchRejected = 0;
+    let batchSkipped = 0;
+    let batchWasExisting = false;
+    if (receipt !== void 0) {
+      if (importBatchRepo === void 0) {
+        admissionRejected.push({
+          spoolFile: filepath,
+          reason: "durable import batch repository is required for batch receipts",
+          batchId: receipt.batchId
+        });
+        continue;
+      }
+      const existingBatch = importBatchRepo.findById(receipt.batchId);
+      batchWasExisting = existingBatch !== null;
+      if (!batchWasExisting) {
+        try {
+          importBatchRepo.insert({
+            id: receipt.batchId,
+            tenantId: receipt.tenantId,
+            sourcePath: filepath,
+            fileCount: 1,
+            createdCount: 0,
+            rejectedCount: 0,
+            skippedCount: 0,
+            status: "active",
+            createdAt: (/* @__PURE__ */ new Date()).toISOString(),
+            rolledBackAt: null
+          });
+        } catch (e) {
+          admissionRejected.push({
+            spoolFile: filepath,
+            reason: `failed to persist batch receipt: ${e instanceof Error ? e.message : String(e)}`,
+            batchId: receipt.batchId
+          });
+          continue;
+        }
+      }
+    }
+    for (const candidate of candidates) {
+      const existing = candidateRepo.findById(candidate.id);
+      if (existing !== null) {
+        batchSkipped++;
+        continue;
+      }
       const hash = computeContentHash(candidate.content);
       try {
-        candidateRepo.insert(candidate, hash);
+        candidateRepo.insert(candidate, hash, receipt?.batchId);
         ingested.push(candidate);
+        batchCreated++;
       } catch (e) {
         if (e instanceof DisclosureRejectedError) {
           rejected2.push({ candidateId: candidate.id, category: e.category });
+          batchRejected++;
           continue;
         }
         throw e;
       }
     }
+    if (receipt !== void 0 && !batchWasExisting && importBatchRepo !== void 0) {
+      importBatchRepo.updateCounts(receipt.batchId, {
+        fileCount: 1,
+        createdCount: batchCreated,
+        rejectedCount: batchRejected,
+        skippedCount: batchSkipped
+      });
+      importBatchRepo.complete(receipt.batchId);
+    }
     if (opts?.archiveIngestedDir !== void 0) {
       await archiveIngestedFile(filepath, opts.archiveIngestedDir);
     }
   }
-  return { ok: true, value: { ingested, tampered, rejected: rejected2 } };
+  return { ok: true, value: { ingested, tampered, rejected: rejected2, admissionRejected } };
 }
 async function archiveIngestedFile(spoolFilePath, archiveDir) {
   try {
@@ -43354,7 +43664,7 @@ async function quarantineTamperedFile(spoolFilePath, spoolDir, quarantineDirOver
     return null;
   }
 }
-var import_promises4, import_node_path17;
+var import_promises4, import_node_path17, DEFAULT_BROAD_IMPORT_CANDIDATE_LIMIT;
 var init_spool_intake = __esm({
   "../bobs-big-brain-registrar/apps/curator/dist/intake/spool-intake.js"() {
     "use strict";
@@ -43362,6 +43672,7 @@ var init_spool_intake = __esm({
     import_node_path17 = require("node:path");
     init_dist6();
     init_dist2();
+    DEFAULT_BROAD_IMPORT_CANDIDATE_LIMIT = 100;
   }
 });
 
@@ -44640,57 +44951,81 @@ function teamConfigPath(env = process.env) {
 }
 function loadTeamConfig(env = process.env) {
   const path = teamConfigPath(env);
-  let mode;
+  const openFlags = typeof import_node_fs.constants.O_NOFOLLOW === "number" ? import_node_fs.constants.O_RDONLY | import_node_fs.constants.O_NOFOLLOW : import_node_fs.constants.O_RDONLY;
+  let fd;
   try {
-    mode = (0, import_node_fs.statSync)(path).mode;
+    fd = (0, import_node_fs.openSync)(path, openFlags);
   } catch (e) {
-    if (e.code === "ENOENT") return { present: false, path };
-    throw new TeamConfigError(`cannot stat ${path}: ${e.message}`);
-  }
-  if ((mode & 63) !== 0) {
-    const octal = (mode & 511).toString(8).padStart(3, "0");
-    throw new TeamConfigError(
-      `${path} is group/world-readable (mode ${octal}) \u2014 it holds a bearer token and must be 0600. Run: chmod 600 ${path}`
-    );
-  }
-  let text;
-  try {
-    text = (0, import_node_fs.readFileSync)(path, "utf8");
-  } catch (e) {
-    throw new TeamConfigError(`cannot read ${path}: ${e.message}`);
-  }
-  let parsed;
-  try {
-    parsed = JSON.parse(text);
-  } catch {
-    throw new TeamConfigError(
-      `${path} is not valid JSON \u2014 could not parse it. Check for a trailing comma or an unquoted value.`
-    );
-  }
-  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-    throw new TeamConfigError(
-      `${path} must be a JSON object like { "apiUrl": "...", "apiToken": "..." }`
-    );
-  }
-  const obj = parsed;
-  const config2 = {};
-  for (const key of Object.keys(KEY_TO_ENV)) {
-    if (!(key in obj)) continue;
-    const v = obj[key];
-    if (typeof v !== "string" || v.trim() === "") {
+    const err2 = e;
+    if (err2.code === "ENOENT") return { present: false, path };
+    if (err2.code === "ELOOP") {
       throw new TeamConfigError(
-        `${path}: "${key}" must be a non-empty string. Fix the value, or remove the key.`
+        `${path} is a symlink \u2014 it must be a regular file holding a bearer token, not a symlink. Remove it and write a real file.`
       );
     }
-    config2[key] = v.trim();
+    throw new TeamConfigError(`cannot stat ${path}: ${err2.message}`);
   }
-  if (config2.apiUrl === void 0) {
-    const found = Object.keys(obj);
-    throw new TeamConfigError(
-      `${path} has no usable "apiUrl" \u2014 a team config must set at least { "apiUrl": "http://..." } (camelCase). Found keys: ${found.length ? found.join(", ") : "(none)"}. Fix the spelling, or remove the file to run the local brain.`
-    );
+  try {
+    let mode;
+    try {
+      const stat = (0, import_node_fs.fstatSync)(fd);
+      if (!stat.isFile()) {
+        throw new TeamConfigError(
+          `${path} is not a regular file \u2014 it holds a bearer token and must be a plain file.`
+        );
+      }
+      mode = stat.mode;
+    } catch (e) {
+      if (e instanceof TeamConfigError) throw e;
+      throw new TeamConfigError(`cannot stat ${path}: ${e.message}`);
+    }
+    if ((mode & 63) !== 0) {
+      const octal = (mode & 511).toString(8).padStart(3, "0");
+      throw new TeamConfigError(
+        `${path} is group/world-readable (mode ${octal}) \u2014 it holds a bearer token and must be 0600. Run: chmod 600 ${path}`
+      );
+    }
+    let text;
+    try {
+      text = (0, import_node_fs.readFileSync)(fd, "utf8");
+    } catch (e) {
+      throw new TeamConfigError(`cannot read ${path}: ${e.message}`);
+    }
+    let parsed;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      throw new TeamConfigError(
+        `${path} is not valid JSON \u2014 could not parse it. Check for a trailing comma or an unquoted value.`
+      );
+    }
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+      throw new TeamConfigError(
+        `${path} must be a JSON object like { "apiUrl": "...", "apiToken": "..." }`
+      );
+    }
+    const obj = parsed;
+    const config2 = {};
+    for (const key of Object.keys(KEY_TO_ENV)) {
+      if (!(key in obj)) continue;
+      const v = obj[key];
+      if (typeof v !== "string" || v.trim() === "") {
+        throw new TeamConfigError(
+          `${path}: "${key}" must be a non-empty string. Fix the value, or remove the key.`
+        );
+      }
+      config2[key] = v.trim();
+    }
+    if (config2.apiUrl === void 0) {
+      const found = Object.keys(obj);
+      throw new TeamConfigError(
+        `${path} has no usable "apiUrl" \u2014 a team config must set at least { "apiUrl": "http://..." } (camelCase). Found keys: ${found.length ? found.join(", ") : "(none)"}. Fix the spelling, or remove the file to run the local brain.`
+      );
+    }
+    return { present: true, config: config2, path };
+  } finally {
+    (0, import_node_fs.closeSync)(fd);
   }
-  return { present: true, config: config2, path };
 }
 function applyTeamConfig(env, result) {
   if (!result.present || result.config === void 0) return [];
