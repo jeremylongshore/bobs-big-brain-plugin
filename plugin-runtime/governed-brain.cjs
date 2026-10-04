@@ -44318,7 +44318,8 @@ function placeHold(candidate, decision, repos, options = {}) {
         triggerRuleIds: decision.triggerRuleIds,
         otherFlags: decision.otherFlags,
         ttlDays,
-        expiresAt
+        expiresAt,
+        ...options.triggeredBy !== void 0 ? { triggeredBy: options.triggeredBy } : {}
       },
       timestamp: now
     });

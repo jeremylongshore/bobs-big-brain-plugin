@@ -816,6 +816,26 @@ describe('brain_holds / brain_hold_recommend — the human-escalation hold surfa
     ).toMatch(/could not reach/);
   });
 
+  it('brain_approve and brain_reject on a held candidate surface the server refusal: an approval cannot release a hold', async () => {
+    const { approveCandidate, rejectCandidate } = await load(ENV);
+    const refusal = (error: string, code: string) =>
+      vi.fn(async () => new Response(JSON.stringify({ error, code }), { status: 422 }));
+
+    vi.stubGlobal(
+      'fetch',
+      refusal('Candidate is on hold for human review until 2026-10-18T00:00:00.000Z', 'held_for_review'),
+    );
+    const approved = payload(await approveCandidate('cand-1', undefined, 'looks useful'));
+    expect(approved).toMatchObject({ ok: false, status: 422 });
+    expect(String(approved['error'])).toMatch(/the brain declined it: Candidate is on hold for human review/);
+    expect(approved['memoryId']).toBeUndefined();
+
+    vi.stubGlobal('fetch', refusal('Candidate is on hold for human review.', 'on_hold'));
+    const rejected = payload(await rejectCandidate('cand-1', undefined, 'noise'));
+    expect(rejected).toMatchObject({ ok: false, status: 422 });
+    expect(String(rejected['error'])).toMatch(/on hold for human review/);
+  });
+
   it('exposes no tool that resolves a hold', async () => {
     const mod = (await load(ENV)) as Record<string, unknown>;
     expect(Object.keys(mod).filter((name) => /resolve|release/i.test(name))).toEqual([]);
