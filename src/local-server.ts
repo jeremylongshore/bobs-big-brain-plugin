@@ -31,13 +31,14 @@ import {
 import { getDefaultDenseConfig, QmdAdapter } from '@qmd-team-intent-kb/qmd-adapter';
 import { loadOrCreateOriginSecret, mintOriginToken, rerankCitedHits } from '@qmd-team-intent-kb/common';
 import { writeToSpool } from '@qmd-team-intent-kb/claude-runtime';
-import { validateTransition } from '@qmd-team-intent-kb/schema';
+import { ContentMetadata, validateTransition } from '@qmd-team-intent-kb/schema';
 import type { MemoryCandidate } from '@qmd-team-intent-kb/schema';
 import { resolveConfig } from './config.js';
 import { runGovern } from './govern.js';
-import { formatGovernMessage } from './govern-message.js';
+import { formatGovernMessage, isIdle } from './govern-message.js';
 import { anchorChainHead } from './anchor.js';
 import { acquireWriteLock, WriteLockBusyError } from './write-lock.js';
+import { SUBJECTS_PARAM, validateSubjects } from './subjects.js';
 
 // Keep in lock-step with package.json + .mcp.json (the gybo.4 'one consistent
 // 1.2.0 runtime' cleanup — serverInfo previously lagged at 1.1.0).
@@ -394,8 +395,31 @@ server.tool(
     content: z.string().min(1).describe('The fact to remember, in full'),
     category: z.enum(CATEGORIES).optional().describe('Memory category (default: reference)'),
     filePaths: z.array(z.string()).optional().describe('Related file paths, if any'),
+    subjects: SUBJECTS_PARAM,
   },
   async (params) => {
+    // Validate subject keys FIRST: a bad key must not reach the spool, and a
+    // typo'd key would silently supersede nothing at promotion.
+    const subjectCheck = validateSubjects(params.subjects);
+    if (!subjectCheck.ok) return jsonResult({ ok: false, error: subjectCheck.error });
+    const metadata = {
+      filePaths: params.filePaths ?? [],
+      tags: [] as string[],
+      // Absent (not []) when none declared: spool line stays byte-identical to a
+      // pre-subjects capture.
+      ...(subjectCheck.subjects !== undefined ? { subjects: subjectCheck.subjects } : {}),
+    };
+    // Authority check against the registrar's own schema (SubjectKey, max 8): the
+    // plugin's mirror in subjects.ts is the fast path; if the two ever drift this
+    // fails loudly here rather than writing a spool line the govern pass would
+    // later refuse to parse.
+    const metaCheck = ContentMetadata.safeParse(metadata);
+    if (!metaCheck.success) {
+      return jsonResult({
+        ok: false,
+        error: `subjects: rejected by the registrar schema — ${metaCheck.error.issues.map((i) => i.message).join('; ')}`,
+      });
+    }
     const id = randomUUID();
     const capturedAt = new Date().toISOString();
     // H1 write-time provenance: mint the origin token over (id, tenantId,
@@ -434,7 +458,7 @@ server.tool(
       trustLevel: 'medium',
       author: { type: 'ai', id: 'governed-brain' },
       tenantId: config.tenantId,
-      metadata: { filePaths: params.filePaths ?? [], tags: [] },
+      metadata,
       prePolicyFlags: { potentialSecret: false, lowConfidence: false, duplicateSuspect: false },
       capturedAt,
       ...(origin !== undefined ? { origin } : {}),
@@ -469,15 +493,7 @@ server.tool(
     // Empty-spool all-zeros is the healthy idle state — say so explicitly so
     // operators do not misread "Governed 0…" as a stuck pipeline (dogfood 2026-07).
     const message = formatGovernMessage(s);
-    const idle =
-      s.ingested === 0 &&
-      s.processed === 0 &&
-      s.promoted === 0 &&
-      s.rejected === 0 &&
-      s.flagged === 0 &&
-      s.duplicates === 0 &&
-      s.quarantined === 0 &&
-      s.skipped === 0;
+    const idle = isIdle(s);
     return jsonResult({ ok: true, ...s, idle, message });
   },
 );
