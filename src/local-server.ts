@@ -34,6 +34,7 @@ import { writeToSpool } from '@qmd-team-intent-kb/claude-runtime';
 import { ContentMetadata, validateTransition } from '@qmd-team-intent-kb/schema';
 import type { MemoryCandidate } from '@qmd-team-intent-kb/schema';
 import { resolveConfig } from './config.js';
+import { toCitedHitMetadata } from './rerank-meta.js';
 import { runGovern } from './govern.js';
 import { formatGovernMessage, isIdle } from './govern-message.js';
 import { anchorChainHead } from './anchor.js';
@@ -222,7 +223,8 @@ server.tool(
     // category rerank the INTKB API's SearchService.searchViaQmd applies (INTKB
     // #256): the local server returned adapter.query results raw. Wire it in
     // here so local mode ranks the same way the team path does — resolve each
-    // qmd citation back to its governed store row for {category, updatedAt},
+    // qmd citation back to its governed store row for {category, updatedAt, title,
+    // lifecycle},
     // opening the local DB read-only purely for that metadata lookup. If the DB
     // can't open (missing native store, empty brain), degrade to the un-reranked
     // fused order rather than break search.
@@ -249,9 +251,13 @@ server.tool(
         normalised,
         (memoryId) => {
           const m = repo.findById(memoryId);
-          return m ? { category: m.category, updatedAt: m.updatedAt } : null;
+          return m ? toCitedHitMetadata(m) : null;
         },
         nowIso,
+        undefined,
+        // The query enables the historical-record demotion (and its history-intent
+        // bypass); title/lifecycle ride in via toCitedHitMetadata above.
+        { query: params.query },
       );
       ranked = reranked.map((r) => ({
         file: r.file,

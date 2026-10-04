@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { rerankCitedHits } from '@qmd-team-intent-kb/common';
 import { toCitedHitMetadata, type RerankableMemory } from '../src/rerank-meta.js';
+
+// The plugin's unit lane is CI-safe and must not hard-require the linked registrar package (its
+// other tests mock it). The pure helper test always runs; the real-rerank scenarios run wherever
+// `@qmd-team-intent-kb/common` resolves (local dev, the registrar-checkout jobs).
+type CommonModule = typeof import('@qmd-team-intent-kb/common');
+const common: CommonModule | null = await import('@qmd-team-intent-kb/common').catch(() => null);
 
 const NOW = '2026-10-04T12:00:00.000Z';
 
@@ -43,7 +48,7 @@ const hits = [
 const resolve = (id: string) => (store[id] ? toCitedHitMetadata(store[id]) : null);
 const order = (r: Array<{ file: string }>) => r.map((h) => h.file.split('/').pop()!.replace('.md', ''));
 
-describe('local search rerank wiring', () => {
+describe('local search rerank wiring: metadata mapping (always runs)', () => {
   it('maps title and lifecycle through to the rerank metadata', () => {
     expect(toCitedHitMetadata(store.decision)).toEqual({
       category: 'decision',
@@ -52,6 +57,10 @@ describe('local search rerank wiring', () => {
       lifecycle: 'active',
     });
   });
+});
+
+describe.skipIf(common === null)('local search rerank wiring: real registrar rerank', () => {
+  const rerankCitedHits = common!.rerankCitedHits;
 
   it('puts the current decision first when the query is not asking for history', () => {
     const ranked = rerankCitedHits(hits, resolve, NOW, undefined, { query: 'gcp exodus' });
