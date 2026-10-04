@@ -36,8 +36,10 @@ now ONE plugin for both local and team — do not resurrect a second one.
   `brain_search` / `brain_status` / `brain_audit_verify` (read) + `brain_capture` / `brain_govern` /
   `brain_transition` (write).
 - **`src/remote-server.ts`** — TEAM mode. Proxies to the Registrar HTTP API (`apps/api`) over the network
-  with a per-user bearer token. Tool surface (7): `brain_search` and auth-free `brain_status` reads;
-  `brain_capture` proposals; `brain_inbox`, `brain_approve`, and `brain_reject` admin review; and
+  with a per-user bearer token. Tool surface (9): `brain_search` and auth-free `brain_status` reads;
+  `brain_capture` proposals; `brain_inbox`, `brain_approve`, and `brain_reject` admin review;
+  `brain_holds` and `brain_hold_recommend` for the human-escalation hold queue (list and recommend
+  only — see below); and
   `brain_transition` admin lifecycle changes. **No `brain_govern`** (govern runs server-side), and
   `brain_audit_verify` remains local-only.
 
@@ -54,7 +56,8 @@ behavior at runtime; a stray native import will break a marketplace install.
 ### Key files
 - `src/index.ts` — mode dispatcher.
 - `src/local-server.ts` — local 6-tool server; `brain_govern` → `src/govern.ts`.
-- `src/govern.ts` — the daemon-free govern drive: seed local policy → ingest spool →
+- `src/govern.ts` — the daemon-free govern drive (also closes overdue human-escalation holds and
+  counts `held` / `holdCapBlocked` / `holdsExpired`): seed local policy → ingest spool →
   `Curator.processBatch` (dedupe → policy → promote) → `runExport` → qmd index refresh → SHA-256
   hash-chained audit + git-committed external anchor.
 - `src/seed-policy.ts` — seeds a minimal local default `GovernancePolicy` once per tenant (idempotent)
@@ -78,6 +81,15 @@ behavior at runtime; a stray native import will break a marketplace install.
 - `POST /api/search` — read. Bearer token in `Authorization`. Writes must send `tenantId` explicitly
   (the current tokens are unrestricted).
 - Promotion (`POST /api/candidates/:id/promote`) is admin and server-side — not exposed as a plugin tool.
+- `GET /api/holds` and `POST /api/holds/:candidateId/recommend` — admin; the human-escalation hold
+  queue (registrar runbook `000-docs/055-OD-RNBK`). `brain_holds` lists it and `brain_hold_recommend`
+  attaches advice (`{ verdict, audience?, reasoning, actorType: 'ai' }`), which writes one receipt
+  and changes no state. **`POST /api/holds/:candidateId/resolve` is deliberately NOT a plugin tool:**
+  releasing or rejecting a hold is a person's decision (it chooses the audience), and an MCP tool
+  call is a model emitting it. A person resolves with `curator-cli holds resolve` or the API under
+  their own token; the server refuses agent tokens there. Do not add a resolve tool.
+- `brain_approve` / `brain_reject` on a held candidate get a 422 (`held_for_review` / `on_hold`):
+  an approval cannot release a hold.
 
 ## Building
 

@@ -35556,9 +35556,11 @@ __export(remote_server_exports, {
   deriveCandidateId: () => deriveCandidateId,
   drainOutbox: () => drainOutbox,
   errorResult: () => errorResult,
+  listHolds: () => listHolds,
   listInbox: () => listInbox,
   mintOriginToken: () => mintOriginToken,
   outboxDir: () => outboxDir,
+  recommendOnHold: () => recommendOnHold,
   rejectCandidate: () => rejectCandidate,
   search: () => search,
   startRemoteServer: () => startRemoteServer,
@@ -35942,6 +35944,87 @@ async function rejectCandidate(candidateId, tenantId, reason) {
     message: "Retired as rejected (row preserved); a hash-chained receipt names you + your reason."
   });
 }
+async function listHolds(tenantId, limit) {
+  if (API_URL === void 0 || API_URL === "") {
+    return jsonResult({ ok: false, error: "unconfigured \u2014 set TEAMKB_API_URL to your team brain" });
+  }
+  const tenant = resolveTenant(tenantId);
+  let res;
+  try {
+    res = await fetch(
+      `${API_URL.replace(/\/+$/, "")}/api/holds?tenantId=${encodeURIComponent(tenant)}`,
+      { method: "GET", headers: authHeaders() }
+    );
+  } catch (e) {
+    return jsonResult({ ok: false, error: `could not reach the brain API: ${e instanceof Error ? e.message : String(e)}` });
+  }
+  if (!res.ok) return errorResult(res);
+  let body;
+  try {
+    body = await res.json();
+  } catch {
+    return jsonResult({ ok: false, error: "the brain returned an unreadable (non-JSON) holds response" });
+  }
+  const rows = Array.isArray(body?.holds) ? body.holds : [];
+  const text = (v) => typeof v === "string" ? v : "";
+  const list = (v) => Array.isArray(v) ? v.filter((x) => typeof x === "string") : [];
+  const holds = rows.filter((r) => typeof r["candidateId"] === "string" && r["candidateId"].length > 0).slice(0, limit).map((r) => ({
+    candidateId: r["candidateId"],
+    title: text(r["title"]),
+    category: text(r["category"]),
+    declaredAudience: text(r["declaredAudience"]),
+    recommendedAudience: text(r["recommendedAudience"]),
+    triggers: list(r["triggers"]),
+    matchedPatterns: list(r["matchedPatterns"]),
+    heldAt: text(r["heldAt"]),
+    expiresAt: text(r["expiresAt"]),
+    expired: r["expired"] === true,
+    recommendations: Array.isArray(r["recommendations"]) ? r["recommendations"].length : 0
+  }));
+  return jsonResult({
+    ok: true,
+    tenantId: tenant,
+    count: holds.length,
+    maxActive: typeof body?.maxActive === "number" ? body.maxActive : void 0,
+    hiddenAboveStanding: typeof body?.hiddenAboveStanding === "number" ? body.hiddenAboveStanding : 0,
+    holds,
+    note: "A person resolves a hold (curator-cli holds resolve, or POST /api/holds/:candidateId/resolve). This session can only recommend."
+  });
+}
+async function recommendOnHold(candidateId, tenantId, verdict, audience, reasoning) {
+  if (API_URL === void 0 || API_URL === "") {
+    return jsonResult({ ok: false, error: "unconfigured \u2014 set TEAMKB_API_URL to your team brain" });
+  }
+  const tenant = resolveTenant(tenantId);
+  const body = { verdict, reasoning, actorType: "ai" };
+  if (audience !== void 0) body["audience"] = audience;
+  let res;
+  try {
+    res = await fetch(
+      `${API_URL.replace(/\/+$/, "")}/api/holds/${encodeURIComponent(candidateId)}/recommend?tenantId=${encodeURIComponent(tenant)}`,
+      { method: "POST", headers: authHeaders(), body: JSON.stringify(body) }
+    );
+  } catch (e) {
+    return jsonResult({ ok: false, error: `could not reach the brain API: ${e instanceof Error ? e.message : String(e)}` });
+  }
+  if (!res.ok) return errorResult(res);
+  let recorded = null;
+  try {
+    recorded = await res.json();
+  } catch {
+    recorded = null;
+  }
+  return jsonResult({
+    ok: true,
+    candidateId,
+    tenantId: tenant,
+    verdict,
+    ...audience !== void 0 ? { audience } : {},
+    auditEventId: typeof recorded?.auditEventId === "string" ? recorded.auditEventId : void 0,
+    duplicate: recorded?.duplicate === true,
+    message: "Recommendation recorded as a hash-chained receipt. Nothing changed: the candidate is still on hold until a person resolves it."
+  });
+}
 async function startRemoteServer() {
   const transport = new StdioServerTransport();
   const shutdown = async (sig) => {
@@ -35958,7 +36041,7 @@ async function startRemoteServer() {
 `
   );
 }
-var import_node_crypto, import_promises, import_node_os2, import_node_path2, import_zod3, VERSION, API_URL, API_TOKEN, TENANT_ID, ORIGIN_SECRET, TEAM_ORIGIN_CHANNEL, CATEGORIES, CANDIDATE_ID_NAMESPACE, draining, server;
+var import_node_crypto, import_promises, import_node_os2, import_node_path2, import_zod3, VERSION, API_URL, API_TOKEN, TENANT_ID, ORIGIN_SECRET, TEAM_ORIGIN_CHANNEL, CATEGORIES, CANDIDATE_ID_NAMESPACE, draining, server, AUDIENCES;
 var init_remote_server = __esm({
   "src/remote-server.ts"() {
     "use strict";
@@ -36097,6 +36180,34 @@ var init_remote_server = __esm({
         reason: import_zod3.z.string().min(1).describe("Why it is being retired (lands in the receipt)")
       },
       async (params) => rejectCandidate(params.candidateId, params.tenantId, params.reason)
+    );
+    AUDIENCES = ["tenant", "admins", "owner"];
+    server.tool(
+      "brain_holds",
+      "List your team brain's open human-escalation holds \u2014 candidates the deterministic pipeline held because an audience or secret question could be detected but not decided. Each is neither promoted nor dropped, and closes UNPROMOTED at its expiry. ADMIN-ONLY (a member token gets a clear 403). Read-only; returns ids, titles, audience tiers, trigger names and the expiry \u2014 never content. You cannot resolve a hold from here: a person does that. Use brain_hold_recommend to attach your recommendation.",
+      {
+        tenantId: import_zod3.z.string().optional().describe("Tenant to inspect (default: the team tenant)"),
+        limit: import_zod3.z.number().int().min(1).max(200).optional().describe("Max holds to return (default 50)")
+      },
+      async (params) => listHolds(params.tenantId, params.limit ?? 50)
+    );
+    server.tool(
+      "brain_hold_recommend",
+      "Attach a recommendation to a held candidate: 'release' (with the audience you would choose) or 'reject', plus your reasoning. ADMIN-ONLY. This is ADVICE: it writes one hash-chained receipt naming you and changes NO state \u2014 the candidate stays on hold, unpromoted, until a person with admin or owner standing resolves it. Repeating the same recommendation is a no-op.",
+      {
+        candidateId: import_zod3.z.string().uuid().describe("UUID of the held candidate (from brain_holds)"),
+        tenantId: import_zod3.z.string().optional().describe("Tenant the candidate belongs to (default: the team tenant)"),
+        verdict: import_zod3.z.enum(["release", "reject"]).describe("What you would do with it"),
+        audience: import_zod3.z.enum(AUDIENCES).optional().describe("For a release: the audience you would choose (tenant | admins | owner)"),
+        reasoning: import_zod3.z.string().min(1).describe("Why (lands in the receipt)")
+      },
+      async (params) => recommendOnHold(
+        params.candidateId,
+        params.tenantId,
+        params.verdict,
+        params.audience,
+        params.reasoning
+      )
     );
   }
 });
@@ -36596,7 +36707,7 @@ var init_database = __esm({
 });
 
 // ../bobs-big-brain-registrar/packages/schema/dist/enums.js
-var import_zod4, MemorySource, TrustLevel, MemoryCategory, MemoryLifecycleState, CandidateStatus, SearchScope, PolicyRuleType, PolicyRuleAction, AuditAction, ProposerRole, Confidence, Sensitivity, AuthorType, LinkType, LinkSource, ImportBatchStatus;
+var import_zod4, MemorySource, TrustLevel, MemoryCategory, MemoryLifecycleState, CandidateStatus, SearchScope, PolicyRuleType, PolicyRuleAction, AuditAction, ProposerRole, Audience, Confidence, Sensitivity, AuthorType, LinkType, LinkSource, ImportBatchStatus;
 var init_enums = __esm({
   "../bobs-big-brain-registrar/packages/schema/dist/enums.js"() {
     "use strict";
@@ -36631,7 +36742,13 @@ var init_enums = __esm({
       "tenant_match",
       "sensitivity_gate",
       "content_sanitization",
-      "contradiction_check"
+      "contradiction_check",
+      // `audience_narrowing` (Epic K bead K3, decision `000-docs/053-AT-DECR`) flags
+      // a claim whose declared audience is WIDER than its content calls for
+      // (credentials -> `owner`, PII -> `admins`). Flag-only: it recommends a
+      // narrower audience, it never rejects and never writes one. Added the same way
+      // as `contradiction_check` — a Zod member, no store migration.
+      "audience_narrowing"
     ]);
     PolicyRuleAction = import_zod4.z.enum(["reject", "flag", "approve", "require_review"]);
     AuditAction = import_zod4.z.enum([
@@ -36669,9 +36786,37 @@ var init_enums = __esm({
       // policy row is the mutated durable state); `details` carries the previous
       // rules so the change is reversible from the receipt alone. The audit_events
       // `action` column has no CHECK constraint, so this member needs no migration.
-      "policy_upgraded"
+      "policy_upgraded",
+      // Governed audience narrowing of an already-promoted memory (Epic K bead K3).
+      // `details` carries {from, to} audience tiers; narrowing only (tenant ->
+      // admins -> owner). `memoryId` is the narrowed memory.
+      "audience_narrowed",
+      // Governed redaction (K3 expanded scope, bead compile-then-govern-39z.16): the
+      // content of a promoted memory (or of its candidate copy) was REPLACED. The
+      // receipt records that it happened, by whom, why, the OLD and NEW content
+      // hashes and the secret-pattern names — never the removed text. `memoryId` is
+      // the memory's id, or the candidate's id for the candidate-copy receipt.
+      "redacted",
+      // Human-escalation HOLD (Epic K bead K6, decision `000-docs/053-AT-DECR`,
+      // reusing the 014-AT-DECR recommend / pipeline-owns split). Three receipts,
+      // all with `memoryId` = the CANDIDATE's id:
+      //   - `held`             — a deterministic rule outcome put the candidate on
+      //                          hold. `details` carries the triggers, the declared
+      //                          and recommended audience, pattern ids (never
+      //                          matched text) and `expiresAt`.
+      //   - `hold_recommended` — a reviewer (a model or a person) attached a
+      //                          recommendation. It records advice; it changes no
+      //                          state.
+      //   - `hold_resolved`    — the hold ended: `released` (promoted with a
+      //                          human-chosen audience), `rejected` (by a human) or
+      //                          `expired` (the bound elapsed; not promoted).
+      // The `action` column has no CHECK constraint, so these need no migration.
+      "held",
+      "hold_recommended",
+      "hold_resolved"
     ]);
     ProposerRole = import_zod4.z.enum(["admin", "member"]);
+    Audience = import_zod4.z.enum(["tenant", "admins", "owner"]);
     Confidence = import_zod4.z.enum(["high", "medium", "low"]);
     Sensitivity = import_zod4.z.enum(["public", "internal", "confidential", "restricted"]);
     AuthorType = import_zod4.z.enum(["human", "ai", "system"]);
@@ -36735,7 +36880,15 @@ var init_common = __esm({
        * promotion onto the curated memory so a later auto-govern step (B1) can
        * quarantine member-authored content behind admin review.
        */
-      proposedByRole: ProposerRole.optional()
+      proposedByRole: ProposerRole.optional(),
+      /**
+       * Who inside the tenant this claim is for (see {@link Audience}; K2). Optional
+       * and deliberately NOT defaulted: an absent value means `tenant`, resolved at
+       * read time, so every pre-K2 record round-trips byte-for-byte and keeps today's
+       * visibility. Declared at capture on the candidate and carried onto the curated
+       * memory by promotion (which copies `metadata` whole).
+       */
+      audience: Audience.optional()
     });
   }
 });
@@ -37254,6 +37407,71 @@ var init_rerank_policy = __esm({
   }
 });
 
+// ../bobs-big-brain-registrar/packages/common/dist/audience.js
+function resolveAudience(audience) {
+  return audience === void 0 || audience === null ? DEFAULT_AUDIENCE : audience;
+}
+function isAudienceVisibleToRole(audience, role) {
+  if (role === void 0 || role === null)
+    return false;
+  if (!Object.hasOwn(READER_ROLE_CLEARANCE, role))
+    return false;
+  const effective = resolveAudience(audience);
+  if (!Object.hasOwn(AUDIENCE_RANK, effective))
+    return false;
+  return AUDIENCE_RANK[effective] <= READER_ROLE_CLEARANCE[role];
+}
+function isExportableAudience(audience) {
+  return resolveAudience(audience) === DEFAULT_AUDIENCE;
+}
+function validateAudienceNarrowing(from, to) {
+  const current = resolveAudience(from);
+  if (!Object.hasOwn(AUDIENCE_RANK, current)) {
+    return {
+      valid: false,
+      code: "unknown_from",
+      error: `Current audience "${current}" is not a known tier; fix the record before narrowing it`
+    };
+  }
+  if (to === void 0 || to === null || !Object.hasOwn(AUDIENCE_RANK, to)) {
+    return {
+      valid: false,
+      code: "unknown_to",
+      error: `Unknown audience "${String(to)}" (expected one of: ${Object.keys(AUDIENCE_RANK).join(", ")})`
+    };
+  }
+  const fromRank = AUDIENCE_RANK[current];
+  const toRank = AUDIENCE_RANK[to];
+  if (toRank === fromRank) {
+    return { valid: false, code: "same", error: `Audience is already "${current}"` };
+  }
+  if (toRank < fromRank) {
+    return {
+      valid: false,
+      code: "widening",
+      error: `Refusing to widen audience "${current}" -> "${to}": this operation only narrows (tenant -> admins -> owner). Widening is a separate governed path (K4) and is not available.`
+    };
+  }
+  return { valid: true, from: current, to };
+}
+var DEFAULT_AUDIENCE, AUDIENCE_RANK, READER_ROLE_CLEARANCE;
+var init_audience = __esm({
+  "../bobs-big-brain-registrar/packages/common/dist/audience.js"() {
+    "use strict";
+    DEFAULT_AUDIENCE = "tenant";
+    AUDIENCE_RANK = Object.freeze({
+      tenant: 0,
+      admins: 1,
+      owner: 2
+    });
+    READER_ROLE_CLEARANCE = Object.freeze({
+      member: 0,
+      admin: 1,
+      owner: 2
+    });
+  }
+});
+
 // ../bobs-big-brain-registrar/packages/common/dist/freshness.js
 function computeFreshnessScore(updatedAt, nowIso, halfLifeDays = 90) {
   const updatedMs = new Date(updatedAt).getTime();
@@ -37289,6 +37507,10 @@ function rerankCitedHits(hits, resolveMetadata, nowIso, halfLifeDays = 90, optio
       // Unresolvable hit (orphaned citation) is not an identifiable sensitive
       // memory — treat as public/searchable; a resolved hit carries its real level.
       sensitivity: meta?.sensitivity ?? "public",
+      // Same reasoning for audience (K2): an unresolvable hit names no memory
+      // whose audience could be narrower, and the shared index only ever holds
+      // tenant-wide memories; a resolved hit carries its declared audience.
+      audience: meta?.audience ?? DEFAULT_AUDIENCE,
       // Policy inputs; undefined (unresolved hit / resolver omits) = no demotion.
       // Note: these ride along on the returned hit objects (consumers pick fields).
       title: meta?.title,
@@ -37302,6 +37524,7 @@ var init_freshness = __esm({
   "../bobs-big-brain-registrar/packages/common/dist/freshness.js"() {
     "use strict";
     init_rerank_policy();
+    init_audience();
     CATEGORY_BOOST = {
       decision: 1.2,
       architecture: 1.15,
@@ -37557,6 +37780,7 @@ var init_dist2 = __esm({
     init_origin_token();
     init_path_safety();
     init_freshness();
+    init_audience();
     init_rerank_policy();
     init_disclosure_filter();
   }
@@ -37579,7 +37803,9 @@ function assertEnumMembership(candidate) {
       field: "metadata.sensitivity",
       schema: Sensitivity,
       value: candidate.metadata?.sensitivity
-    }
+    },
+    // Claim-level audience (K2): closed vocabulary, optional, checked when present.
+    { field: "metadata.audience", schema: Audience, value: candidate.metadata?.audience }
   ]);
 }
 function assertMemoryEnumMembership(memory) {
@@ -37589,7 +37815,11 @@ function assertMemoryEnumMembership(memory) {
     { field: "trustLevel", schema: TrustLevel, value: memory.trustLevel },
     { field: "sensitivity", schema: Sensitivity, value: memory.sensitivity },
     { field: "lifecycle", schema: MemoryLifecycleState, value: memory.lifecycle },
-    { field: "author.type", schema: AuthorType, value: memory.author?.type }
+    { field: "author.type", schema: AuthorType, value: memory.author?.type },
+    // Claim-level audience (K2). An off-vocabulary audience must never reach the
+    // governed table: the read-side predicate would hide it from everyone, so
+    // refuse it at the write choke point instead of storing an unreadable row.
+    { field: "metadata.audience", schema: Audience, value: memory.metadata?.audience }
   ]);
 }
 function runEnumChecks(checks) {
@@ -37687,7 +37917,7 @@ function rowToCandidateSafe(row) {
     return null;
   }
 }
-var import_zod12, CandidateRowSchema, CandidateRepository;
+var import_zod12, RedactedContentReingestError, CandidateRowSchema, CandidateRepository;
 var init_candidate_repository = __esm({
   "../bobs-big-brain-registrar/packages/store/dist/repositories/candidate-repository.js"() {
     "use strict";
@@ -37695,6 +37925,13 @@ var init_candidate_repository = __esm({
     init_dist();
     init_dist2();
     init_enum_membership();
+    RedactedContentReingestError = class extends DisclosureRejectedError {
+      constructor() {
+        super("secret");
+        this.name = "RedactedContentReingestError";
+        this.message = "Candidate rejected: this exact content was removed by a governed redaction and cannot re-enter the governed brain.";
+      }
+    };
     CandidateRowSchema = import_zod12.z.object({
       id: import_zod12.z.string(),
       status: import_zod12.z.string(),
@@ -37724,6 +37961,10 @@ var init_candidate_repository = __esm({
       stmtCountByTenant;
       stmtDeleteByBatch;
       stmtUpdateStatus;
+      stmtUpdateContent;
+      stmtIdsByHashAndTenant;
+      stmtReadText;
+      stmtIsRedactedHash;
       constructor(db) {
         this.stmtInsert = db.prepare(`
       INSERT INTO candidates (
@@ -37755,6 +37996,22 @@ var init_candidate_repository = __esm({
     `);
         this.stmtUpdateStatus = db.prepare(`
       UPDATE candidates SET status = @status WHERE id = @id AND tenant_id = @tenantId
+    `);
+        this.stmtUpdateContent = db.prepare(`
+      UPDATE candidates SET content = @content, title = @title, content_hash = @contentHash
+      WHERE id = @id AND tenant_id = @tenantId
+    `);
+        this.stmtReadText = db.prepare(`
+      SELECT content, title FROM candidates WHERE id = ? AND tenant_id = ?
+    `);
+        this.stmtIdsByHashAndTenant = db.prepare(`
+      SELECT id FROM candidates WHERE content_hash = ? AND tenant_id = ?
+    `);
+        this.stmtIsRedactedHash = db.prepare(`
+      SELECT 1 FROM audit_events
+      WHERE action = 'redacted' AND tenant_id = ?
+        AND json_extract(details_json, '$.oldContentHash') = ?
+      LIMIT 1
     `);
         this.stmtCount = db.prepare(`
       SELECT COUNT(*) as cnt FROM candidates
@@ -37797,10 +38054,16 @@ var init_candidate_repository = __esm({
        *   value is smuggled into an enum-constrained field.
        * @throws {EnumConstraintViolationError} when an enum-constrained field carries a
        *   non-vocabulary value that is not itself disclosure-shaped.
+       * @throws {RedactedContentReingestError} when the content is byte-identical to
+       *   text a governed redaction removed from this tenant (K3) — a redaction
+       *   changes the stored hash, so without this the original could be re-ingested.
        */
       insert(candidate, contentHash, importBatchId) {
         assertDisclosureClean(candidate);
         assertEnumMembership(candidate);
+        if (this.isRedactedContent(candidate.content, candidate.tenantId)) {
+          throw new RedactedContentReingestError();
+        }
         this.stmtInsert.run({
           id: candidate.id,
           status: candidate.status,
@@ -37868,6 +38131,58 @@ var init_candidate_repository = __esm({
       updateStatus(id, status2, tenantId) {
         const validated = CandidateStatus.parse(status2);
         return this.stmtUpdateStatus.run({ id, status: validated, tenantId }).changes;
+      }
+      /**
+       * True when `content` is byte-identical to text a governed redaction removed
+       * from this tenant (K3): its SHA-256 equals the `oldContentHash` of a
+       * `redacted` receipt. Compares hashes only; the removed text is not stored.
+       */
+      isRedactedContent(content, tenantId) {
+        return this.stmtIsRedactedHash.get(tenantId, computeContentHash(content)) !== void 0;
+      }
+      /** Ids of every candidate in the tenant whose stored content hash is `hash` (K3). */
+      findIdsByContentHashAndTenant(hash, tenantId) {
+        const rows = this.stmtIdsByHashAndTenant.all(hash, tenantId);
+        return rows.map((r) => r.id);
+      }
+      /**
+       * Read a candidate's stored content and title WITHOUT domain validation (K3).
+       * Governed redaction must be able to reach a legacy row that no longer parses
+       * as a `MemoryCandidate` — that row can still hold the text being removed.
+       * Tenant-scoped; null when no row matches `id` AND `tenantId`.
+       */
+      readStoredText(id, tenantId) {
+        const row = this.stmtReadText.get(id, tenantId);
+        return row ?? null;
+      }
+      /**
+       * Replace a candidate's stored content and title IN PLACE (K3 governed
+       * redaction) and recompute its content hash. `candidates` is otherwise
+       * insert-only; this is the single content-rewriting statement and exists so a
+       * redaction of a promoted memory also removes the text from the candidate row
+       * it was promoted from. The caller writes the `redacted` receipt in the same
+       * transaction.
+       *
+       * The replacement text goes through the same disclosure scan as an insert, so
+       * a redaction cannot itself write disallowed material. It does not require the
+       * existing row to parse (see {@link readStoredText}). Tenant-scoped. Returns
+       * the new content hash, or null when no row matches `id` AND `tenantId`.
+       *
+       * @throws {DisclosureRejectedError} when the replacement fails the disclosure gate.
+       */
+      updateContent(id, tenantId, replacement) {
+        const violation = scanDisclosureFields([replacement.content, replacement.title]);
+        if (violation !== null)
+          throw new DisclosureRejectedError(violation.category);
+        const contentHash = computeContentHash(replacement.content);
+        const changes = this.stmtUpdateContent.run({
+          id,
+          tenantId,
+          content: replacement.content,
+          title: replacement.title,
+          contentHash
+        }).changes;
+        return changes > 0 ? contentHash : null;
       }
       /**
        * Return the first candidate with the given content hash, or null.
@@ -38599,6 +38914,29 @@ function rowToChainPosition(row) {
     hashVersion: row.hash_version ?? 1
   };
 }
+function rowToRedactionReceipt(row) {
+  let details;
+  try {
+    details = JSON.parse(row.details_json);
+  } catch {
+    return null;
+  }
+  if (details === null || typeof details !== "object")
+    return null;
+  const d = details;
+  const oldContentHash = d["oldContentHash"];
+  const newContentHash = d["newContentHash"];
+  if (typeof oldContentHash !== "string" || typeof newContentHash !== "string")
+    return null;
+  return {
+    eventId: row.id,
+    targetId: row.memory_id,
+    target: d["target"] === "candidate" ? "candidate" : "memory",
+    oldContentHash,
+    newContentHash,
+    sequence: row.seq
+  };
+}
 function rowToEvent(row) {
   const flatResult = AuditRowSchema.safeParse(row);
   if (!flatResult.success) {
@@ -38668,6 +39006,8 @@ var init_audit_repository = __esm({
       stmtFindChainTip;
       stmtFindChainPosition;
       stmtFindAllChronological;
+      stmtFindRedactionByOldHash;
+      stmtFindRedactionsForTarget;
       /** Atomic (BEGIN IMMEDIATE) prev-read + INSERT — see the constructor. */
       appendTxn;
       constructor(db) {
@@ -38700,6 +39040,18 @@ var init_audit_repository = __esm({
     `);
         this.stmtFindAllChronological = db.prepare(`
       SELECT * FROM audit_events ORDER BY seq ASC
+    `);
+        this.stmtFindRedactionByOldHash = db.prepare(`
+      SELECT id, memory_id, details_json, seq FROM audit_events
+      WHERE action = 'redacted' AND tenant_id = ?
+        AND json_extract(details_json, '$.oldContentHash') = ?
+      ORDER BY seq ASC
+      LIMIT 1
+    `);
+        this.stmtFindRedactionsForTarget = db.prepare(`
+      SELECT id, memory_id, details_json, seq FROM audit_events
+      WHERE action = 'redacted' AND memory_id = ?
+      ORDER BY seq ASC
     `);
         this.stmtFindByMemory = db.prepare(`
       SELECT * FROM audit_events WHERE memory_id = ? ORDER BY timestamp ASC
@@ -38796,6 +39148,31 @@ var init_audit_repository = __esm({
         return row === void 0 ? null : rowToChainPosition(row);
       }
       /**
+       * Find the governed-redaction receipt (K3) whose PRE-redaction content hash is
+       * `contentHash`, within one tenant, or null. This is how dedup keeps blocking
+       * the original text after a redaction changed the stored hash: content whose
+       * hash matches a redacted OLD hash is the removed material coming back.
+       */
+      findRedactionByOldContentHash(contentHash, tenantId) {
+        const row = this.stmtFindRedactionByOldHash.get(tenantId, contentHash);
+        return row === void 0 ? null : rowToRedactionReceipt(row);
+      }
+      /**
+       * Return every governed-redaction receipt (K3) for one row — a memory id or a
+       * candidate id — in chain order. The first receipt's `oldContentHash` is the
+       * hash the row was promoted (or captured) with.
+       */
+      findRedactionsFor(targetId) {
+        const rows = this.stmtFindRedactionsForTarget.all(targetId);
+        const out = [];
+        for (const row of rows) {
+          const receipt = rowToRedactionReceipt(row);
+          if (receipt !== null)
+            out.push(receipt);
+        }
+        return out;
+      }
+      /**
        * Return all events associated with the given memory, in chronological order.
        *
        * NOTE: this is NOT tenant-scoped — it returns rows across all tenants for the
@@ -38863,6 +39240,15 @@ var init_audit_repository = __esm({
         return result;
       }
     };
+  }
+});
+
+// ../bobs-big-brain-registrar/packages/store/dist/redaction-scrub.js
+var SCAN_CHUNK_BYTES;
+var init_redaction_scrub = __esm({
+  "../bobs-big-brain-registrar/packages/store/dist/redaction-scrub.js"() {
+    "use strict";
+    SCAN_CHUNK_BYTES = 4 * 1024 * 1024;
   }
 });
 
@@ -39323,6 +39709,7 @@ var init_dist3 = __esm({
     init_memory_repository();
     init_policy_repository();
     init_audit_repository();
+    init_redaction_scrub();
     init_audit_verify();
     init_audit_chain();
     init_audit_anchor();
@@ -39960,26 +40347,26 @@ var init_health_check = __esm({
 function fuseReciprocalRank(qmdHits, nativeHits, denseHits = [], k = RRF_K) {
   const entries = /* @__PURE__ */ new Map();
   qmdHits.forEach((hit, i) => {
-    const rank = i + 1;
+    const rank2 = i + 1;
     const entry = entries.get(hit.file) ?? { id: hit.file, score: 0, bestRank: Infinity };
-    entry.score += 1 / (k + rank);
-    entry.bestRank = Math.min(entry.bestRank, rank);
+    entry.score += 1 / (k + rank2);
+    entry.bestRank = Math.min(entry.bestRank, rank2);
     entry.qmdHit ??= hit;
     entries.set(hit.file, entry);
   });
   nativeHits.forEach((hit, i) => {
-    const rank = i + 1;
+    const rank2 = i + 1;
     const entry = entries.get(hit.id) ?? { id: hit.id, score: 0, bestRank: Infinity };
-    entry.score += 1 / (k + rank);
-    entry.bestRank = Math.min(entry.bestRank, rank);
+    entry.score += 1 / (k + rank2);
+    entry.bestRank = Math.min(entry.bestRank, rank2);
     entry.nativeHit ??= hit;
     entries.set(hit.id, entry);
   });
   denseHits.forEach((hit, i) => {
-    const rank = i + 1;
+    const rank2 = i + 1;
     const entry = entries.get(hit.id) ?? { id: hit.id, score: 0, bestRank: Infinity };
-    entry.score += 1 / (k + rank);
-    entry.bestRank = Math.min(entry.bestRank, rank);
+    entry.score += 1 / (k + rank2);
+    entry.bestRank = Math.min(entry.bestRank, rank2);
     entry.denseHit ??= hit;
     entries.set(hit.id, entry);
   });
@@ -41350,11 +41737,86 @@ var init_config2 = __esm({
   }
 });
 
+// ../bobs-big-brain-registrar/packages/claude-runtime/dist/secrets/placeholder.js
+function isPlaceholderSecretValue(raw) {
+  const value = raw.trim();
+  if (value.length === 0)
+    return true;
+  if (TEMPLATE_PREFIX.test(value))
+    return true;
+  if (PLACEHOLDER_FRAGMENT.test(value))
+    return true;
+  if (ENV_REFERENCE.test(value))
+    return true;
+  if (ENV_VAR_NAME.test(value))
+    return true;
+  const words = value.toLowerCase().split(/[^a-z]+/).filter((word) => word.length > 0);
+  return words.length > 0 && words.every((word) => PLACEHOLDER_WORDS.has(word));
+}
+function isPathLikeValue(raw) {
+  const value = raw.trim();
+  return PATH_LIKE.test(value) || FILE_LIKE.test(value);
+}
+var TEMPLATE_PREFIX, PLACEHOLDER_FRAGMENT, ENV_REFERENCE, ENV_VAR_NAME, PLACEHOLDER_WORDS, PATH_LIKE, FILE_LIKE;
+var init_placeholder = __esm({
+  "../bobs-big-brain-registrar/packages/claude-runtime/dist/secrets/placeholder.js"() {
+    "use strict";
+    TEMPLATE_PREFIX = /^[<${[%]/;
+    PLACEHOLDER_FRAGMENT = /password|passwd|passphrase|change[-_]?me|example|placeholder|redacted|x{3,}|\*{3,}|\.{3,}/i;
+    ENV_REFERENCE = /process\.env|os\.environ|getenv|secrets\./i;
+    ENV_VAR_NAME = /^[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+$/;
+    PLACEHOLDER_WORDS = /* @__PURE__ */ new Set([
+      "pass",
+      "pwd",
+      "pw",
+      "secret",
+      "secrets",
+      "token",
+      "key",
+      "apikey",
+      "sample",
+      "dummy",
+      "hidden",
+      "masked",
+      "your",
+      "my",
+      "the",
+      "here",
+      "value",
+      "string",
+      "text",
+      "foo",
+      "bar",
+      "baz",
+      "user",
+      "username",
+      "enabled",
+      "disabled",
+      "required",
+      "optional",
+      "unknown",
+      "missing",
+      "invalid",
+      "correct",
+      "incorrect",
+      "empty",
+      "hashed",
+      "encrypted",
+      "rotated",
+      "expired",
+      "stored"
+    ]);
+    PATH_LIKE = /^(?:~|\.{1,2})?\//;
+    FILE_LIKE = /\.(?:ya?ml|json|env|txt|md|sops|conf|cfg|ini|toml|ts|js|py|sh|key|pem|db|kdbx|age|gpg)$/i;
+  }
+});
+
 // ../bobs-big-brain-registrar/packages/claude-runtime/dist/secrets/patterns.js
 var SECRET_PATTERNS2, PII_PATTERNS;
 var init_patterns = __esm({
   "../bobs-big-brain-registrar/packages/claude-runtime/dist/secrets/patterns.js"() {
     "use strict";
+    init_placeholder();
     SECRET_PATTERNS2 = [
       {
         id: "jwt",
@@ -41461,6 +41923,48 @@ var init_patterns = __esm({
         name: "PostgreSQL Connection String",
         regex: /postgres(?:ql)?:\/\/[^:]+:[^@]+@[^\s]+/,
         description: "PostgreSQL connection string with embedded password"
+      },
+      {
+        id: "prose-password",
+        name: "Password Stated in Prose",
+        // A password written as a SENTENCE, which no key=value or token-shaped rule
+        // sees: "The sudo password for the migration is `…`", "the recommended sudo
+        // password for <user> is `…`", `"password": "…"`. Shape: the keyword, at most
+        // 40 same-line characters, then `is` / `was` / `:` / `=`, then a quoted or
+        // backticked value of 6–128 non-whitespace characters (group 1).
+        //
+        // Precision comes from three places. (1) The value must be QUOTED — the bare
+        // word "password", `password: <your password>` and `password = os.environ[…]`
+        // have no quoted value and never match. (2) The value has no whitespace — a
+        // quoted phrase ("not stored anywhere") is prose. (3) `accept` rejects
+        // stand-ins, env-var references and file paths. The whitespace-stripped view
+        // is skipped because it would glue such a phrase into a password-shaped token.
+        //
+        // Linear time: one bounded lazy window (≤40) per keyword, bounded value class.
+        regex: /(?:password|passwd|passphrase)[^\n]{0,40}?(?:\b(?:is|was)\b\s*[:=]?|[:=])\s*[*_]{0,3}[`"'“‘]([^\s`"'“”‘’]{6,128})[`"'”’]/i,
+        description: "Password stated in a sentence or key/value pair with a quoted or backticked value",
+        accept: (match) => {
+          const value = match[1] ?? "";
+          return !isPlaceholderSecretValue(value) && !isPathLikeValue(value);
+        },
+        skipWhitespaceStrippedView: true
+      },
+      {
+        id: "url-embedded-credentials",
+        name: "URL with Embedded Credentials",
+        // `scheme://user:secret@host` for ANY scheme (the scheme-specific rules above
+        // only know five). Group 1 = user, group 2 = secret. The secret class
+        // excludes `/ ? # @` and whitespace — in a real URL those are percent-encoded
+        // inside userinfo — so `http://host:8080/path@x` and
+        // `http://host:3000?email=a@b` (a PORT, not a password) never match.
+        //
+        // `accept` rejects documentation placeholders: `username:password`,
+        // `user:pass`, `<password>`, `${DB_PASSWORD}`, `{password}`, `changeme`, …
+        // Linear time: every quantified class is bounded and mutually delimited.
+        regex: /\b[a-z][a-z0-9+.-]{1,31}:\/\/([^\s:@/?#]{0,128}):([^\s@/?#]{3,256})@[^\s@/?#:]/i,
+        description: "URL of any scheme carrying user:secret@ credentials (placeholders excluded)",
+        accept: (match) => !isPlaceholderSecretValue(match[2] ?? ""),
+        skipWhitespaceStrippedView: true
       }
     ];
     PII_PATTERNS = [
@@ -41515,11 +42019,27 @@ var init_patterns = __esm({
 });
 
 // ../bobs-big-brain-registrar/packages/claude-runtime/dist/secrets/secret-scanner.js
-function execWithContext(pattern, text, contextText) {
-  if (pattern.regex.global || pattern.regex.sticky) {
-    pattern.regex.lastIndex = 0;
+function firstCountedMatch(pattern, text) {
+  if (!pattern.accept) {
+    if (pattern.regex.global || pattern.regex.sticky) {
+      pattern.regex.lastIndex = 0;
+    }
+    return pattern.regex.exec(text);
   }
-  const match = pattern.regex.exec(text);
+  const flags = pattern.regex.flags.includes("g") ? pattern.regex.flags : pattern.regex.flags + "g";
+  const walker = new RegExp(pattern.regex.source, flags);
+  let match = walker.exec(text);
+  while (match !== null) {
+    if (pattern.accept(match))
+      return match;
+    if (match[0].length === 0)
+      walker.lastIndex += 1;
+    match = walker.exec(text);
+  }
+  return null;
+}
+function execWithContext(pattern, text, contextText) {
+  const match = firstCountedMatch(pattern, text);
   if (!match)
     return null;
   if (pattern.requiresContext) {
@@ -41558,7 +42078,7 @@ function scanNewlineCollapsed(content, patterns, alreadyFired, matches) {
   const locate = () => ({ line: 1, column: 1 });
   const before = matches.length;
   scanFlat(singleSpace, remaining, matches, locate);
-  const stillUnmatched = remaining.filter((p) => !matches.slice(before).some((m) => m.patternId === p.id));
+  const stillUnmatched = remaining.filter((p) => p.skipWhitespaceStrippedView !== true && !matches.slice(before).some((m) => m.patternId === p.id));
   if (stillUnmatched.length > 0)
     scanFlat(noWhitespace, stillUnmatched, matches, locate);
 }
@@ -42200,10 +42720,34 @@ var init_rerank_meta = __esm({
   }
 });
 
+// ../bobs-big-brain-registrar/packages/policy-engine/dist/secret-scan.js
+function scanTextForSecrets(text) {
+  const byPattern = /* @__PURE__ */ new Map();
+  for (const match of scanForSecrets(text)) {
+    const entry = byPattern.get(match.patternId) ?? {
+      patternName: match.patternName,
+      lines: /* @__PURE__ */ new Set()
+    };
+    entry.lines.add(match.line);
+    byPattern.set(match.patternId, entry);
+  }
+  return [...byPattern.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([patternId, { patternName, lines }]) => ({
+    patternId,
+    patternName,
+    lines: [...lines].sort((a, b) => a - b)
+  }));
+}
+var init_secret_scan = __esm({
+  "../bobs-big-brain-registrar/packages/policy-engine/dist/secret-scan.js"() {
+    "use strict";
+    init_dist6();
+  }
+});
+
 // ../bobs-big-brain-registrar/packages/policy-engine/dist/rules/secret-detection-rule.js
 function evaluateSecretDetection(candidate, rule, _context) {
-  const matches = scanForSecrets(candidate.content);
-  if (matches.length === 0) {
+  const findings = scanTextForSecrets(candidate.content);
+  if (findings.length === 0) {
     return {
       ruleId: rule.id,
       ruleType: rule.type,
@@ -42211,19 +42755,20 @@ function evaluateSecretDetection(candidate, rule, _context) {
       reason: "No secrets detected in content"
     };
   }
-  const patternIds = [...new Set(matches.map((m) => m.patternId))].join(", ");
-  const patternNames = [...new Set(matches.map((m) => m.patternName))].join(", ");
+  const patternIds = findings.map((f) => f.patternId).join(", ");
+  const patternNames = [...new Set(findings.map((f) => f.patternName))].join(", ");
+  const locations = findings.map((f) => `${f.patternId} at line ${f.lines.join(", ")}`).join("; ");
   return {
     ruleId: rule.id,
     ruleType: rule.type,
     outcome: "fail",
-    reason: `Secrets detected \u2014 patterns matched: ${patternNames} (ids: ${patternIds})`
+    reason: `Secrets detected \u2014 patterns matched: ${patternNames} (ids: ${patternIds}; locations: ${locations})`
   };
 }
 var init_secret_detection_rule = __esm({
   "../bobs-big-brain-registrar/packages/policy-engine/dist/rules/secret-detection-rule.js"() {
     "use strict";
-    init_dist6();
+    init_secret_scan();
   }
 });
 
@@ -42631,6 +43176,71 @@ var init_contradiction_check_rule = __esm({
   }
 });
 
+// ../bobs-big-brain-registrar/packages/policy-engine/dist/rules/audience-narrowing-rule.js
+function parseTier(value, fallback) {
+  return typeof value === "string" && Object.hasOwn(AUDIENCE_RANK, value) ? value : fallback;
+}
+function recommendAudience(content, declaredAudience, tiers = {}) {
+  const classification = classifyContent(content);
+  const declared = resolveAudience(declaredAudience);
+  let basis = "none";
+  let recommended = BASELINE_AUDIENCE;
+  if (classification.hasCredentials) {
+    basis = "credentials";
+    recommended = parseTier(tiers.credentials, DEFAULT_CREDENTIALS_AUDIENCE);
+  } else if (classification.hasPii) {
+    basis = "pii";
+    recommended = parseTier(tiers.pii, DEFAULT_PII_AUDIENCE);
+  }
+  return {
+    declared,
+    recommended,
+    shouldNarrow: validateAudienceNarrowing(declared, recommended).valid,
+    basis,
+    matchedPatterns: classification.matchedPatterns.filter((id) => id !== "internal-path")
+  };
+}
+function evaluateAudienceNarrowing(candidate, rule, _context) {
+  const declared = resolveAudience(candidate.metadata.audience);
+  if (!Object.hasOwn(AUDIENCE_RANK, declared)) {
+    return {
+      ruleId: rule.id,
+      ruleType: rule.type,
+      outcome: "flag",
+      reason: `Declared audience "${declared}" is not a known tier \u2014 review before promotion`
+    };
+  }
+  const recommendation = recommendAudience(candidate.content, declared, {
+    credentials: rule.parameters["credentialsAudience"],
+    pii: rule.parameters["piiAudience"]
+  });
+  if (!recommendation.shouldNarrow) {
+    return {
+      ruleId: rule.id,
+      ruleType: rule.type,
+      outcome: "pass",
+      reason: `Declared audience '${declared}' is not wider than the content calls for ('${recommendation.recommended}')`
+    };
+  }
+  return {
+    ruleId: rule.id,
+    ruleType: rule.type,
+    outcome: "flag",
+    reason: `Declared audience '${declared}' is wider than the content calls for: ${recommendation.basis} detected (patterns: ${recommendation.matchedPatterns.join(", ")}) \u2014 recommend narrowing to '${recommendation.recommended}'. Recommendation only; nothing was changed.`
+  };
+}
+var DEFAULT_CREDENTIALS_AUDIENCE, DEFAULT_PII_AUDIENCE, BASELINE_AUDIENCE;
+var init_audience_narrowing_rule = __esm({
+  "../bobs-big-brain-registrar/packages/policy-engine/dist/rules/audience-narrowing-rule.js"() {
+    "use strict";
+    init_dist6();
+    init_dist2();
+    DEFAULT_CREDENTIALS_AUDIENCE = "owner";
+    DEFAULT_PII_AUDIENCE = "admins";
+    BASELINE_AUDIENCE = "tenant";
+  }
+});
+
 // ../bobs-big-brain-registrar/packages/policy-engine/dist/rules/index.js
 function createRule(type) {
   const evaluator = RULE_REGISTRY[type];
@@ -42649,6 +43259,7 @@ var init_rules = __esm({
     init_sensitivity_gate_rule();
     init_content_sanitization_rule();
     init_contradiction_check_rule();
+    init_audience_narrowing_rule();
     RULE_REGISTRY = {
       secret_detection: evaluateSecretDetection,
       content_length: evaluateContentLength,
@@ -42658,8 +43269,85 @@ var init_rules = __esm({
       tenant_match: evaluateTenantMatch,
       sensitivity_gate: evaluateSensitivityGate,
       content_sanitization: evaluateContentSanitization,
-      contradiction_check: evaluateContradictionCheck
+      contradiction_check: evaluateContradictionCheck,
+      audience_narrowing: evaluateAudienceNarrowing
     };
+  }
+});
+
+// ../bobs-big-brain-registrar/packages/policy-engine/dist/hold/hold-triggers.js
+function rank(audience) {
+  return Object.hasOwn(AUDIENCE_RANK, audience) ? AUDIENCE_RANK[audience] : void 0;
+}
+function narrower(a, b) {
+  const ra = rank(a);
+  const rb = rank(b);
+  if (ra === void 0 || rb === void 0)
+    return NARROWEST_AUDIENCE;
+  return ra >= rb ? a : b;
+}
+function isAudienceAboveProposerClearance(candidate) {
+  const role = candidate.metadata.proposedByRole;
+  if (role === void 0)
+    return false;
+  if (!Object.hasOwn(READER_ROLE_CLEARANCE, role))
+    return true;
+  return !isAudienceVisibleToRole(candidate.metadata.audience, role === "admin" ? "owner" : role);
+}
+function evaluateHoldTriggers(candidate, pipelineResult, policy) {
+  if (pipelineResult.outcome === "rejected")
+    return null;
+  const triggers = /* @__PURE__ */ new Set();
+  const triggerRuleIds = [];
+  for (const evaluation of pipelineResult.evaluations) {
+    const trigger = Object.hasOwn(TRIGGER_BY_RULE_TYPE, evaluation.ruleType) ? TRIGGER_BY_RULE_TYPE[evaluation.ruleType] : void 0;
+    if (trigger !== void 0 && evaluation.outcome !== "pass") {
+      triggers.add(trigger);
+      triggerRuleIds.push(evaluation.ruleId);
+    }
+  }
+  if (isAudienceAboveProposerClearance(candidate)) {
+    triggers.add("audience_above_proposer_clearance");
+  }
+  if (triggers.size === 0)
+    return null;
+  const declaredAudience = resolveAudience(candidate.metadata.audience);
+  const narrowingRule = policy?.rules.find((r) => r.enabled && r.type === "audience_narrowing");
+  const recommendation = recommendAudience(candidate.content, declaredAudience, {
+    credentials: narrowingRule?.parameters["credentialsAudience"],
+    pii: narrowingRule?.parameters["piiAudience"]
+  });
+  return {
+    triggers: [...triggers].sort((a, b) => a.localeCompare(b)),
+    declaredAudience,
+    recommendedAudience: narrower(declaredAudience, recommendation.recommended),
+    basis: recommendation.basis,
+    matchedPatterns: recommendation.matchedPatterns,
+    triggerRuleIds,
+    otherFlags: (pipelineResult.flaggedBy ?? []).filter((id) => !triggerRuleIds.includes(id))
+  };
+}
+function unresolvedFlagsAfterRelease(pipelineResult) {
+  const covered = new Set(pipelineResult.evaluations.filter((e) => HOLD_TRIGGER_RULE_TYPES.includes(e.ruleType) && e.outcome !== "pass").map((e) => e.ruleId));
+  return (pipelineResult.flaggedBy ?? []).filter((id) => !covered.has(id));
+}
+var HOLD_TRIGGER_RULE_TYPES, TRIGGER_BY_RULE_TYPE, NARROWEST_AUDIENCE;
+var init_hold_triggers = __esm({
+  "../bobs-big-brain-registrar/packages/policy-engine/dist/hold/hold-triggers.js"() {
+    "use strict";
+    init_dist2();
+    init_audience_narrowing_rule();
+    HOLD_TRIGGER_RULE_TYPES = Object.freeze([
+      "audience_narrowing",
+      "secret_detection",
+      "sensitivity_gate"
+    ]);
+    TRIGGER_BY_RULE_TYPE = Object.freeze({
+      audience_narrowing: "audience_narrowing_flag",
+      secret_detection: "secret_scan_flag",
+      sensitivity_gate: "sensitivity_gate_flag"
+    });
+    NARROWEST_AUDIENCE = "owner";
   }
 });
 
@@ -42753,6 +43441,15 @@ var init_pipeline2 = __esm({
         };
       }
     };
+  }
+});
+
+// ../bobs-big-brain-registrar/packages/policy-engine/dist/hold/hold-escalation.js
+var init_hold_escalation = __esm({
+  "../bobs-big-brain-registrar/packages/policy-engine/dist/hold/hold-escalation.js"() {
+    "use strict";
+    init_pipeline2();
+    init_hold_triggers();
   }
 });
 
@@ -42851,6 +43548,7 @@ var init_dist7 = __esm({
     "use strict";
     init_rules();
     init_secret_detection_rule();
+    init_secret_scan();
     init_content_length_rule();
     init_source_trust_rule();
     init_relevance_score_rule();
@@ -42859,9 +43557,13 @@ var init_dist7 = __esm({
     init_sensitivity_gate_rule();
     init_content_sanitization_rule();
     init_contradiction_check_rule();
+    init_audience_narrowing_rule();
+    init_hold_triggers();
+    init_hold_escalation();
     init_pipeline2();
     init_supersession_detector();
     init_recommended_policy();
+    init_dist6();
     init_dist6();
   }
 });
@@ -42953,6 +43655,11 @@ var init_wikilink_parser = __esm({
 });
 
 // ../bobs-big-brain-registrar/apps/curator/dist/promotion/promoter.js
+function promotionReceiptReason(input) {
+  const resolved = input.humanResolvedFlags ?? [];
+  const verdict = resolved.length > 0 ? `flags resolved by a human releasing a hold: ${resolved.join(", ")}; every other governance rule passed` : "passed all governance rules";
+  return input.promotionReason !== void 0 && input.promotionReason.trim().length > 0 ? `${input.promotionReason} (${verdict})` : `${verdict.charAt(0).toUpperCase()}${verdict.slice(1)}`;
+}
 function promote(input, memoryRepo, auditRepo, dryRun = false, linksRepo, evalCallback, now = (/* @__PURE__ */ new Date()).toISOString()) {
   const memoryId = deriveMemoryId(input.candidate.id, input.contentHash);
   const supersessions = [];
@@ -43083,7 +43790,7 @@ function promote(input, memoryRepo, auditRepo, dryRun = false, linksRepo, evalCa
         memoryId,
         tenantId: input.candidate.tenantId,
         actor: input.promotedBy ?? CURATOR_ACTOR,
-        reason: input.promotionReason !== void 0 && input.promotionReason.trim().length > 0 ? `${input.promotionReason} (passed all governance rules)` : "Passed all governance rules",
+        reason: promotionReceiptReason(input),
         // Write-time provenance on the receipt (GSB Wave-2 H2): the origin
         // CHANNEL plus a TRUNCATED SHA-256 of the token HMAC — never the
         // token itself, so surfaced audit details can identify an
@@ -43093,6 +43800,7 @@ function promote(input, memoryRepo, auditRepo, dryRun = false, linksRepo, evalCa
         // cross-clone entry_hash reproducibility (8da.5/8da.6) holds.
         details: {
           candidateId: input.candidate.id,
+          ...input.humanResolvedFlags !== void 0 && input.humanResolvedFlags.length > 0 ? { humanResolvedFlags: [...input.humanResolvedFlags] } : {},
           originChannel: input.candidate.origin?.channel ?? UNATTESTED_CHANNEL,
           ...input.candidate.origin !== void 0 ? {
             originTokenHash: hashOriginToken(input.candidate.origin.tokenHmac).slice(0, ORIGIN_TOKEN_HASH_SURFACE_LEN)
@@ -43459,6 +44167,222 @@ var init_import_exclusion_gate = __esm({
   }
 });
 
+// ../bobs-big-brain-registrar/apps/curator/dist/hold/hold.js
+function resolveTtlDays(limits) {
+  const ttl = limits?.ttlDays;
+  return ttl !== void 0 && Number.isFinite(ttl) && ttl > 0 ? ttl : DEFAULT_HOLD_TTL_DAYS;
+}
+function resolveMaxActiveHolds(limits) {
+  const max = limits?.maxActiveHolds;
+  return max !== void 0 && Number.isInteger(max) && max >= 0 ? max : DEFAULT_MAX_ACTIVE_HOLDS;
+}
+function holdLimitsFromEnv(env = process.env) {
+  const limits = {};
+  const ttl = Number(env[HOLD_TTL_DAYS_ENV]?.trim() || NaN);
+  if (Number.isFinite(ttl) && ttl > 0)
+    limits.ttlDays = ttl;
+  const max = Number(env[HOLD_MAX_ACTIVE_ENV]?.trim() || NaN);
+  if (Number.isInteger(max) && max >= 0)
+    limits.maxActiveHolds = max;
+  return limits;
+}
+function asString(value, fallback = "") {
+  return typeof value === "string" ? value : fallback;
+}
+function asStringArray(value) {
+  return Array.isArray(value) ? value.filter((v) => typeof v === "string") : [];
+}
+function hasElapsed(expiresAt, now) {
+  const expiry = Date.parse(expiresAt);
+  const at = Date.parse(now);
+  if (Number.isNaN(expiry) || Number.isNaN(at))
+    return true;
+  return at >= expiry;
+}
+function toRecommendation(event) {
+  const verdict = event.details["verdict"] === "release" ? "release" : "reject";
+  const audience = event.details["audience"];
+  return {
+    auditEventId: event.id,
+    actor: event.actor,
+    verdict,
+    ...typeof audience === "string" ? { audience } : {},
+    reasoning: event.reason ?? "",
+    at: event.timestamp
+  };
+}
+function toActiveHold(candidate, held, recommendations, now) {
+  const expiresAt = asString(held.details["expiresAt"]);
+  const declaredAudience = resolveAudience(candidate.metadata.audience);
+  return {
+    candidateId: candidate.id,
+    tenantId: candidate.tenantId,
+    title: candidate.title,
+    category: candidate.category,
+    authorId: candidate.author.id,
+    ...candidate.metadata.proposedByRole !== void 0 ? { proposedByRole: candidate.metadata.proposedByRole } : {},
+    declaredAudience,
+    recommendedAudience: asString(held.details["recommendedAudience"], declaredAudience),
+    triggers: asStringArray(held.details["triggers"]),
+    matchedPatterns: asStringArray(held.details["matchedPatterns"]),
+    holdEventId: held.id,
+    heldAt: held.timestamp,
+    expiresAt,
+    expired: hasElapsed(expiresAt, now),
+    recommendations: recommendations.map(toRecommendation)
+  };
+}
+function findCandidateSafe(repo, id) {
+  try {
+    return repo.findById(id);
+  } catch {
+    return null;
+  }
+}
+function findActiveHold(candidateId, tenantId, repos, now = (/* @__PURE__ */ new Date()).toISOString()) {
+  const candidate = findCandidateSafe(repos.candidateRepo, candidateId);
+  if (candidate === null || candidate.tenantId !== tenantId)
+    return null;
+  if (candidate.status !== HOLD_STATUS)
+    return null;
+  const events = repos.auditRepo.findByMemoryAndTenant(candidateId, tenantId);
+  const held = events.find((e) => e.action === "held");
+  if (held === void 0 || events.some((e) => e.action === "hold_resolved"))
+    return null;
+  return toActiveHold(candidate, held, events.filter((e) => e.action === "hold_recommended"), now);
+}
+function listActiveHolds(tenantId, repos, now = (/* @__PURE__ */ new Date()).toISOString()) {
+  const resolved = new Set(repos.auditRepo.findByTenantAndAction(tenantId, "hold_resolved").map((e) => e.memoryId));
+  const recommendations = /* @__PURE__ */ new Map();
+  for (const event of repos.auditRepo.findByTenantAndAction(tenantId, "hold_recommended")) {
+    const list = recommendations.get(event.memoryId) ?? [];
+    list.push(event);
+    recommendations.set(event.memoryId, list);
+  }
+  const holds = [];
+  for (const held of repos.auditRepo.findByTenantAndAction(tenantId, "held")) {
+    if (resolved.has(held.memoryId))
+      continue;
+    const candidate = findCandidateSafe(repos.candidateRepo, held.memoryId);
+    if (candidate === null || candidate.tenantId !== tenantId)
+      continue;
+    if (candidate.status !== HOLD_STATUS)
+      continue;
+    holds.push(toActiveHold(candidate, held, recommendations.get(held.memoryId) ?? [], now));
+  }
+  return holds.sort((a, b) => a.expiresAt.localeCompare(b.expiresAt) || a.candidateId.localeCompare(b.candidateId));
+}
+function placeHold(candidate, decision, repos, options = {}) {
+  const now = options.now ?? (/* @__PURE__ */ new Date()).toISOString();
+  const ttlDays = resolveTtlDays(options.limits);
+  const max = resolveMaxActiveHolds(options.limits);
+  const expiresAt = new Date(Date.parse(now) + ttlDays * MS_PER_DAY).toISOString();
+  const attempt = () => {
+    const existing = findActiveHold(candidate.id, candidate.tenantId, repos, now);
+    if (existing !== null)
+      return { status: "already_held", hold: existing };
+    const stored = findCandidateSafe(repos.candidateRepo, candidate.id);
+    if (stored === null || stored.tenantId !== candidate.tenantId) {
+      return { status: "not_holdable", reason: "the candidate has no stored row to hold" };
+    }
+    if (stored.status !== "inbox" && stored.status !== HOLD_STATUS) {
+      return {
+        status: "not_holdable",
+        reason: `the candidate is already '${stored.status}' and cannot be held`
+      };
+    }
+    const events = repos.auditRepo.findByMemoryAndTenant(candidate.id, candidate.tenantId);
+    if (events.some((e) => e.action === "held")) {
+      return { status: "not_holdable", reason: "an earlier hold on the candidate was resolved" };
+    }
+    const active = listActiveHolds(candidate.tenantId, repos, now).length;
+    if (active >= max)
+      return { status: "cap_reached", active, max };
+    if (options.dryRun === true)
+      return { status: "would_hold", expiresAt };
+    const held = AuditEvent.parse({
+      // Content-derived: one `held` receipt per candidate, the same id on every clone.
+      id: deriveAuditEventId(candidate.id, "held"),
+      action: "held",
+      memoryId: candidate.id,
+      tenantId: candidate.tenantId,
+      actor: HOLD_GATE_ACTOR,
+      reason: `Held for human review: ${decision.triggers.join(", ")}`,
+      details: {
+        candidateId: candidate.id,
+        triggers: decision.triggers,
+        declaredAudience: decision.declaredAudience,
+        recommendedAudience: decision.recommendedAudience,
+        basis: decision.basis,
+        matchedPatterns: decision.matchedPatterns,
+        triggerRuleIds: decision.triggerRuleIds,
+        otherFlags: decision.otherFlags,
+        ttlDays,
+        expiresAt
+      },
+      timestamp: now
+    });
+    repos.candidateRepo.updateStatus(candidate.id, HOLD_STATUS, candidate.tenantId);
+    repos.auditRepo.insert(held);
+    return { status: "held", hold: toActiveHold(stored, held, [], now) };
+  };
+  if (options.dryRun === true)
+    return attempt();
+  return repos.memoryRepo.connection.transaction(attempt).immediate();
+}
+function writeHoldResolved(hold, resolution, actor, reason, details, auditRepo, now) {
+  const auditEventId = deriveAuditEventId(hold.candidateId, "hold_resolved");
+  auditRepo.insert(AuditEvent.parse({
+    // Content-derived: a hold is resolved exactly once.
+    id: auditEventId,
+    action: "hold_resolved",
+    memoryId: hold.candidateId,
+    tenantId: hold.tenantId,
+    actor,
+    reason,
+    details: {
+      candidateId: hold.candidateId,
+      holdEventId: hold.holdEventId,
+      resolution,
+      declaredAudience: hold.declaredAudience,
+      recommendedAudience: hold.recommendedAudience,
+      ...details
+    },
+    timestamp: now
+  }));
+  return auditEventId;
+}
+function expireHold(hold, repos, now) {
+  return repos.memoryRepo.connection.transaction(() => {
+    repos.candidateRepo.updateStatus(hold.candidateId, "rejected", hold.tenantId);
+    return writeHoldResolved(hold, "expired", HOLD_EXPIRY_ACTOR, `Hold expired unresolved at ${hold.expiresAt}: not promoted`, { expiresAt: hold.expiresAt }, repos.auditRepo, now);
+  }).immediate();
+}
+function expireHolds(tenantId, repos, options = {}) {
+  const now = options.now ?? (/* @__PURE__ */ new Date()).toISOString();
+  return listActiveHolds(tenantId, repos, now).filter((hold) => hold.expired).map((hold) => ({
+    candidateId: hold.candidateId,
+    expiresAt: hold.expiresAt,
+    auditEventId: options.dryRun === true ? null : expireHold(hold, repos, now)
+  }));
+}
+var HOLD_STATUS, DEFAULT_HOLD_TTL_DAYS, DEFAULT_MAX_ACTIVE_HOLDS, HOLD_GATE_ACTOR, HOLD_EXPIRY_ACTOR, MS_PER_DAY, HOLD_TTL_DAYS_ENV, HOLD_MAX_ACTIVE_ENV;
+var init_hold = __esm({
+  "../bobs-big-brain-registrar/apps/curator/dist/hold/hold.js"() {
+    "use strict";
+    init_dist2();
+    init_dist();
+    HOLD_STATUS = "quarantined";
+    DEFAULT_HOLD_TTL_DAYS = 14;
+    DEFAULT_MAX_ACTIVE_HOLDS = 100;
+    HOLD_GATE_ACTOR = { type: "system", id: "hold-gate" };
+    HOLD_EXPIRY_ACTOR = { type: "system", id: "hold-expiry" };
+    MS_PER_DAY = 864e5;
+    HOLD_TTL_DAYS_ENV = "TEAMKB_HOLD_TTL_DAYS";
+    HOLD_MAX_ACTIVE_ENV = "TEAMKB_HOLD_MAX_ACTIVE";
+  }
+});
+
 // ../bobs-big-brain-registrar/apps/curator/dist/curator.js
 var DEFAULT_MAX_SUPERSEDES_PER_RUN, Curator;
 var init_curator = __esm({
@@ -43472,6 +44396,7 @@ var init_curator = __esm({
     init_rejector();
     init_origin_gate();
     init_import_exclusion_gate();
+    init_hold();
     DEFAULT_MAX_SUPERSEDES_PER_RUN = 200;
     Curator = class {
       deps;
@@ -43482,6 +44407,12 @@ var init_curator = __esm({
        * digestion batch must not emit 17k identical warnings.
        */
       warnedDormantPolicies = /* @__PURE__ */ new Set();
+      /**
+       * Set once the hold queue is found full in this run (K6). The cap frees up
+       * only when a person resolves a hold, which no run does, so later candidates
+       * skip the count: a bulk digestion past the cap stays cheap and fails closed.
+       */
+      holdCapReached;
       /** Subject-key retirements applied so far by this instance (the per-run budget meter). */
       subjectSupersessionsApplied = 0;
       constructor(deps, config2) {
@@ -43493,9 +44424,12 @@ var init_curator = __esm({
        *
        * @param existingHashes - Pre-loaded set of content hashes (hoisted from batch).
        *                         When provided, avoids N+1 queries against the store.
+       * @param release - Set ONLY by `resolveHold`: a human released this candidate
+       *                  from a hold. The gate runs in full; hold triggers are not
+       *                  re-applied and no per-candidate reject receipt is written.
        * @returns A CurationResult describing the outcome.
        */
-      processSingle(candidate, existingHashes) {
+      processSingle(candidate, existingHashes, release) {
         const contentHash = computeContentHash(candidate.content);
         const dedup = checkDuplicate(candidate, this.deps.memoryRepo, this.config.tenantId);
         if (dedup.isDuplicate) {
@@ -43505,6 +44439,14 @@ var init_curator = __esm({
             reason: `Exact duplicate of memory ${dedup.matchedMemoryId}`
           };
         }
+        const redaction = this.deps.auditRepo.findRedactionByOldContentHash(contentHash, this.config.tenantId);
+        if (redaction !== null) {
+          return {
+            candidateId: candidate.id,
+            outcome: "duplicate",
+            reason: `Content was removed by a governed redaction (receipt ${redaction.eventId}) \u2014 re-ingest refused`
+          };
+        }
         if (existingHashes?.has(contentHash)) {
           return {
             candidateId: candidate.id,
@@ -43512,7 +44454,7 @@ var init_curator = __esm({
             reason: "Intra-batch duplicate (same content already promoted in this batch)"
           };
         }
-        const suppressReject = this.config.dryRun === true || this.config.suppressRejectionReceipts === true;
+        const suppressReject = this.config.dryRun === true || this.config.suppressRejectionReceipts === true || release !== void 0;
         const originGate = checkOriginAttestation(candidate, this.config.originSecret);
         if (originGate.verdict === "rejected") {
           const reason = reject(candidate, originGate.pipelineResult, this.deps.auditRepo, suppressReject);
@@ -43535,29 +44477,7 @@ var init_curator = __esm({
         }
         const policies = this.deps.policyRepo.findByTenant(this.config.tenantId);
         const policy = policies.find((p) => p.enabled);
-        if (policy === void 0) {
-          return this.promoteCandidate(candidate, contentHash, {
-            candidateId: candidate.id,
-            outcome: "approved",
-            evaluations: []
-          });
-        }
-        const pipeline = new PolicyPipeline(policy);
-        if (pipeline.dormantRuleTypes.length > 0 && !this.warnedDormantPolicies.has(policy.id)) {
-          this.warnedDormantPolicies.add(policy.id);
-          console.warn(`[curator] governance policy "${policy.name}" (${policy.id}) leaves ${pipeline.dormantRuleTypes.length} registered rule(s) dormant: ${pipeline.dormantRuleTypes.join(", ")}. They gate nothing on this store. See buildRecommendedPolicy / bead qmd-team-intent-kb-5bm.10.`);
-        }
-        const hashSet = existingHashes ?? new Set(this.deps.memoryRepo.getContentHashesByTenant(this.config.tenantId));
-        const pipelineResult = pipeline.evaluate(candidate, {
-          existingHashes: hashSet,
-          tenantId: this.config.tenantId,
-          // contradiction_check lookup (E1): tenant-scoped ACTIVE memories filtered
-          // to the requested category AT THE STORE QUERY — loading the whole active
-          // set and filtering in JS deserialized a 17k-row corpus per candidate to
-          // keep ~6%. Queried lazily — the store is only hit when a contradiction
-          // rule actually runs.
-          getActiveMemoriesInCategory: (category) => this.deps.memoryRepo.findByTenantAndLifecycleAndCategory(this.config.tenantId, "active", category).map((m) => ({ id: m.id, content: m.content }))
-        });
+        const pipelineResult = policy === void 0 ? { candidateId: candidate.id, outcome: "approved", evaluations: [] } : this.evaluatePolicy(candidate, policy, existingHashes);
         if (pipelineResult.outcome === "rejected") {
           const reason = reject(candidate, pipelineResult, this.deps.auditRepo, suppressReject);
           return {
@@ -43567,7 +44487,14 @@ var init_curator = __esm({
             reason
           };
         }
-        if (pipelineResult.outcome === "flagged") {
+        if (release === void 0) {
+          const decision = evaluateHoldTriggers(candidate, pipelineResult, policy);
+          if (decision !== null) {
+            return this.holdCandidate(candidate, decision, pipelineResult, suppressReject);
+          }
+        }
+        const releasedFlags = release !== void 0 && unresolvedFlagsAfterRelease(pipelineResult).length === 0 ? pipelineResult.flaggedBy ?? [] : void 0;
+        if (pipelineResult.outcome === "flagged" && releasedFlags === void 0) {
           const reason = reject(candidate, pipelineResult, this.deps.auditRepo, suppressReject);
           return {
             candidateId: candidate.id,
@@ -43576,7 +44503,68 @@ var init_curator = __esm({
             reason
           };
         }
-        return this.promoteCandidate(candidate, contentHash, pipelineResult);
+        return this.promoteCandidate(candidate, contentHash, pipelineResult, release, releasedFlags);
+      }
+      /** Run the tenant's policy pipeline over one candidate (tenant-scoped context). */
+      evaluatePolicy(candidate, policy, existingHashes) {
+        const pipeline = new PolicyPipeline(policy);
+        if (pipeline.dormantRuleTypes.length > 0 && !this.warnedDormantPolicies.has(policy.id)) {
+          this.warnedDormantPolicies.add(policy.id);
+          console.warn(`[curator] governance policy "${policy.name}" (${policy.id}) leaves ${pipeline.dormantRuleTypes.length} registered rule(s) dormant: ${pipeline.dormantRuleTypes.join(", ")}. They gate nothing on this store. See buildRecommendedPolicy / bead qmd-team-intent-kb-5bm.10.`);
+        }
+        const hashSet = existingHashes ?? new Set(this.deps.memoryRepo.getContentHashesByTenant(this.config.tenantId));
+        return pipeline.evaluate(candidate, {
+          existingHashes: hashSet,
+          tenantId: this.config.tenantId,
+          // contradiction_check lookup (E1): tenant-scoped ACTIVE memories filtered
+          // to the requested category AT THE STORE QUERY — loading the whole active
+          // set and filtering in JS deserialized a 17k-row corpus per candidate to
+          // keep ~6%. Queried lazily — the store is only hit when a contradiction
+          // rule actually runs.
+          getActiveMemoriesInCategory: (category) => this.deps.memoryRepo.findByTenantAndLifecycleAndCategory(this.config.tenantId, "active", category).map((m) => ({ id: m.id, content: m.content }))
+        });
+      }
+      /**
+       * Put a candidate on a human-escalation hold (K6), or report why it could not
+       * be held. Either way it is NOT promoted: a full queue or an unholdable row
+       * fails closed to `flagged`.
+       */
+      holdCandidate(candidate, decision, pipelineResult, suppressReject) {
+        const placed = this.holdCapReached !== void 0 ? { status: "cap_reached", ...this.holdCapReached } : placeHold(candidate, decision, {
+          candidateRepo: this.deps.candidateRepo,
+          memoryRepo: this.deps.memoryRepo,
+          auditRepo: this.deps.auditRepo
+        }, {
+          limits: this.config.holdLimits,
+          dryRun: this.config.dryRun,
+          ...this.config.now !== void 0 ? { now: this.config.now() } : {}
+        });
+        if (placed.status === "cap_reached") {
+          this.holdCapReached = { active: placed.active, max: placed.max };
+        }
+        const triggers = decision.triggers;
+        const report = { triggers, recommendedAudience: decision.recommendedAudience };
+        if (placed.status === "cap_reached" || placed.status === "not_holdable") {
+          if (pipelineResult.outcome === "flagged") {
+            reject(candidate, pipelineResult, this.deps.auditRepo, suppressReject);
+          }
+          const why = placed.status === "cap_reached" ? `the hold queue is full (${placed.active}/${placed.max}); resolve open holds and re-run` : placed.reason;
+          return {
+            candidateId: candidate.id,
+            outcome: "flagged",
+            pipelineResult,
+            hold: { status: placed.status, ...report },
+            reason: `Needs human review (${triggers.join(", ")}) but was not held: ${why}. Not promoted.`
+          };
+        }
+        const expiresAt = placed.status === "would_hold" ? placed.expiresAt : placed.hold.expiresAt;
+        return {
+          candidateId: candidate.id,
+          outcome: "held",
+          pipelineResult,
+          hold: { status: placed.status, ...report, expiresAt },
+          reason: `Held for human review until ${expiresAt}: ${triggers.join(", ")}`
+        };
       }
       /**
        * Process a batch of candidates through the pipeline.
@@ -43591,6 +44579,8 @@ var init_curator = __esm({
         let rejected2 = 0;
         let flagged = 0;
         let duplicates = 0;
+        let held = 0;
+        let holdCapBlocked = 0;
         const existingHashes = new Set(this.deps.memoryRepo.getContentHashesByTenant(this.config.tenantId));
         for (const candidate of candidates) {
           const result = this.processSingle(candidate, existingHashes);
@@ -43605,9 +44595,14 @@ var init_curator = __esm({
               break;
             case "flagged":
               flagged++;
+              if (result.hold?.status === "cap_reached")
+                holdCapBlocked++;
               break;
             case "duplicate":
               duplicates++;
+              break;
+            case "held":
+              held++;
               break;
           }
         }
@@ -43617,10 +44612,12 @@ var init_curator = __esm({
           rejected: rejected2,
           flagged,
           duplicates,
+          held,
+          holdCapBlocked,
           results
         };
       }
-      promoteCandidate(candidate, contentHash, pipelineResult) {
+      promoteCandidate(candidate, contentHash, pipelineResult, release, releasedFlags) {
         const plan = planSupersession(candidate, this.deps.memoryRepo, {
           threshold: this.config.supersessionThreshold ?? DEFAULT_SUPERSESSION_THRESHOLD,
           maxSupersedes: this.config.maxSupersedesPerPromotion ?? DEFAULT_MAX_SUPERSEDES_PER_PROMOTION
@@ -43655,7 +44652,9 @@ var init_curator = __esm({
           candidate,
           contentHash,
           pipelineResult,
-          supersessions: toApply
+          supersessions: toApply,
+          ...release !== void 0 ? { promotedBy: release.promotedBy, promotionReason: release.promotionReason } : {},
+          ...releasedFlags !== void 0 ? { humanResolvedFlags: releasedFlags } : {}
         }, this.deps.memoryRepo, this.deps.auditRepo, this.config.dryRun, this.deps.linksRepo);
         if (this.config.dryRun !== true) {
           this.subjectSupersessionsApplied += toApply.filter((m) => m.basis === "subject").length;
@@ -43974,6 +44973,39 @@ var init_import = __esm({
   }
 });
 
+// ../bobs-big-brain-registrar/apps/curator/dist/audience/narrow-audience.js
+var init_narrow_audience = __esm({
+  "../bobs-big-brain-registrar/apps/curator/dist/audience/narrow-audience.js"() {
+    "use strict";
+    init_dist2();
+    init_dist();
+  }
+});
+
+// ../bobs-big-brain-registrar/apps/curator/dist/redaction/redact-memory.js
+var init_redact_memory = __esm({
+  "../bobs-big-brain-registrar/apps/curator/dist/redaction/redact-memory.js"() {
+    "use strict";
+    init_dist2();
+    init_dist7();
+    init_dist();
+  }
+});
+
+// ../bobs-big-brain-registrar/apps/curator/dist/hold/resolve-hold.js
+var RESOLVER_ROLES;
+var init_resolve_hold = __esm({
+  "../bobs-big-brain-registrar/apps/curator/dist/hold/resolve-hold.js"() {
+    "use strict";
+    init_dist2();
+    init_dist7();
+    init_dist();
+    init_curator();
+    init_hold();
+    RESOLVER_ROLES = Object.freeze(["admin", "owner"]);
+  }
+});
+
 // ../bobs-big-brain-registrar/apps/curator/dist/index.js
 var init_dist8 = __esm({
   "../bobs-big-brain-registrar/apps/curator/dist/index.js"() {
@@ -43991,6 +45023,10 @@ var init_dist8 = __esm({
     init_merge_gate();
     init_import();
     init_import();
+    init_narrow_audience();
+    init_redact_memory();
+    init_hold();
+    init_resolve_hold();
   }
 });
 
@@ -44120,11 +45156,15 @@ function isSensitivityRestricted(level) {
   const idx = Sensitivity.options.indexOf(level);
   return idx >= CONFIDENTIAL_INDEX;
 }
+function isExportRestricted(memory) {
+  return isSensitivityRestricted(memory.sensitivity) || !isExportableAudience(memory.metadata?.audience);
+}
 var CONFIDENTIAL_INDEX;
 var init_sensitivity = __esm({
   "../bobs-big-brain-registrar/apps/git-exporter/dist/sensitivity.js"() {
     "use strict";
     init_dist();
+    init_dist2();
     CONFIDENTIAL_INDEX = Sensitivity.options.indexOf("confidential");
   }
 });
@@ -44149,7 +45189,7 @@ function findStaleFiles(outputDir, memories, quarantinedIds, tenantId, maxOrphan
   for (const m of memories) {
     if (quarantinedIds.has(m.id))
       continue;
-    if (isSensitivityRestricted(m.sensitivity)) {
+    if (isExportRestricted(m)) {
       desired.set(m.id, null);
       continue;
     }
@@ -44348,7 +45388,7 @@ function runExport(memoryRepo, exportStateRepo, config2, nowFn = () => (/* @__PU
   const quarantined = [...changeset.quarantined];
   let unchanged = 0;
   for (const item of changeset.toWrite) {
-    if (isSensitivityRestricted(item.memory.sensitivity)) {
+    if (isExportRestricted(item.memory)) {
       skipped.push(item.memory.id);
       continue;
     }
@@ -44372,7 +45412,7 @@ function runExport(memoryRepo, exportStateRepo, config2, nowFn = () => (/* @__PU
     }
   }
   for (const item of changeset.toArchive) {
-    if (isSensitivityRestricted(item.memory.sensitivity)) {
+    if (isExportRestricted(item.memory)) {
       skipped.push(item.memory.id);
       continue;
     }
@@ -44713,6 +45753,9 @@ async function runGovernLocked(config2) {
       duplicates: curation.duplicates,
       quarantined: curation.quarantined,
       skipped: curation.skipped,
+      held: curation.held,
+      holdCapBlocked: curation.holdCapBlocked,
+      holdsExpired: curation.holdsExpired,
       exported,
       ...exportSummary !== void 0 ? { export: exportSummary } : {},
       ...exportError !== void 0 ? { exportError } : {},
@@ -44725,8 +45768,20 @@ async function runGovernLocked(config2) {
     db.close();
   }
 }
+function expireOverdueHolds(config2, deps) {
+  try {
+    return expireHolds(config2.tenantId, deps).length;
+  } catch (e) {
+    process.stderr.write(
+      `[govern:sweep] hold expiry skipped: ${e instanceof Error ? e.message : String(e)}
+`
+    );
+    return 0;
+  }
+}
 function sweepInbox(config2, deps) {
   const { candidateRepo, memoryRepo, policyRepo, auditRepo } = deps;
+  const holdsExpired = expireOverdueHolds(config2, deps);
   const inbox = candidateRepo.findByStatus("inbox", config2.tenantId);
   const res = {
     processed: inbox.length,
@@ -44735,7 +45790,10 @@ function sweepInbox(config2, deps) {
     flagged: 0,
     duplicates: 0,
     quarantined: 0,
-    skipped: 0
+    skipped: 0,
+    held: 0,
+    holdCapBlocked: 0,
+    holdsExpired
   };
   if (inbox.length === 0) return res;
   let originSecret;
@@ -44746,7 +45804,13 @@ function sweepInbox(config2, deps) {
   }
   const curator = new Curator(
     { candidateRepo, memoryRepo, policyRepo, auditRepo },
-    { tenantId: config2.tenantId, suppressRejectionReceipts: true, originSecret }
+    {
+      tenantId: config2.tenantId,
+      suppressRejectionReceipts: true,
+      originSecret,
+      // Hold bounds (K6): TEAMKB_HOLD_TTL_DAYS / TEAMKB_HOLD_MAX_ACTIVE, else defaults.
+      holdLimits: holdLimitsFromEnv()
+    }
   );
   const existingHashes = new Set(memoryRepo.getContentHashesByTenant(config2.tenantId));
   const outcomes = [];
@@ -44772,8 +45836,13 @@ function sweepInbox(config2, deps) {
           res.duplicates++;
           outcomes.push({ candidateId: candidate.id, outcome: "duplicate" });
           break;
+        case "held":
+          res.held++;
+          outcomes.push({ candidateId: candidate.id, outcome: "held" });
+          break;
         case "flagged":
           res.flagged++;
+          if (result.hold?.status === "cap_reached") res.holdCapBlocked++;
           outcomes.push({ candidateId: candidate.id, outcome: "flagged" });
           break;
         case "rejected":
@@ -44790,7 +45859,7 @@ function sweepInbox(config2, deps) {
       );
     }
   }
-  const leftInbox = res.promoted + res.duplicates + res.quarantined;
+  const leftInbox = res.promoted + res.duplicates + res.quarantined + res.held;
   if (leftInbox > 0) {
     memoryRepo.connection.transaction(() => {
       for (const flip of pendingFlips) {
@@ -44803,8 +45872,9 @@ function sweepInbox(config2, deps) {
           memoryId: SWEEP_RECEIPT_MEMORY_ID,
           tenantId: config2.tenantId,
           actor: { type: "system", id: "auto-govern" },
-          reason: `Auto-govern sweep: ${res.promoted} promoted, ${res.duplicates} duplicate, ${res.quarantined} quarantined, ${res.flagged} flagged, ${res.rejected} rejected, ${res.skipped} skipped`,
+          reason: `Auto-govern sweep: ${res.promoted} promoted, ${res.duplicates} duplicate, ${res.quarantined} quarantined, ${res.held} held, ${res.flagged} flagged, ${res.rejected} rejected, ${res.skipped} skipped`,
           details: {
+            held: res.held,
             promoted: res.promoted,
             duplicates: res.duplicates,
             quarantined: res.quarantined,
@@ -44845,7 +45915,24 @@ var init_govern = __esm({
 
 // src/govern-message.ts
 function isIdle(s) {
-  return s.ingested === 0 && s.processed === 0 && s.promoted === 0 && s.rejected === 0 && s.flagged === 0 && s.duplicates === 0 && s.quarantined === 0 && s.skipped === 0 && (s.exported ?? 0) === 0;
+  return s.ingested === 0 && s.processed === 0 && s.promoted === 0 && s.rejected === 0 && s.flagged === 0 && s.duplicates === 0 && s.quarantined === 0 && s.skipped === 0 && (s.held ?? 0) === 0 && (s.holdsExpired ?? 0) === 0 && (s.exported ?? 0) === 0;
+}
+function holdSentence(s) {
+  const parts = [];
+  if ((s.held ?? 0) > 0) {
+    parts.push(
+      ` ${s.held} candidate(s) are on hold for a person to resolve (curator-cli holds list); they were neither promoted nor dropped.`
+    );
+  }
+  if ((s.holdCapBlocked ?? 0) > 0) {
+    parts.push(
+      ` ${s.holdCapBlocked} more need human review but the hold queue is full; they were left in the inbox, unpromoted.`
+    );
+  }
+  if ((s.holdsExpired ?? 0) > 0) {
+    parts.push(` ${s.holdsExpired} hold(s) expired unresolved and were closed without promotion.`);
+  }
+  return parts.join("");
 }
 function exportSentence(s) {
   const parts = [];
@@ -44885,7 +45972,8 @@ function formatGovernMessage(s) {
     `${s.flagged} flagged`
   ];
   if (s.skipped > 0) parts.push(`${s.skipped} skipped`);
-  return `Governed ${s.processed} inbox candidate(s) (${s.ingested} newly ingested): ${parts.join(", ")}.` + exportSentence(s) + indexSentence(s);
+  if ((s.held ?? 0) > 0) parts.push(`${s.held} held`);
+  return `Governed ${s.processed} inbox candidate(s) (${s.ingested} newly ingested): ${parts.join(", ")}.` + holdSentence(s) + exportSentence(s) + indexSentence(s);
 }
 var init_govern_message = __esm({
   "src/govern-message.ts"() {

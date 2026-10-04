@@ -82,7 +82,8 @@ const client = new Client({ name: 'smoke-team', version: '0.0.0' }, { capabiliti
 await client.connect(transport);
 const text = (r) => r.content?.[0]?.text ?? JSON.stringify(r);
 
-// 3. Team surface (current product): search + status + capture + transition + inbox admin tools.
+// 3. Team surface (current product): search + status + capture + transition + inbox admin tools
+// + the human-escalation hold tools (list + recommend; resolving a hold is NOT a tool).
 // Local-only in-process tools (brain_govern, brain_audit_verify) must NOT appear — govern runs server-side.
 const tools = (await client.listTools()).tools.map((t) => t.name).sort();
 console.log('TOOLS:', tools.join(', '));
@@ -94,8 +95,14 @@ for (const t of [
   'brain_inbox',
   'brain_approve',
   'brain_reject',
+  'brain_holds',
+  'brain_hold_recommend',
 ]) {
   if (!tools.includes(t)) fail(`team mode did not expose ${t}`);
+}
+// A hold is resolved by a person (CLI / API under their own token), never by a tool call.
+for (const t of tools) {
+  if (/hold.*(resolve|release)/.test(t)) fail(`team mode exposed a hold-resolving tool ${t}`);
 }
 for (const t of ['brain_govern', 'brain_audit_verify']) {
   if (tools.includes(t)) fail(`team mode unexpectedly exposed local-only tool ${t}`);

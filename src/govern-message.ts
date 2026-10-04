@@ -17,6 +17,12 @@ export interface GovernMessageInput {
   duplicates: number;
   quarantined: number;
   skipped: number;
+  /** Candidates put on a bounded human-escalation hold this run (K6). */
+  held?: number;
+  /** Would-be holds refused because the hold queue is full; left unpromoted. */
+  holdCapBlocked?: number;
+  /** Holds closed UNPROMOTED this run because their expiry elapsed. */
+  holdsExpired?: number;
   indexUpdated: boolean;
   /** Files the export reconcile changed (written + archived + removed). */
   exported?: number;
@@ -45,8 +51,29 @@ export function isIdle(s: GovernMessageInput): boolean {
     s.duplicates === 0 &&
     s.quarantined === 0 &&
     s.skipped === 0 &&
+    (s.held ?? 0) === 0 &&
+    (s.holdsExpired ?? 0) === 0 &&
     (s.exported ?? 0) === 0
   );
+}
+
+/** One sentence on the human-escalation hold queue, or '' when nothing happened. */
+function holdSentence(s: GovernMessageInput): string {
+  const parts: string[] = [];
+  if ((s.held ?? 0) > 0) {
+    parts.push(
+      ` ${s.held} candidate(s) are on hold for a person to resolve (curator-cli holds list); they were neither promoted nor dropped.`,
+    );
+  }
+  if ((s.holdCapBlocked ?? 0) > 0) {
+    parts.push(
+      ` ${s.holdCapBlocked} more need human review but the hold queue is full; they were left in the inbox, unpromoted.`,
+    );
+  }
+  if ((s.holdsExpired ?? 0) > 0) {
+    parts.push(` ${s.holdsExpired} hold(s) expired unresolved and were closed without promotion.`);
+  }
+  return parts.join('');
 }
 
 /** One sentence on the export reconcile, or '' when there is nothing to say. */
@@ -99,8 +126,10 @@ export function formatGovernMessage(s: GovernMessageInput): string {
     `${s.flagged} flagged`,
   ];
   if (s.skipped > 0) parts.push(`${s.skipped} skipped`);
+  if ((s.held ?? 0) > 0) parts.push(`${s.held} held`);
   return (
     `Governed ${s.processed} inbox candidate(s) (${s.ingested} newly ingested): ${parts.join(', ')}.` +
+    holdSentence(s) +
     exportSentence(s) +
     indexSentence(s)
   );

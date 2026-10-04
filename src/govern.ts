@@ -1,6 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
-import { ingestFromSpool, Curator } from '@qmd-team-intent-kb/curator';
+import {
+  ingestFromSpool,
+  Curator,
+  expireHolds,
+  holdLimitsFromEnv,
+} from '@qmd-team-intent-kb/curator';
 import { runExport } from '@qmd-team-intent-kb/git-exporter';
 import { computeContentHash, loadOrCreateOriginSecret } from '@qmd-team-intent-kb/common';
 import { AuditEvent } from '@qmd-team-intent-kb/schema';
@@ -58,7 +63,14 @@ function describeQmdError(error: QmdError): string {
 /** One candidate's outcome in a sweep receipt — id + terminal outcome, NO content. */
 interface SweepOutcome {
   candidateId: string;
-  outcome: 'promoted' | 'duplicate' | 'quarantined' | 'flagged' | 'rejected' | 'skipped';
+  outcome:
+    | 'promoted'
+    | 'duplicate'
+    | 'quarantined'
+    | 'flagged'
+    | 'rejected'
+    | 'skipped'
+    | 'held';
 }
 
 /**
@@ -78,6 +90,16 @@ export interface GovernSummary {
   quarantined: number;
   /** Candidates skipped by per-candidate error containment (never aborts the sweep). */
   skipped: number;
+  /**
+   * Candidates put on a bounded human-escalation hold (K6): an audience or
+   * secret question the rules could detect but not decide. Neither promoted nor
+   * dropped; a person resolves each one (`curator-cli holds`).
+   */
+  held: number;
+  /** Would-be holds refused because the hold queue is full; left in the inbox, unpromoted. */
+  holdCapBlocked: number;
+  /** Holds closed UNPROMOTED this run because their expiry elapsed. */
+  holdsExpired: number;
   /**
    * Files the export reconcile CHANGED this run (written + archived + removed).
    * Not "newly promoted": a lifecycle-only change (batch-transition) counts here.
@@ -249,6 +271,9 @@ async function runGovernLocked(config: BrainConfig): Promise<GovernSummary> {
       duplicates: curation.duplicates,
       quarantined: curation.quarantined,
       skipped: curation.skipped,
+      held: curation.held,
+      holdCapBlocked: curation.holdCapBlocked,
+      holdsExpired: curation.holdsExpired,
       exported,
       ...(exportSummary !== undefined ? { export: exportSummary } : {}),
       ...(exportError !== undefined ? { exportError } : {}),
@@ -279,6 +304,26 @@ interface SweepResult {
   duplicates: number;
   quarantined: number;
   skipped: number;
+  held: number;
+  holdCapBlocked: number;
+  holdsExpired: number;
+}
+
+/**
+ * Close every human-escalation hold whose expiry has elapsed (K6). Expiry is
+ * the SAFE default: the candidate is stamped `rejected` with an `expired`
+ * receipt and is never promoted. Best-effort: a failure here must not stop the
+ * sweep (an overdue hold cannot be released in the meantime either way).
+ */
+function expireOverdueHolds(config: BrainConfig, deps: SweepDeps): number {
+  try {
+    return expireHolds(config.tenantId, deps).length;
+  } catch (e) {
+    process.stderr.write(
+      `[govern:sweep] hold expiry skipped: ${e instanceof Error ? e.message : String(e)}\n`,
+    );
+    return 0;
+  }
 }
 
 /**
@@ -296,6 +341,10 @@ interface SweepResult {
  *     promote). On the CurationResult:
  *       - promoted / duplicate → stamped to that terminal status; the row LEAVES
  *         the inbox (non-destructively — the row + its content survive).
+ *       - held (K6) → an audience or secret question the rules can detect but not
+ *         decide. The curator ALREADY stamped the row `quarantined` and wrote its
+ *         `held` receipt in one transaction; the sweep only counts it. It leaves
+ *         the inbox for a bounded hold that a person resolves.
  *       - flagged / rejected → LEFT in the inbox for human review. The review
  *         queue + the only copy of the content must survive, so the sweep never
  *         retires them. Per-candidate reject receipts are suppressed
@@ -316,6 +365,8 @@ interface SweepResult {
  */
 function sweepInbox(config: BrainConfig, deps: SweepDeps): SweepResult {
   const { candidateRepo, memoryRepo, policyRepo, auditRepo } = deps;
+  // Close overdue holds first, so their slots are free for this run's holds.
+  const holdsExpired = expireOverdueHolds(config, deps);
   const inbox = candidateRepo.findByStatus('inbox', config.tenantId);
 
   const res: SweepResult = {
@@ -326,6 +377,9 @@ function sweepInbox(config: BrainConfig, deps: SweepDeps): SweepResult {
     duplicates: 0,
     quarantined: 0,
     skipped: 0,
+    held: 0,
+    holdCapBlocked: 0,
+    holdsExpired,
   };
   if (inbox.length === 0) return res;
 
@@ -342,7 +396,13 @@ function sweepInbox(config: BrainConfig, deps: SweepDeps): SweepResult {
   }
   const curator = new Curator(
     { candidateRepo, memoryRepo, policyRepo, auditRepo },
-    { tenantId: config.tenantId, suppressRejectionReceipts: true, originSecret },
+    {
+      tenantId: config.tenantId,
+      suppressRejectionReceipts: true,
+      originSecret,
+      // Hold bounds (K6): TEAMKB_HOLD_TTL_DAYS / TEAMKB_HOLD_MAX_ACTIVE, else defaults.
+      holdLimits: holdLimitsFromEnv(),
+    },
   );
 
   // Tenant-scoped intra-batch dedup set, extended as promotions land (mirrors
@@ -381,9 +441,15 @@ function sweepInbox(config: BrainConfig, deps: SweepDeps): SweepResult {
           res.duplicates++;
           outcomes.push({ candidateId: candidate.id, outcome: 'duplicate' });
           break;
+        case 'held':
+          // The curator stamped the row and wrote its `held` receipt atomically.
+          res.held++;
+          outcomes.push({ candidateId: candidate.id, outcome: 'held' });
+          break;
         case 'flagged':
           // LEFT in the inbox for human review (row + content survive).
           res.flagged++;
+          if (result.hold?.status === 'cap_reached') res.holdCapBlocked++;
           outcomes.push({ candidateId: candidate.id, outcome: 'flagged' });
           break;
         case 'rejected':
@@ -405,7 +471,7 @@ function sweepInbox(config: BrainConfig, deps: SweepDeps): SweepResult {
   // ONE batch receipt — only when durable state changed (a candidate left the
   // inbox). A no-op sweep (only review-queue leftovers) writes nothing, keeping a
   // re-run idempotent. Content is NEVER included (ids + outcomes only).
-  const leftInbox = res.promoted + res.duplicates + res.quarantined;
+  const leftInbox = res.promoted + res.duplicates + res.quarantined + res.held;
   if (leftInbox > 0) {
     // ATOMIC (jfv.2.5b): apply the deferred quarantine/duplicate marker flips AND
     // write the batch receipt in ONE transaction. Previously the receipt was a
@@ -426,8 +492,9 @@ function sweepInbox(config: BrainConfig, deps: SweepDeps): SweepResult {
           memoryId: SWEEP_RECEIPT_MEMORY_ID,
           tenantId: config.tenantId,
           actor: { type: 'system', id: 'auto-govern' },
-          reason: `Auto-govern sweep: ${res.promoted} promoted, ${res.duplicates} duplicate, ${res.quarantined} quarantined, ${res.flagged} flagged, ${res.rejected} rejected, ${res.skipped} skipped`,
+          reason: `Auto-govern sweep: ${res.promoted} promoted, ${res.duplicates} duplicate, ${res.quarantined} quarantined, ${res.held} held, ${res.flagged} flagged, ${res.rejected} rejected, ${res.skipped} skipped`,
           details: {
+            held: res.held,
             promoted: res.promoted,
             duplicates: res.duplicates,
             quarantined: res.quarantined,

@@ -116,3 +116,32 @@ describe('formatGovernMessage — export reconcile + index reason', () => {
     expect(formatGovernMessage({ ...zeros, indexUpdated: true })).not.toMatch(/index/i);
   });
 });
+
+describe('formatGovernMessage — human-escalation holds (K6)', () => {
+  it('reports held candidates as neither promoted nor dropped', () => {
+    const msg = formatGovernMessage({ ...zeros, processed: 2, promoted: 1, held: 1 });
+    expect(msg).toContain('1 held');
+    expect(msg).toMatch(/on hold for a person to resolve/);
+    expect(msg).toMatch(/neither promoted nor dropped/);
+  });
+
+  it('reports a full hold queue and expired holds', () => {
+    const msg = formatGovernMessage({
+      ...zeros,
+      processed: 1,
+      flagged: 1,
+      holdCapBlocked: 1,
+      holdsExpired: 2,
+    });
+    expect(msg).toMatch(/hold queue is full/);
+    expect(msg).toMatch(/2 hold\(s\) expired unresolved and were closed without promotion/);
+    expect(msg).not.toContain(' held');
+  });
+
+  it('an expiry alone is not idle', () => {
+    expect(isIdle({ ...zeros, holdsExpired: 1 })).toBe(false);
+    expect(isIdle({ ...zeros, held: 1 })).toBe(false);
+    expect(isIdle({ ...zeros, held: 0, holdsExpired: 0, holdCapBlocked: 0 })).toBe(true);
+    expect(formatGovernMessage({ ...zeros, holdsExpired: 1 })).toMatch(/^Governed 0 inbox/);
+  });
+});

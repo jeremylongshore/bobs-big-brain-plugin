@@ -812,6 +812,156 @@ server.tool(
   async (params) => rejectCandidate(params.candidateId, params.tenantId, params.reason),
 );
 
+// ─── HUMAN-ESCALATION HOLDS (team mode: see the queue, attach a recommendation) ─
+// K6 (registrar decision 053-AT-DECR, reusing 014-AT-DECR's recommend /
+// pipeline-owns split). The deterministic pipeline puts a candidate on a BOUNDED
+// hold when an audience or secret question can be detected but not decided.
+// These two tools let an admin's session SEE the queue and ATTACH A
+// RECOMMENDATION. There is deliberately NO resolve tool: releasing or rejecting a
+// hold is a person's decision (it chooses the audience), and an MCP tool call is
+// a model emitting it. A person resolves with `curator-cli holds resolve` or
+// `POST /api/holds/:candidateId/resolve` under their own token; the server
+// refuses agent tokens there. Both tools are ADMIN-ONLY and HTTP-proxy only.
+
+const AUDIENCES = ['tenant', 'admins', 'owner'] as const;
+
+/** List the open human-escalation holds (admin). Never returns candidate content. */
+export async function listHolds(
+  tenantId: string | undefined,
+  limit: number,
+): Promise<ReturnType<typeof jsonResult>> {
+  if (API_URL === undefined || API_URL === '') {
+    return jsonResult({ ok: false, error: 'unconfigured — set TEAMKB_API_URL to your team brain' });
+  }
+  const tenant = resolveTenant(tenantId);
+  let res: Response;
+  try {
+    res = await fetch(
+      `${API_URL.replace(/\/+$/, '')}/api/holds?tenantId=${encodeURIComponent(tenant)}`,
+      { method: 'GET', headers: authHeaders() },
+    );
+  } catch (e) {
+    return jsonResult({ ok: false, error: `could not reach the brain API: ${e instanceof Error ? e.message : String(e)}` });
+  }
+  if (!res.ok) return errorResult(res);
+  type HoldsBody = { maxActive?: unknown; hiddenAboveStanding?: unknown; holds?: unknown } | null;
+  let body: HoldsBody;
+  try {
+    body = (await res.json()) as HoldsBody;
+  } catch {
+    return jsonResult({ ok: false, error: 'the brain returned an unreadable (non-JSON) holds response' });
+  }
+  const rows = Array.isArray(body?.holds) ? (body.holds as Array<Record<string, unknown>>) : [];
+  const text = (v: unknown): string => (typeof v === 'string' ? v : '');
+  const list = (v: unknown): string[] =>
+    Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
+  const holds = rows
+    .filter((r) => typeof r['candidateId'] === 'string' && r['candidateId'].length > 0)
+    .slice(0, limit)
+    .map((r) => ({
+      candidateId: r['candidateId'] as string,
+      title: text(r['title']),
+      category: text(r['category']),
+      declaredAudience: text(r['declaredAudience']),
+      recommendedAudience: text(r['recommendedAudience']),
+      triggers: list(r['triggers']),
+      matchedPatterns: list(r['matchedPatterns']),
+      heldAt: text(r['heldAt']),
+      expiresAt: text(r['expiresAt']),
+      expired: r['expired'] === true,
+      recommendations: Array.isArray(r['recommendations']) ? r['recommendations'].length : 0,
+    }));
+  return jsonResult({
+    ok: true,
+    tenantId: tenant,
+    count: holds.length,
+    maxActive: typeof body?.maxActive === 'number' ? body.maxActive : undefined,
+    hiddenAboveStanding:
+      typeof body?.hiddenAboveStanding === 'number' ? body.hiddenAboveStanding : 0,
+    holds,
+    note: 'A person resolves a hold (curator-cli holds resolve, or POST /api/holds/:candidateId/resolve). This session can only recommend.',
+  });
+}
+
+/** Attach a recommendation to a hold (admin). Advice only: it changes no state. */
+export async function recommendOnHold(
+  candidateId: string,
+  tenantId: string | undefined,
+  verdict: 'release' | 'reject',
+  audience: (typeof AUDIENCES)[number] | undefined,
+  reasoning: string,
+): Promise<ReturnType<typeof jsonResult>> {
+  if (API_URL === undefined || API_URL === '') {
+    return jsonResult({ ok: false, error: 'unconfigured — set TEAMKB_API_URL to your team brain' });
+  }
+  const tenant = resolveTenant(tenantId);
+  const body: Record<string, unknown> = { verdict, reasoning, actorType: 'ai' };
+  if (audience !== undefined) body['audience'] = audience;
+  let res: Response;
+  try {
+    res = await fetch(
+      `${API_URL.replace(/\/+$/, '')}/api/holds/${encodeURIComponent(candidateId)}/recommend` +
+        `?tenantId=${encodeURIComponent(tenant)}`,
+      { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) },
+    );
+  } catch (e) {
+    return jsonResult({ ok: false, error: `could not reach the brain API: ${e instanceof Error ? e.message : String(e)}` });
+  }
+  if (!res.ok) return errorResult(res);
+  // The recommendation is recorded (2xx). An unreadable body must not turn that into an error.
+  type Recorded = { auditEventId?: unknown; duplicate?: unknown } | null;
+  let recorded: Recorded = null;
+  try {
+    recorded = (await res.json()) as Recorded;
+  } catch {
+    recorded = null;
+  }
+  return jsonResult({
+    ok: true,
+    candidateId,
+    tenantId: tenant,
+    verdict,
+    ...(audience !== undefined ? { audience } : {}),
+    auditEventId: typeof recorded?.auditEventId === 'string' ? recorded.auditEventId : undefined,
+    duplicate: recorded?.duplicate === true,
+    message:
+      'Recommendation recorded as a hash-chained receipt. Nothing changed: the candidate is still on hold until a person resolves it.',
+  });
+}
+
+server.tool(
+  'brain_holds',
+  "List your team brain's open human-escalation holds — candidates the deterministic pipeline held because an audience or secret question could be detected but not decided. Each is neither promoted nor dropped, and closes UNPROMOTED at its expiry. ADMIN-ONLY (a member token gets a clear 403). Read-only; returns ids, titles, audience tiers, trigger names and the expiry — never content. You cannot resolve a hold from here: a person does that. Use brain_hold_recommend to attach your recommendation.",
+  {
+    tenantId: z.string().optional().describe('Tenant to inspect (default: the team tenant)'),
+    limit: z.number().int().min(1).max(200).optional().describe('Max holds to return (default 50)'),
+  },
+  async (params) => listHolds(params.tenantId, params.limit ?? 50),
+);
+
+server.tool(
+  'brain_hold_recommend',
+  "Attach a recommendation to a held candidate: 'release' (with the audience you would choose) or 'reject', plus your reasoning. ADMIN-ONLY. This is ADVICE: it writes one hash-chained receipt naming you and changes NO state — the candidate stays on hold, unpromoted, until a person with admin or owner standing resolves it. Repeating the same recommendation is a no-op.",
+  {
+    candidateId: z.string().uuid().describe('UUID of the held candidate (from brain_holds)'),
+    tenantId: z.string().optional().describe('Tenant the candidate belongs to (default: the team tenant)'),
+    verdict: z.enum(['release', 'reject']).describe('What you would do with it'),
+    audience: z
+      .enum(AUDIENCES)
+      .optional()
+      .describe('For a release: the audience you would choose (tenant | admins | owner)'),
+    reasoning: z.string().min(1).describe('Why (lands in the receipt)'),
+  },
+  async (params) =>
+    recommendOnHold(
+      params.candidateId,
+      params.tenantId,
+      params.verdict,
+      params.audience,
+      params.reasoning,
+    ),
+);
+
 /**
  * Boot team mode: connect the stdio transport. Exported so the dispatcher
  * (src/index.ts) can start it, and invoked directly when this module is the
