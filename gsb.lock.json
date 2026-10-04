@@ -21,7 +21,7 @@
     "govern": {
       "name": "bobs-big-brain-registrar",
       "version": "0.8.0",
-      "commit": "628c225",
+      "commit": "1af2ef4",
       "registry": "bundled",
       "role": "INTKB \u2014 deterministic dedupe -> policy -> promote + the SHA-256 hash-chained audit + external anchor; dense retrieval default-on (#328/#334). Private monorepo; compiled into plugin-runtime/governed-brain.cjs, never published to a registry."
     },
