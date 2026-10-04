@@ -34,11 +34,12 @@ import {
   readdirSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   truncateSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
@@ -80,13 +81,20 @@ const FAKE_QMD = join(fakeBin, 'qmd');
 writeFileSync(FAKE_QMD, '#!/bin/sh\n[ "$1" = "--version" ] && echo "qmd 2.5.3"\nexit 0\n');
 chmodSync(FAKE_QMD, 0o755);
 
+// PATH for the server: a private dir holding ONLY a node symlink. Using node's own
+// bin dir would be wrong on CI, where `npm i -g @tobilu/qmd` installs qmd right
+// next to node and would make the "no qmd anywhere" scenarios find it.
+const nodeOnlyBin = join(WORK, 'node-only-bin');
+mkdirSync(nodeOnlyBin, { recursive: true });
+symlinkSync(process.execPath, join(nodeOnlyBin, 'node'));
+
 /** Open a session with an explicit, minimal environment (PATH has node only). */
 async function session(extraEnv = {}) {
   const transport = new StdioClientTransport({
     command: process.execPath,
     args: [RUNTIME],
     env: {
-      PATH: dirname(process.execPath),
+      PATH: nodeOnlyBin,
       HOME,
       TEAMKB_BASE_PATH: BASE,
       TEAMKB_TENANT_ID: 'local',
