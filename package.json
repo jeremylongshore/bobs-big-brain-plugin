@@ -60,6 +60,8 @@
     "audit-verify-banner:test": "node --test smoke/audit-verify-banner.test.mjs",
     "mode-dispatch:test": "node --test smoke/mode-dispatch.test.mjs",
     "anchor-conformance:test": "node --test scripts/anchor-conformance.test.mjs",
+    "subjects-conformance:test": "node --test scripts/subjects-conformance.test.mjs",
+    "govern-reconcile:test": "node smoke/govern-reconcile.mjs",
     "bootstrap-clean-install:test": "node smoke/bootstrap-clean-install.mjs"
   },
   "dependencies": {

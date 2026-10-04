@@ -4208,10 +4208,10 @@ var require_v3 = __commonJS({
     };
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.z = void 0;
-    var z20 = __importStar(require_external());
-    exports2.z = z20;
+    var z21 = __importStar(require_external());
+    exports2.z = z21;
     __exportStar(require_external(), exports2);
-    exports2.default = z20;
+    exports2.default = z21;
   }
 });
 
@@ -5382,8 +5382,8 @@ var require_regexes = __commonJS({
     }
     exports2.ipv4 = /^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])$/;
     exports2.ipv6 = /^(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))$/;
-    var mac = (delimiter) => {
-      const escapedDelim = util.escapeRegex(delimiter ?? ":");
+    var mac = (delimiter3) => {
+      const escapedDelim = util.escapeRegex(delimiter3 ?? ":");
       return new RegExp(`^(?:[0-9A-F]{2}${escapedDelim}){5}[0-9A-F]{2}$|^(?:[0-9a-f]{2}${escapedDelim}){5}[0-9a-f]{2}$`);
     };
     exports2.mac = mac;
@@ -20023,8 +20023,8 @@ var require_v4_mini = __commonJS({
     };
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.z = void 0;
-    var z20 = __importStar(require_external2());
-    exports2.z = z20;
+    var z21 = __importStar(require_external2());
+    exports2.z = z21;
     __exportStar(require_external2(), exports2);
   }
 });
@@ -22009,7 +22009,7 @@ var require_from_json_schema = __commonJS({
     var _checks = __importStar(require_checks3());
     var _iso = __importStar(require_iso2());
     var _schemas = __importStar(require_schemas3());
-    var z20 = {
+    var z21 = {
       ..._schemas,
       ..._checks,
       iso: _iso
@@ -22119,7 +22119,7 @@ var require_from_json_schema = __commonJS({
     function convertBaseSchema(schema, ctx) {
       if (schema.not !== void 0) {
         if (typeof schema.not === "object" && Object.keys(schema.not).length === 0) {
-          return z20.never();
+          return z21.never();
         }
         throw new Error("not is not supported in Zod (except { not: {} } for never)");
       }
@@ -22141,7 +22141,7 @@ var require_from_json_schema = __commonJS({
           return ctx.refs.get(refPath);
         }
         if (ctx.processing.has(refPath)) {
-          return z20.lazy(() => {
+          return z21.lazy(() => {
             if (!ctx.refs.has(refPath)) {
               throw new Error(`Circular reference not resolved: ${refPath}`);
             }
@@ -22158,25 +22158,25 @@ var require_from_json_schema = __commonJS({
       if (schema.enum !== void 0) {
         const enumValues = schema.enum;
         if (ctx.version === "openapi-3.0" && schema.nullable === true && enumValues.length === 1 && enumValues[0] === null) {
-          return z20.null();
+          return z21.null();
         }
         if (enumValues.length === 0) {
-          return z20.never();
+          return z21.never();
         }
         if (enumValues.length === 1) {
-          return z20.literal(enumValues[0]);
+          return z21.literal(enumValues[0]);
         }
         if (enumValues.every((v) => typeof v === "string")) {
-          return z20.enum(enumValues);
+          return z21.enum(enumValues);
         }
-        const literalSchemas = enumValues.map((v) => z20.literal(v));
+        const literalSchemas = enumValues.map((v) => z21.literal(v));
         if (literalSchemas.length < 2) {
           return literalSchemas[0];
         }
-        return z20.union([literalSchemas[0], literalSchemas[1], ...literalSchemas.slice(2)]);
+        return z21.union([literalSchemas[0], literalSchemas[1], ...literalSchemas.slice(2)]);
       }
       if (schema.const !== void 0) {
-        return z20.literal(schema.const);
+        return z21.literal(schema.const);
       }
       const type = schema.type;
       if (Array.isArray(type)) {
@@ -22185,68 +22185,68 @@ var require_from_json_schema = __commonJS({
           return convertBaseSchema(typeSchema, ctx);
         });
         if (typeSchemas.length === 0) {
-          return z20.never();
+          return z21.never();
         }
         if (typeSchemas.length === 1) {
           return typeSchemas[0];
         }
-        return z20.union(typeSchemas);
+        return z21.union(typeSchemas);
       }
       if (!type) {
-        return z20.any();
+        return z21.any();
       }
       let zodSchema;
       switch (type) {
         case "string": {
-          let stringSchema = z20.string();
+          let stringSchema = z21.string();
           if (schema.format) {
             const format = schema.format;
             if (format === "email") {
-              stringSchema = stringSchema.check(z20.email());
+              stringSchema = stringSchema.check(z21.email());
             } else if (format === "uri" || format === "uri-reference") {
-              stringSchema = stringSchema.check(z20.url());
+              stringSchema = stringSchema.check(z21.url());
             } else if (format === "uuid" || format === "guid") {
-              stringSchema = stringSchema.check(z20.uuid());
+              stringSchema = stringSchema.check(z21.uuid());
             } else if (format === "date-time") {
-              stringSchema = stringSchema.check(z20.iso.datetime());
+              stringSchema = stringSchema.check(z21.iso.datetime());
             } else if (format === "date") {
-              stringSchema = stringSchema.check(z20.iso.date());
+              stringSchema = stringSchema.check(z21.iso.date());
             } else if (format === "time") {
-              stringSchema = stringSchema.check(z20.iso.time());
+              stringSchema = stringSchema.check(z21.iso.time());
             } else if (format === "duration") {
-              stringSchema = stringSchema.check(z20.iso.duration());
+              stringSchema = stringSchema.check(z21.iso.duration());
             } else if (format === "ipv4") {
-              stringSchema = stringSchema.check(z20.ipv4());
+              stringSchema = stringSchema.check(z21.ipv4());
             } else if (format === "ipv6") {
-              stringSchema = stringSchema.check(z20.ipv6());
+              stringSchema = stringSchema.check(z21.ipv6());
             } else if (format === "mac") {
-              stringSchema = stringSchema.check(z20.mac());
+              stringSchema = stringSchema.check(z21.mac());
             } else if (format === "cidr") {
-              stringSchema = stringSchema.check(z20.cidrv4());
+              stringSchema = stringSchema.check(z21.cidrv4());
             } else if (format === "cidr-v6") {
-              stringSchema = stringSchema.check(z20.cidrv6());
+              stringSchema = stringSchema.check(z21.cidrv6());
             } else if (format === "base64") {
-              stringSchema = stringSchema.check(z20.base64());
+              stringSchema = stringSchema.check(z21.base64());
             } else if (format === "base64url") {
-              stringSchema = stringSchema.check(z20.base64url());
+              stringSchema = stringSchema.check(z21.base64url());
             } else if (format === "e164") {
-              stringSchema = stringSchema.check(z20.e164());
+              stringSchema = stringSchema.check(z21.e164());
             } else if (format === "jwt") {
-              stringSchema = stringSchema.check(z20.jwt());
+              stringSchema = stringSchema.check(z21.jwt());
             } else if (format === "emoji") {
-              stringSchema = stringSchema.check(z20.emoji());
+              stringSchema = stringSchema.check(z21.emoji());
             } else if (format === "nanoid") {
-              stringSchema = stringSchema.check(z20.nanoid());
+              stringSchema = stringSchema.check(z21.nanoid());
             } else if (format === "cuid") {
-              stringSchema = stringSchema.check(z20.cuid());
+              stringSchema = stringSchema.check(z21.cuid());
             } else if (format === "cuid2") {
-              stringSchema = stringSchema.check(z20.cuid2());
+              stringSchema = stringSchema.check(z21.cuid2());
             } else if (format === "ulid") {
-              stringSchema = stringSchema.check(z20.ulid());
+              stringSchema = stringSchema.check(z21.ulid());
             } else if (format === "xid") {
-              stringSchema = stringSchema.check(z20.xid());
+              stringSchema = stringSchema.check(z21.xid());
             } else if (format === "ksuid") {
-              stringSchema = stringSchema.check(z20.ksuid());
+              stringSchema = stringSchema.check(z21.ksuid());
             }
           }
           if (typeof schema.minLength === "number") {
@@ -22263,7 +22263,7 @@ var require_from_json_schema = __commonJS({
         }
         case "number":
         case "integer": {
-          let numberSchema = type === "integer" ? z20.number().int() : z20.number();
+          let numberSchema = type === "integer" ? z21.number().int() : z21.number();
           if (typeof schema.minimum === "number") {
             numberSchema = numberSchema.min(schema.minimum);
           }
@@ -22287,11 +22287,11 @@ var require_from_json_schema = __commonJS({
           break;
         }
         case "boolean": {
-          zodSchema = z20.boolean();
+          zodSchema = z21.boolean();
           break;
         }
         case "null": {
-          zodSchema = z20.null();
+          zodSchema = z21.null();
           break;
         }
         case "object": {
@@ -22304,14 +22304,14 @@ var require_from_json_schema = __commonJS({
           }
           if (schema.propertyNames) {
             const keySchema = convertSchema(schema.propertyNames, ctx);
-            const valueSchema = schema.additionalProperties && typeof schema.additionalProperties === "object" ? convertSchema(schema.additionalProperties, ctx) : z20.any();
+            const valueSchema = schema.additionalProperties && typeof schema.additionalProperties === "object" ? convertSchema(schema.additionalProperties, ctx) : z21.any();
             if (Object.keys(shape).length === 0) {
-              zodSchema = z20.record(keySchema, valueSchema);
+              zodSchema = z21.record(keySchema, valueSchema);
               break;
             }
-            const objectSchema2 = z20.object(shape).passthrough();
-            const recordSchema = z20.looseRecord(keySchema, valueSchema);
-            zodSchema = z20.intersection(objectSchema2, recordSchema);
+            const objectSchema2 = z21.object(shape).passthrough();
+            const recordSchema = z21.looseRecord(keySchema, valueSchema);
+            zodSchema = z21.intersection(objectSchema2, recordSchema);
             break;
           }
           if (schema.patternProperties) {
@@ -22320,28 +22320,28 @@ var require_from_json_schema = __commonJS({
             const looseRecords = [];
             for (const pattern of patternKeys) {
               const patternValue = convertSchema(patternProps[pattern], ctx);
-              const keySchema = z20.string().regex(new RegExp(pattern));
-              looseRecords.push(z20.looseRecord(keySchema, patternValue));
+              const keySchema = z21.string().regex(new RegExp(pattern));
+              looseRecords.push(z21.looseRecord(keySchema, patternValue));
             }
             const schemasToIntersect = [];
             if (Object.keys(shape).length > 0) {
-              schemasToIntersect.push(z20.object(shape).passthrough());
+              schemasToIntersect.push(z21.object(shape).passthrough());
             }
             schemasToIntersect.push(...looseRecords);
             if (schemasToIntersect.length === 0) {
-              zodSchema = z20.object({}).passthrough();
+              zodSchema = z21.object({}).passthrough();
             } else if (schemasToIntersect.length === 1) {
               zodSchema = schemasToIntersect[0];
             } else {
-              let result = z20.intersection(schemasToIntersect[0], schemasToIntersect[1]);
+              let result = z21.intersection(schemasToIntersect[0], schemasToIntersect[1]);
               for (let i = 2; i < schemasToIntersect.length; i++) {
-                result = z20.intersection(result, schemasToIntersect[i]);
+                result = z21.intersection(result, schemasToIntersect[i]);
               }
               zodSchema = result;
             }
             break;
           }
-          const objectSchema = z20.object(shape);
+          const objectSchema = z21.object(shape);
           if (schema.additionalProperties === false) {
             zodSchema = objectSchema.strict();
           } else if (typeof schema.additionalProperties === "object") {
@@ -22358,33 +22358,33 @@ var require_from_json_schema = __commonJS({
             const tupleItems = prefixItems.map((item) => convertSchema(item, ctx));
             const rest = items && typeof items === "object" && !Array.isArray(items) ? convertSchema(items, ctx) : void 0;
             if (rest) {
-              zodSchema = z20.tuple(tupleItems).rest(rest);
+              zodSchema = z21.tuple(tupleItems).rest(rest);
             } else {
-              zodSchema = z20.tuple(tupleItems);
+              zodSchema = z21.tuple(tupleItems);
             }
             if (typeof schema.minItems === "number") {
-              zodSchema = zodSchema.check(z20.minLength(schema.minItems));
+              zodSchema = zodSchema.check(z21.minLength(schema.minItems));
             }
             if (typeof schema.maxItems === "number") {
-              zodSchema = zodSchema.check(z20.maxLength(schema.maxItems));
+              zodSchema = zodSchema.check(z21.maxLength(schema.maxItems));
             }
           } else if (Array.isArray(items)) {
             const tupleItems = items.map((item) => convertSchema(item, ctx));
             const rest = schema.additionalItems && typeof schema.additionalItems === "object" ? convertSchema(schema.additionalItems, ctx) : void 0;
             if (rest) {
-              zodSchema = z20.tuple(tupleItems).rest(rest);
+              zodSchema = z21.tuple(tupleItems).rest(rest);
             } else {
-              zodSchema = z20.tuple(tupleItems);
+              zodSchema = z21.tuple(tupleItems);
             }
             if (typeof schema.minItems === "number") {
-              zodSchema = zodSchema.check(z20.minLength(schema.minItems));
+              zodSchema = zodSchema.check(z21.minLength(schema.minItems));
             }
             if (typeof schema.maxItems === "number") {
-              zodSchema = zodSchema.check(z20.maxLength(schema.maxItems));
+              zodSchema = zodSchema.check(z21.maxLength(schema.maxItems));
             }
           } else if (items !== void 0) {
             const element = convertSchema(items, ctx);
-            let arraySchema = z20.array(element);
+            let arraySchema = z21.array(element);
             if (typeof schema.minItems === "number") {
               arraySchema = arraySchema.min(schema.minItems);
             }
@@ -22393,7 +22393,7 @@ var require_from_json_schema = __commonJS({
             }
             zodSchema = arraySchema;
           } else {
-            zodSchema = z20.array(z20.any());
+            zodSchema = z21.array(z21.any());
           }
           break;
         }
@@ -22404,37 +22404,37 @@ var require_from_json_schema = __commonJS({
     }
     function convertSchema(schema, ctx) {
       if (typeof schema === "boolean") {
-        return schema ? z20.any() : z20.never();
+        return schema ? z21.any() : z21.never();
       }
       let baseSchema = convertBaseSchema(schema, ctx);
       const hasExplicitType = schema.type || schema.enum !== void 0 || schema.const !== void 0;
       if (schema.anyOf && Array.isArray(schema.anyOf)) {
         const options = schema.anyOf.map((s) => convertSchema(s, ctx));
-        const anyOfUnion = z20.union(options);
-        baseSchema = hasExplicitType ? z20.intersection(baseSchema, anyOfUnion) : anyOfUnion;
+        const anyOfUnion = z21.union(options);
+        baseSchema = hasExplicitType ? z21.intersection(baseSchema, anyOfUnion) : anyOfUnion;
       }
       if (schema.oneOf && Array.isArray(schema.oneOf)) {
         const options = schema.oneOf.map((s) => convertSchema(s, ctx));
-        const oneOfUnion = z20.xor(options);
-        baseSchema = hasExplicitType ? z20.intersection(baseSchema, oneOfUnion) : oneOfUnion;
+        const oneOfUnion = z21.xor(options);
+        baseSchema = hasExplicitType ? z21.intersection(baseSchema, oneOfUnion) : oneOfUnion;
       }
       if (schema.allOf && Array.isArray(schema.allOf)) {
         if (schema.allOf.length === 0) {
-          baseSchema = hasExplicitType ? baseSchema : z20.any();
+          baseSchema = hasExplicitType ? baseSchema : z21.any();
         } else {
           let result = hasExplicitType ? baseSchema : convertSchema(schema.allOf[0], ctx);
           const startIdx = hasExplicitType ? 0 : 1;
           for (let i = startIdx; i < schema.allOf.length; i++) {
-            result = z20.intersection(result, convertSchema(schema.allOf[i], ctx));
+            result = z21.intersection(result, convertSchema(schema.allOf[i], ctx));
           }
           baseSchema = result;
         }
       }
       if (schema.nullable === true && ctx.version === "openapi-3.0") {
-        baseSchema = z20.nullable(baseSchema);
+        baseSchema = z21.nullable(baseSchema);
       }
       if (schema.readOnly === true) {
-        baseSchema = z20.readonly(baseSchema);
+        baseSchema = z21.readonly(baseSchema);
       }
       if (schema.default !== void 0) {
         baseSchema = baseSchema.default(schema.default);
@@ -22467,7 +22467,7 @@ var require_from_json_schema = __commonJS({
     }
     function fromJSONSchema(schema, params) {
       if (typeof schema === "boolean") {
-        return schema ? z20.any() : z20.never();
+        return schema ? z21.any() : z21.never();
       }
       let normalized;
       try {
@@ -22704,10 +22704,10 @@ var require_classic = __commonJS({
     };
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.z = void 0;
-    var z20 = __importStar(require_external3());
-    exports2.z = z20;
+    var z21 = __importStar(require_external3());
+    exports2.z = z21;
     __exportStar(require_external3(), exports2);
-    exports2.default = z20;
+    exports2.default = z21;
   }
 });
 
@@ -27251,11 +27251,11 @@ var require_codegen = __commonJS({
         const rhs = this.rhs === void 0 ? "" : ` = ${this.rhs}`;
         return `${varKind} ${this.name}${rhs};` + _n;
       }
-      optimizeNames(names, constants) {
+      optimizeNames(names, constants2) {
         if (!names[this.name.str])
           return;
         if (this.rhs)
-          this.rhs = optimizeExpr(this.rhs, names, constants);
+          this.rhs = optimizeExpr(this.rhs, names, constants2);
         return this;
       }
       get names() {
@@ -27272,10 +27272,10 @@ var require_codegen = __commonJS({
       render({ _n }) {
         return `${this.lhs} = ${this.rhs};` + _n;
       }
-      optimizeNames(names, constants) {
+      optimizeNames(names, constants2) {
         if (this.lhs instanceof code_1.Name && !names[this.lhs.str] && !this.sideEffects)
           return;
-        this.rhs = optimizeExpr(this.rhs, names, constants);
+        this.rhs = optimizeExpr(this.rhs, names, constants2);
         return this;
       }
       get names() {
@@ -27336,8 +27336,8 @@ var require_codegen = __commonJS({
       optimizeNodes() {
         return `${this.code}` ? this : void 0;
       }
-      optimizeNames(names, constants) {
-        this.code = optimizeExpr(this.code, names, constants);
+      optimizeNames(names, constants2) {
+        this.code = optimizeExpr(this.code, names, constants2);
         return this;
       }
       get names() {
@@ -27366,12 +27366,12 @@ var require_codegen = __commonJS({
         }
         return nodes.length > 0 ? this : void 0;
       }
-      optimizeNames(names, constants) {
+      optimizeNames(names, constants2) {
         const { nodes } = this;
         let i = nodes.length;
         while (i--) {
           const n = nodes[i];
-          if (n.optimizeNames(names, constants))
+          if (n.optimizeNames(names, constants2))
             continue;
           subtractNames(names, n.names);
           nodes.splice(i, 1);
@@ -27424,12 +27424,12 @@ var require_codegen = __commonJS({
           return void 0;
         return this;
       }
-      optimizeNames(names, constants) {
+      optimizeNames(names, constants2) {
         var _a;
-        this.else = (_a = this.else) === null || _a === void 0 ? void 0 : _a.optimizeNames(names, constants);
-        if (!(super.optimizeNames(names, constants) || this.else))
+        this.else = (_a = this.else) === null || _a === void 0 ? void 0 : _a.optimizeNames(names, constants2);
+        if (!(super.optimizeNames(names, constants2) || this.else))
           return;
-        this.condition = optimizeExpr(this.condition, names, constants);
+        this.condition = optimizeExpr(this.condition, names, constants2);
         return this;
       }
       get names() {
@@ -27452,10 +27452,10 @@ var require_codegen = __commonJS({
       render(opts) {
         return `for(${this.iteration})` + super.render(opts);
       }
-      optimizeNames(names, constants) {
-        if (!super.optimizeNames(names, constants))
+      optimizeNames(names, constants2) {
+        if (!super.optimizeNames(names, constants2))
           return;
-        this.iteration = optimizeExpr(this.iteration, names, constants);
+        this.iteration = optimizeExpr(this.iteration, names, constants2);
         return this;
       }
       get names() {
@@ -27491,10 +27491,10 @@ var require_codegen = __commonJS({
       render(opts) {
         return `for(${this.varKind} ${this.name} ${this.loop} ${this.iterable})` + super.render(opts);
       }
-      optimizeNames(names, constants) {
-        if (!super.optimizeNames(names, constants))
+      optimizeNames(names, constants2) {
+        if (!super.optimizeNames(names, constants2))
           return;
-        this.iterable = optimizeExpr(this.iterable, names, constants);
+        this.iterable = optimizeExpr(this.iterable, names, constants2);
         return this;
       }
       get names() {
@@ -27536,11 +27536,11 @@ var require_codegen = __commonJS({
         (_b = this.finally) === null || _b === void 0 ? void 0 : _b.optimizeNodes();
         return this;
       }
-      optimizeNames(names, constants) {
+      optimizeNames(names, constants2) {
         var _a, _b;
-        super.optimizeNames(names, constants);
-        (_a = this.catch) === null || _a === void 0 ? void 0 : _a.optimizeNames(names, constants);
-        (_b = this.finally) === null || _b === void 0 ? void 0 : _b.optimizeNames(names, constants);
+        super.optimizeNames(names, constants2);
+        (_a = this.catch) === null || _a === void 0 ? void 0 : _a.optimizeNames(names, constants2);
+        (_b = this.finally) === null || _b === void 0 ? void 0 : _b.optimizeNames(names, constants2);
         return this;
       }
       get names() {
@@ -27841,7 +27841,7 @@ var require_codegen = __commonJS({
     function addExprNames(names, from) {
       return from instanceof code_1._CodeOrName ? addNames(names, from.names) : names;
     }
-    function optimizeExpr(expr, names, constants) {
+    function optimizeExpr(expr, names, constants2) {
       if (expr instanceof code_1.Name)
         return replaceName(expr);
       if (!canOptimize(expr))
@@ -27856,14 +27856,14 @@ var require_codegen = __commonJS({
         return items;
       }, []));
       function replaceName(n) {
-        const c = constants[n.str];
+        const c = constants2[n.str];
         if (c === void 0 || names[n.str] !== 1)
           return n;
         delete names[n.str];
         return c;
       }
       function canOptimize(e) {
-        return e instanceof code_1._Code && e._items.some((c) => c instanceof code_1.Name && names[c.str] === 1 && constants[c.str] !== void 0);
+        return e instanceof code_1._Code && e._items.some((c) => c instanceof code_1.Name && names[c.str] === 1 && constants2[c.str] !== void 0);
       }
     }
     function subtractNames(names, from) {
@@ -34595,10 +34595,10 @@ var require_zod = __commonJS({
     };
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.z = void 0;
-    var z20 = __importStar(require_external3());
-    exports2.z = z20;
+    var z21 = __importStar(require_external3());
+    exports2.z = z21;
     __exportStar(require_external3(), exports2);
-    exports2.default = z20;
+    exports2.default = z21;
   }
 });
 
@@ -35510,6 +35510,43 @@ var init_stdio2 = __esm({
   }
 });
 
+// src/subjects.ts
+function show(value) {
+  const v = value.length > 40 ? `${value.slice(0, 40)}...` : value;
+  return JSON.stringify(v);
+}
+function validateSubjects(raw) {
+  if (raw === void 0 || raw.length === 0) return { ok: true, subjects: void 0 };
+  if (raw.length > MAX_SUBJECTS) {
+    return {
+      ok: false,
+      error: `subjects: at most ${MAX_SUBJECTS} subject keys are allowed per capture (got ${raw.length}). Keep only the subjects this memory is authoritative for.`
+    };
+  }
+  for (const key of raw) {
+    if (key.length > MAX_SUBJECT_LENGTH || !SUBJECT_KEY_PATTERN.test(key)) {
+      return {
+        ok: false,
+        error: `subjects: ${show(key)} is not a valid subject key. Use a lowercase dot/hyphen slug of at most ${MAX_SUBJECT_LENGTH} characters, e.g. "hosting.vps" or "deploy-pipeline" (letters a-z, digits, "-", and "." between segments; no spaces, uppercase, or leading/trailing separators).`
+      };
+    }
+  }
+  return { ok: true, subjects: [...new Set(raw)] };
+}
+var import_zod2, SUBJECTS_PARAM, MAX_SUBJECTS, MAX_SUBJECT_LENGTH, SUBJECT_KEY_PATTERN;
+var init_subjects = __esm({
+  "src/subjects.ts"() {
+    "use strict";
+    import_zod2 = __toESM(require_zod(), 1);
+    SUBJECTS_PARAM = import_zod2.z.array(import_zod2.z.string()).optional().describe(
+      'Optional subject keys this memory is authoritative for, so it can supersede older memories about the same subject once promoted. At most 8; each a lowercase dot/hyphen slug such as "hosting.vps" (max 96 chars). Exact-match identities, not tags: only declare subjects you are the current source of truth for.'
+    );
+    MAX_SUBJECTS = 8;
+    MAX_SUBJECT_LENGTH = 96;
+    SUBJECT_KEY_PATTERN = /^[a-z0-9][a-z0-9-]*(\.[a-z0-9][a-z0-9-]*)*$/;
+  }
+});
+
 // src/remote-server.ts
 var remote_server_exports = {};
 __export(remote_server_exports, {
@@ -35718,10 +35755,12 @@ async function status() {
   }
   return jsonResult({ mode: "team", apiUrl, tokenSet: tokenSet2, healthy: res.ok, version });
 }
-async function capture(title, content, category, filePaths, sessionId, learningIndex) {
+async function capture(title, content, category, filePaths, sessionId, learningIndex, subjects) {
   if (API_URL === void 0 || API_URL === "") {
     return jsonResult({ ok: false, error: "unconfigured \u2014 set TEAMKB_API_URL to your team brain" });
   }
+  const subjectCheck = validateSubjects(subjects);
+  if (!subjectCheck.ok) return jsonResult({ ok: false, error: subjectCheck.error });
   const candidateId = deriveCandidateId(TENANT_ID, title, content, sessionId, learningIndex);
   const capturedAt = (/* @__PURE__ */ new Date()).toISOString();
   const candidate = {
@@ -35738,7 +35777,10 @@ async function capture(title, content, category, filePaths, sessionId, learningI
       filePaths: filePaths ?? [],
       tags: [],
       ...sessionId?.trim() ? { sessionId: sessionId.trim() } : {},
-      ...typeof learningIndex === "number" && Number.isInteger(learningIndex) ? { learningIndex } : {}
+      ...typeof learningIndex === "number" && Number.isInteger(learningIndex) ? { learningIndex } : {},
+      // Omitted entirely when none were declared: the body stays byte-identical
+      // to a pre-subjects capture, so older servers and outbox replays are unaffected.
+      ...subjectCheck.subjects !== void 0 ? { subjects: subjectCheck.subjects } : {}
     },
     prePolicyFlags: { potentialSecret: false, lowConfidence: false, duplicateSuspect: false },
     capturedAt,
@@ -35916,7 +35958,7 @@ async function startRemoteServer() {
 `
   );
 }
-var import_node_crypto, import_promises, import_node_os2, import_node_path2, import_zod2, VERSION, API_URL, API_TOKEN, TENANT_ID, ORIGIN_SECRET, TEAM_ORIGIN_CHANNEL, CATEGORIES, CANDIDATE_ID_NAMESPACE, draining, server;
+var import_node_crypto, import_promises, import_node_os2, import_node_path2, import_zod3, VERSION, API_URL, API_TOKEN, TENANT_ID, ORIGIN_SECRET, TEAM_ORIGIN_CHANNEL, CATEGORIES, CANDIDATE_ID_NAMESPACE, draining, server;
 var init_remote_server = __esm({
   "src/remote-server.ts"() {
     "use strict";
@@ -35926,7 +35968,8 @@ var init_remote_server = __esm({
     import_node_path2 = require("node:path");
     init_mcp();
     init_stdio2();
-    import_zod2 = __toESM(require_zod(), 1);
+    import_zod3 = __toESM(require_zod(), 1);
+    init_subjects();
     VERSION = "1.1.0";
     API_URL = process.env["TEAMKB_API_URL"];
     API_TOKEN = process.env["TEAMKB_API_TOKEN"];
@@ -35949,9 +35992,9 @@ var init_remote_server = __esm({
       "brain_search",
       "Search your team's governed knowledge brain and return qmd:// citations. Every hit is anchored to a verifiable source \u2014 receipts, not recall. Read-only; curated scope by default. Proxies to the governed brain over the tailnet (team mode).",
       {
-        query: import_zod2.z.string().min(1).describe("Natural-language search query"),
-        scope: import_zod2.z.enum(["curated", "all", "inbox", "archived"]).optional().describe("Search scope: curated (default), all, inbox, or archived"),
-        limit: import_zod2.z.number().int().min(1).max(50).optional().describe("Maximum number of cited hits to return (default 10)")
+        query: import_zod3.z.string().min(1).describe("Natural-language search query"),
+        scope: import_zod3.z.enum(["curated", "all", "inbox", "archived"]).optional().describe("Search scope: curated (default), all, inbox, or archived"),
+        limit: import_zod3.z.number().int().min(1).max(50).optional().describe("Maximum number of cited hits to return (default 10)")
       },
       async (params) => search(params.query, params.scope ?? "curated", params.limit ?? 10)
     );
@@ -35965,14 +36008,15 @@ var init_remote_server = __esm({
       "brain_capture",
       "Propose a fact, decision, pattern, or convention to your team's governed brain \u2014 a PROPOSAL, not a promotion. Member-allowed: the server queues it as a candidate and the deterministic govern pipeline disposes; it is not durable memory until promoted. Proxies to the brain over the tailnet (team mode). For SessionEnd: pass sessionId + learningIndex (0..4) so each learning is its own slot and re-distill of that slot collapses.",
       {
-        title: import_zod2.z.string().min(1).describe("Short, specific title for the memory"),
-        content: import_zod2.z.string().min(1).describe("The fact to remember, in full"),
-        category: import_zod2.z.enum(CATEGORIES).optional().describe("Memory category (default: reference)"),
-        filePaths: import_zod2.z.array(import_zod2.z.string()).optional().describe("Related file paths, if any"),
-        sessionId: import_zod2.z.string().optional().describe(
+        title: import_zod3.z.string().min(1).describe("Short, specific title for the memory"),
+        content: import_zod3.z.string().min(1).describe("The fact to remember, in full"),
+        category: import_zod3.z.enum(CATEGORIES).optional().describe("Memory category (default: reference)"),
+        filePaths: import_zod3.z.array(import_zod3.z.string()).optional().describe("Related file paths, if any"),
+        subjects: SUBJECTS_PARAM,
+        sessionId: import_zod3.z.string().optional().describe(
           "Stable session id (Claude Code session). With learningIndex, forms a per-learning slot so re-distill does not duplicate and multi-learning sessions keep separate rows."
         ),
-        learningIndex: import_zod2.z.number().int().min(0).max(4).optional().describe(
+        learningIndex: import_zod3.z.number().int().min(0).max(4).optional().describe(
           "0-based index of this learning within the session (SessionEnd: 0..4 for up to 5 learnings). Defaults to 0 when sessionId is set."
         )
       },
@@ -35982,18 +36026,19 @@ var init_remote_server = __esm({
         params.category,
         params.filePaths,
         params.sessionId,
-        params.learningIndex
+        params.learningIndex,
+        params.subjects
       )
     );
     server.tool(
       "brain_transition",
       "Change the lifecycle state of an existing governed memory (e.g. retire an outdated one). ADMIN-ONLY in team mode \u2014 a member token gets a clear 403 and nothing is applied. The server writes a hash-chained audit event. Valid moves: active\u2192{deprecated,superseded,archived}, deprecated\u2192{active,archived}, superseded\u2192archived.",
       {
-        memoryId: import_zod2.z.string().uuid().describe("UUID of the memory to transition"),
-        to: import_zod2.z.enum(["active", "deprecated", "superseded", "archived"]).describe("Target lifecycle state"),
-        reason: import_zod2.z.string().min(1).describe("Human-readable justification (lands in the audit trail)"),
-        actor: import_zod2.z.string().optional().describe("Who is making the change (default: owner)"),
-        supersededBy: import_zod2.z.string().uuid().optional().describe('Required UUID when transitioning to "superseded"')
+        memoryId: import_zod3.z.string().uuid().describe("UUID of the memory to transition"),
+        to: import_zod3.z.enum(["active", "deprecated", "superseded", "archived"]).describe("Target lifecycle state"),
+        reason: import_zod3.z.string().min(1).describe("Human-readable justification (lands in the audit trail)"),
+        actor: import_zod3.z.string().optional().describe("Who is making the change (default: owner)"),
+        supersededBy: import_zod3.z.string().uuid().optional().describe('Required UUID when transitioning to "superseded"')
       },
       async (params) => {
         if (API_URL === void 0 || API_URL === "") {
@@ -36028,8 +36073,8 @@ var init_remote_server = __esm({
       "brain_inbox",
       "List your team brain's quarantined capture queue \u2014 member proposals held for review, awaiting an admin's promote/reject. ADMIN-ONLY in team mode (a member token gets a clear 403). Read-only; returns { id, title, category, author, capturedAt } per candidate so you can review then brain_approve / brain_reject by id. Proxies to the governed brain over the tailnet.",
       {
-        tenantId: import_zod2.z.string().optional().describe("Tenant to inspect (default: the team tenant)"),
-        limit: import_zod2.z.number().int().min(1).max(200).optional().describe("Max candidates to return (default 50)")
+        tenantId: import_zod3.z.string().optional().describe("Tenant to inspect (default: the team tenant)"),
+        limit: import_zod3.z.number().int().min(1).max(200).optional().describe("Max candidates to return (default 50)")
       },
       async (params) => listInbox(params.tenantId, params.limit ?? 50)
     );
@@ -36037,9 +36082,9 @@ var init_remote_server = __esm({
       "brain_approve",
       "Promote a quarantined candidate to durable team memory \u2014 the agent-review 'this is worth keeping' verdict. ADMIN-ONLY (member token \u2192 403, nothing applied). The server re-runs the deterministic govern rules (dedupe / policy / secret-scan) as a hard floor you CANNOT override, then writes a hash-chained receipt naming you (the acting token) + your reason. A secret or duplicate is refused server-side (422) \u2014 it cannot be laundered through an approval.",
       {
-        candidateId: import_zod2.z.string().uuid().describe("UUID of the quarantined candidate (from brain_inbox)"),
-        tenantId: import_zod2.z.string().optional().describe("Tenant the candidate belongs to (default: the team tenant)"),
-        reason: import_zod2.z.string().min(1).describe("Why it should become durable memory (lands in the receipt)")
+        candidateId: import_zod3.z.string().uuid().describe("UUID of the quarantined candidate (from brain_inbox)"),
+        tenantId: import_zod3.z.string().optional().describe("Tenant the candidate belongs to (default: the team tenant)"),
+        reason: import_zod3.z.string().min(1).describe("Why it should become durable memory (lands in the receipt)")
       },
       async (params) => approveCandidate(params.candidateId, params.tenantId, params.reason)
     );
@@ -36047,9 +36092,9 @@ var init_remote_server = __esm({
       "brain_reject",
       "Retire a quarantined candidate as noise WITHOUT promoting it \u2014 the agent-review 'don't keep proposing this' verdict. ADMIN-ONLY (member token \u2192 403). Non-destructive: the candidate row survives (never deleted), stamped `rejected`, and a hash-chained receipt names you + your reason. Proxies to the governed brain over the tailnet.",
       {
-        candidateId: import_zod2.z.string().uuid().describe("UUID of the quarantined candidate (from brain_inbox)"),
-        tenantId: import_zod2.z.string().optional().describe("Tenant the candidate belongs to (default: the team tenant)"),
-        reason: import_zod2.z.string().min(1).describe("Why it is being retired (lands in the receipt)")
+        candidateId: import_zod3.z.string().uuid().describe("UUID of the quarantined candidate (from brain_inbox)"),
+        tenantId: import_zod3.z.string().optional().describe("Tenant the candidate belongs to (default: the team tenant)"),
+        reason: import_zod3.z.string().min(1).describe("Why it is being retired (lands in the receipt)")
       },
       async (params) => rejectCandidate(params.candidateId, params.tenantId, params.reason)
     );
@@ -36551,14 +36596,14 @@ var init_database = __esm({
 });
 
 // ../bobs-big-brain-registrar/packages/schema/dist/enums.js
-var import_zod3, MemorySource, TrustLevel, MemoryCategory, MemoryLifecycleState, CandidateStatus, SearchScope, PolicyRuleType, PolicyRuleAction, AuditAction, ProposerRole, Confidence, Sensitivity, AuthorType, LinkType, LinkSource, ImportBatchStatus;
+var import_zod4, MemorySource, TrustLevel, MemoryCategory, MemoryLifecycleState, CandidateStatus, SearchScope, PolicyRuleType, PolicyRuleAction, AuditAction, ProposerRole, Confidence, Sensitivity, AuthorType, LinkType, LinkSource, ImportBatchStatus;
 var init_enums = __esm({
   "../bobs-big-brain-registrar/packages/schema/dist/enums.js"() {
     "use strict";
-    import_zod3 = __toESM(require_zod(), 1);
-    MemorySource = import_zod3.z.enum(["claude_session", "manual", "import", "mcp", "bulk_import"]);
-    TrustLevel = import_zod3.z.enum(["high", "medium", "low", "untrusted"]);
-    MemoryCategory = import_zod3.z.enum([
+    import_zod4 = __toESM(require_zod(), 1);
+    MemorySource = import_zod4.z.enum(["claude_session", "manual", "import", "mcp", "bulk_import"]);
+    TrustLevel = import_zod4.z.enum(["high", "medium", "low", "untrusted"]);
+    MemoryCategory = import_zod4.z.enum([
       "decision",
       "pattern",
       "convention",
@@ -36567,8 +36612,8 @@ var init_enums = __esm({
       "onboarding",
       "reference"
     ]);
-    MemoryLifecycleState = import_zod3.z.enum(["active", "deprecated", "superseded", "archived"]);
-    CandidateStatus = import_zod3.z.enum([
+    MemoryLifecycleState = import_zod4.z.enum(["active", "deprecated", "superseded", "archived"]);
+    CandidateStatus = import_zod4.z.enum([
       "inbox",
       "promoted",
       "rejected",
@@ -36576,8 +36621,8 @@ var init_enums = __esm({
       "duplicate",
       "quarantined"
     ]);
-    SearchScope = import_zod3.z.enum(["curated", "all", "inbox", "archived", "bulk"]).default("curated");
-    PolicyRuleType = import_zod3.z.enum([
+    SearchScope = import_zod4.z.enum(["curated", "all", "inbox", "archived", "bulk"]).default("curated");
+    PolicyRuleType = import_zod4.z.enum([
       "secret_detection",
       "dedup_check",
       "relevance_score",
@@ -36588,8 +36633,8 @@ var init_enums = __esm({
       "content_sanitization",
       "contradiction_check"
     ]);
-    PolicyRuleAction = import_zod3.z.enum(["reject", "flag", "approve", "require_review"]);
-    AuditAction = import_zod3.z.enum([
+    PolicyRuleAction = import_zod4.z.enum(["reject", "flag", "approve", "require_review"]);
+    AuditAction = import_zod4.z.enum([
       "promoted",
       "demoted",
       "superseded",
@@ -36626,59 +36671,59 @@ var init_enums = __esm({
       // `action` column has no CHECK constraint, so this member needs no migration.
       "policy_upgraded"
     ]);
-    ProposerRole = import_zod3.z.enum(["admin", "member"]);
-    Confidence = import_zod3.z.enum(["high", "medium", "low"]);
-    Sensitivity = import_zod3.z.enum(["public", "internal", "confidential", "restricted"]);
-    AuthorType = import_zod3.z.enum(["human", "ai", "system"]);
-    LinkType = import_zod3.z.enum([
+    ProposerRole = import_zod4.z.enum(["admin", "member"]);
+    Confidence = import_zod4.z.enum(["high", "medium", "low"]);
+    Sensitivity = import_zod4.z.enum(["public", "internal", "confidential", "restricted"]);
+    AuthorType = import_zod4.z.enum(["human", "ai", "system"]);
+    LinkType = import_zod4.z.enum([
       "relates_to",
       "supersedes",
       "contradicts",
       "depends_on",
       "part_of"
     ]);
-    LinkSource = import_zod3.z.enum(["curator", "import", "manual", "mcp"]);
-    ImportBatchStatus = import_zod3.z.enum(["active", "completed", "rolled_back"]);
+    LinkSource = import_zod4.z.enum(["curator", "import", "manual", "mcp"]);
+    ImportBatchStatus = import_zod4.z.enum(["active", "completed", "rolled_back"]);
   }
 });
 
 // ../bobs-big-brain-registrar/packages/schema/dist/common.js
-var import_zod4, Uuid, Sha256Hash, IsoDatetime, NonEmptyString, SemVer, Tag, SubjectKey, Author, TenantId, ContentMetadata;
+var import_zod5, Uuid, Sha256Hash, IsoDatetime, NonEmptyString, SemVer, Tag, SubjectKey, Author, TenantId, ContentMetadata;
 var init_common = __esm({
   "../bobs-big-brain-registrar/packages/schema/dist/common.js"() {
     "use strict";
-    import_zod4 = __toESM(require_zod(), 1);
+    import_zod5 = __toESM(require_zod(), 1);
     init_enums();
-    Uuid = import_zod4.z.string().uuid();
-    Sha256Hash = import_zod4.z.string().regex(/^[a-f0-9]{64}$/, "Must be a valid SHA-256 hex hash");
-    IsoDatetime = import_zod4.z.string().datetime();
-    NonEmptyString = import_zod4.z.string().trim().min(1);
-    SemVer = import_zod4.z.string().regex(/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/, "Must be a valid semver string");
-    Tag = import_zod4.z.string().regex(/^[a-z0-9][a-z0-9-]*$/, "Must be a lowercase tag");
-    SubjectKey = import_zod4.z.string().max(96).regex(/^[a-z0-9][a-z0-9-]*(\.[a-z0-9][a-z0-9-]*)*$/, 'Must be a lowercase dot/hyphen slug (e.g. "hosting.gcp")');
-    Author = import_zod4.z.object({
+    Uuid = import_zod5.z.string().uuid();
+    Sha256Hash = import_zod5.z.string().regex(/^[a-f0-9]{64}$/, "Must be a valid SHA-256 hex hash");
+    IsoDatetime = import_zod5.z.string().datetime();
+    NonEmptyString = import_zod5.z.string().trim().min(1);
+    SemVer = import_zod5.z.string().regex(/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/, "Must be a valid semver string");
+    Tag = import_zod5.z.string().regex(/^[a-z0-9][a-z0-9-]*$/, "Must be a lowercase tag");
+    SubjectKey = import_zod5.z.string().max(96).regex(/^[a-z0-9][a-z0-9-]*(\.[a-z0-9][a-z0-9-]*)*$/, 'Must be a lowercase dot/hyphen slug (e.g. "hosting.gcp")');
+    Author = import_zod5.z.object({
       type: AuthorType,
       id: NonEmptyString,
       name: NonEmptyString.optional()
     });
     TenantId = NonEmptyString;
-    ContentMetadata = import_zod4.z.object({
-      filePaths: import_zod4.z.array(import_zod4.z.string()).default([]),
-      language: import_zod4.z.string().optional(),
-      projectContext: import_zod4.z.string().optional(),
-      sessionId: import_zod4.z.string().optional(),
-      repoUrl: import_zod4.z.string().optional(),
-      branch: import_zod4.z.string().optional(),
+    ContentMetadata = import_zod5.z.object({
+      filePaths: import_zod5.z.array(import_zod5.z.string()).default([]),
+      language: import_zod5.z.string().optional(),
+      projectContext: import_zod5.z.string().optional(),
+      sessionId: import_zod5.z.string().optional(),
+      repoUrl: import_zod5.z.string().optional(),
+      branch: import_zod5.z.string().optional(),
       confidence: Confidence.optional(),
       sensitivity: Sensitivity.optional(),
-      tags: import_zod4.z.array(Tag).default([]),
+      tags: import_zod5.z.array(Tag).default([]),
       /**
        * Explicit subject keys this memory is about (see {@link SubjectKey}).
        * Optional: absent on every legacy record, which then falls back to the
        * same-category title-similarity near-duplicate path. Bounded so a candidate
        * cannot declare an unbounded fan-out of subjects.
        */
-      subjects: import_zod4.z.array(SubjectKey).max(8).optional(),
+      subjects: import_zod5.z.array(SubjectKey).max(8).optional(),
       /**
        * The role of the token that proposed this candidate, stamped server-side at
        * intake (R8, bead compile-then-govern-jfv.6.7). Never client-supplied — the
@@ -36696,23 +36741,23 @@ var init_common = __esm({
 });
 
 // ../bobs-big-brain-registrar/packages/schema/dist/memory-candidate.js
-var import_zod5, PrePolicyFlags, MEMORY_CANDIDATE_SCHEMA_VERSION, OriginChannel, CandidateOrigin, MemoryCandidate;
+var import_zod6, PrePolicyFlags, MEMORY_CANDIDATE_SCHEMA_VERSION, OriginChannel, CandidateOrigin, MemoryCandidate;
 var init_memory_candidate = __esm({
   "../bobs-big-brain-registrar/packages/schema/dist/memory-candidate.js"() {
     "use strict";
-    import_zod5 = __toESM(require_zod(), 1);
+    import_zod6 = __toESM(require_zod(), 1);
     init_enums();
     init_common();
-    PrePolicyFlags = import_zod5.z.object({
-      potentialSecret: import_zod5.z.boolean().default(false),
-      lowConfidence: import_zod5.z.boolean().default(false),
-      duplicateSuspect: import_zod5.z.boolean().default(false)
+    PrePolicyFlags = import_zod6.z.object({
+      potentialSecret: import_zod6.z.boolean().default(false),
+      lowConfidence: import_zod6.z.boolean().default(false),
+      duplicateSuspect: import_zod6.z.boolean().default(false)
     });
     MEMORY_CANDIDATE_SCHEMA_VERSION = "1";
-    OriginChannel = import_zod5.z.string().regex(/^[a-z0-9][a-z0-9-]*$/).max(64);
-    CandidateOrigin = import_zod5.z.object({
+    OriginChannel = import_zod6.z.string().regex(/^[a-z0-9][a-z0-9-]*$/).max(64);
+    CandidateOrigin = import_zod6.z.object({
       /** HMAC-SHA256 of (id, tenantId, capturedAt) under the installation secret — lowercase hex. */
-      tokenHmac: import_zod5.z.string().regex(/^[0-9a-f]{64}$/),
+      tokenHmac: import_zod6.z.string().regex(/^[0-9a-f]{64}$/),
       /** Which capture surface minted this (e.g. `local-mcp`, `team-mcp`). Self-asserted in local mode (H4). */
       channel: OriginChannel,
       /** When the token was minted (ISO-8601). Informational; the HMAC binds `capturedAt`, not this. */
@@ -36721,8 +36766,8 @@ var init_memory_candidate = __esm({
       message: "origin.channel 'unattested' is reserved receipt vocabulary for candidates without an origin \u2014 a client cannot claim it",
       path: ["channel"]
     });
-    MemoryCandidate = import_zod5.z.object({
-      schemaVersion: import_zod5.z.literal(MEMORY_CANDIDATE_SCHEMA_VERSION).default(MEMORY_CANDIDATE_SCHEMA_VERSION),
+    MemoryCandidate = import_zod6.z.object({
+      schemaVersion: import_zod6.z.literal(MEMORY_CANDIDATE_SCHEMA_VERSION).default(MEMORY_CANDIDATE_SCHEMA_VERSION),
       id: Uuid,
       status: CandidateStatus,
       source: MemorySource,
@@ -36749,26 +36794,26 @@ var init_memory_candidate = __esm({
 });
 
 // ../bobs-big-brain-registrar/packages/schema/dist/curated-memory.js
-var import_zod6, PolicyEvaluation, SupersessionLink, CuratedMemory;
+var import_zod7, PolicyEvaluation, SupersessionLink, CuratedMemory;
 var init_curated_memory = __esm({
   "../bobs-big-brain-registrar/packages/schema/dist/curated-memory.js"() {
     "use strict";
-    import_zod6 = __toESM(require_zod(), 1);
+    import_zod7 = __toESM(require_zod(), 1);
     init_enums();
     init_common();
-    PolicyEvaluation = import_zod6.z.object({
+    PolicyEvaluation = import_zod7.z.object({
       policyId: Uuid,
       ruleId: NonEmptyString,
-      result: import_zod6.z.enum(["pass", "fail", "flag"]),
-      reason: import_zod6.z.string().optional(),
+      result: import_zod7.z.enum(["pass", "fail", "flag"]),
+      reason: import_zod7.z.string().optional(),
       evaluatedAt: IsoDatetime
     });
-    SupersessionLink = import_zod6.z.object({
+    SupersessionLink = import_zod7.z.object({
       supersededBy: Uuid,
       reason: NonEmptyString,
       linkedAt: IsoDatetime
     });
-    CuratedMemory = import_zod6.z.object({
+    CuratedMemory = import_zod7.z.object({
       id: Uuid,
       candidateId: Uuid,
       source: MemorySource,
@@ -36782,12 +36827,12 @@ var init_curated_memory = __esm({
       metadata: ContentMetadata.default({ filePaths: [], tags: [] }),
       lifecycle: MemoryLifecycleState,
       contentHash: Sha256Hash,
-      policyEvaluations: import_zod6.z.array(PolicyEvaluation).default([]),
+      policyEvaluations: import_zod7.z.array(PolicyEvaluation).default([]),
       supersession: SupersessionLink.optional(),
       promotedAt: IsoDatetime,
       promotedBy: Author,
       updatedAt: IsoDatetime,
-      version: import_zod6.z.number().int().positive().default(1)
+      version: import_zod7.z.number().int().positive().default(1)
     }).refine((data) => {
       if (data.lifecycle === "superseded") {
         return data.supersession !== void 0;
@@ -36801,29 +36846,29 @@ var init_curated_memory = __esm({
 });
 
 // ../bobs-big-brain-registrar/packages/schema/dist/governance-policy.js
-var import_zod7, PolicyRule, GovernancePolicy;
+var import_zod8, PolicyRule, GovernancePolicy;
 var init_governance_policy = __esm({
   "../bobs-big-brain-registrar/packages/schema/dist/governance-policy.js"() {
     "use strict";
-    import_zod7 = __toESM(require_zod(), 1);
+    import_zod8 = __toESM(require_zod(), 1);
     init_enums();
     init_common();
-    PolicyRule = import_zod7.z.object({
+    PolicyRule = import_zod8.z.object({
       id: NonEmptyString,
       type: PolicyRuleType,
       action: PolicyRuleAction,
-      enabled: import_zod7.z.boolean().default(true),
-      priority: import_zod7.z.number().int().min(0).default(0),
-      parameters: import_zod7.z.record(import_zod7.z.string(), import_zod7.z.unknown()).default({}),
-      description: import_zod7.z.string().optional()
+      enabled: import_zod8.z.boolean().default(true),
+      priority: import_zod8.z.number().int().min(0).default(0),
+      parameters: import_zod8.z.record(import_zod8.z.string(), import_zod8.z.unknown()).default({}),
+      description: import_zod8.z.string().optional()
     });
-    GovernancePolicy = import_zod7.z.object({
+    GovernancePolicy = import_zod8.z.object({
       id: Uuid,
       name: NonEmptyString,
       tenantId: TenantId,
-      rules: import_zod7.z.array(PolicyRule).min(1),
-      enabled: import_zod7.z.boolean().default(true),
-      version: import_zod7.z.number().int().positive().default(1),
+      rules: import_zod8.z.array(PolicyRule).min(1),
+      enabled: import_zod8.z.boolean().default(true),
+      version: import_zod8.z.number().int().positive().default(1),
       createdAt: IsoDatetime,
       updatedAt: IsoDatetime
     });
@@ -36831,27 +36876,27 @@ var init_governance_policy = __esm({
 });
 
 // ../bobs-big-brain-registrar/packages/schema/dist/search.js
-var import_zod8, Pagination, SearchQuery, SearchHit, SearchResult;
+var import_zod9, Pagination, SearchQuery, SearchHit, SearchResult;
 var init_search = __esm({
   "../bobs-big-brain-registrar/packages/schema/dist/search.js"() {
     "use strict";
-    import_zod8 = __toESM(require_zod(), 1);
+    import_zod9 = __toESM(require_zod(), 1);
     init_enums();
     init_common();
-    Pagination = import_zod8.z.object({
-      page: import_zod8.z.number().int().min(1).default(1),
-      pageSize: import_zod8.z.number().int().min(1).max(100).default(20)
+    Pagination = import_zod9.z.object({
+      page: import_zod9.z.number().int().min(1).default(1),
+      pageSize: import_zod9.z.number().int().min(1).max(100).default(20)
     });
-    SearchQuery = import_zod8.z.object({
+    SearchQuery = import_zod9.z.object({
       query: NonEmptyString,
       scope: SearchScope,
       tenantId: TenantId.optional(),
-      categories: import_zod8.z.array(MemoryCategory).optional(),
+      categories: import_zod9.z.array(MemoryCategory).optional(),
       dateFrom: IsoDatetime.optional(),
       dateTo: IsoDatetime.optional(),
       pagination: Pagination.default({ page: 1, pageSize: 20 })
     });
-    SearchHit = import_zod8.z.object({
+    SearchHit = import_zod9.z.object({
       /**
        * UUID of the governed memory this hit resolves to. Present on the SQLite
        * metadata path; absent on the qmd retrieval path, where a hit is anchored
@@ -36859,8 +36904,8 @@ var init_search = __esm({
        */
       memoryId: Uuid.optional(),
       title: NonEmptyString,
-      snippet: import_zod8.z.string(),
-      score: import_zod8.z.number().min(0).max(1),
+      snippet: import_zod9.z.string(),
+      score: import_zod9.z.number().min(0).max(1),
       /** Governed memory category. Absent on qmd hits, which carry `collection`. */
       category: MemoryCategory.optional(),
       /**
@@ -36868,40 +36913,40 @@ var init_search = __esm({
        * URI emitted by qmd. This is the wedge: every retrieved answer is anchored
        * to a verifiable source, not just recalled. Present on the qmd path.
        */
-      citation: import_zod8.z.string().optional(),
+      citation: import_zod9.z.string().optional(),
       /** qmd collection the hit came from (e.g. `kb-curated`). Present on the qmd path. */
-      collection: import_zod8.z.string().optional(),
-      highlightedContent: import_zod8.z.string().optional(),
+      collection: import_zod9.z.string().optional(),
+      highlightedContent: import_zod9.z.string().optional(),
       matchedAt: IsoDatetime
     });
-    SearchResult = import_zod8.z.object({
-      hits: import_zod8.z.array(SearchHit),
-      totalCount: import_zod8.z.number().int().min(0),
+    SearchResult = import_zod9.z.object({
+      hits: import_zod9.z.array(SearchHit),
+      totalCount: import_zod9.z.number().int().min(0),
       query: NonEmptyString,
       scope: SearchScope,
-      page: import_zod8.z.number().int().min(1),
-      pageSize: import_zod8.z.number().int().min(1),
-      hasMore: import_zod8.z.boolean()
+      page: import_zod9.z.number().int().min(1),
+      pageSize: import_zod9.z.number().int().min(1),
+      hasMore: import_zod9.z.boolean()
     });
   }
 });
 
 // ../bobs-big-brain-registrar/packages/schema/dist/audit-event.js
-var import_zod9, AuditEvent;
+var import_zod10, AuditEvent;
 var init_audit_event = __esm({
   "../bobs-big-brain-registrar/packages/schema/dist/audit-event.js"() {
     "use strict";
-    import_zod9 = __toESM(require_zod(), 1);
+    import_zod10 = __toESM(require_zod(), 1);
     init_enums();
     init_common();
-    AuditEvent = import_zod9.z.object({
+    AuditEvent = import_zod10.z.object({
       id: Uuid,
       action: AuditAction,
       memoryId: Uuid,
       tenantId: TenantId,
       actor: Author,
       reason: NonEmptyString.optional(),
-      details: import_zod9.z.record(import_zod9.z.string(), import_zod9.z.unknown()).default({}),
+      details: import_zod10.z.record(import_zod10.z.string(), import_zod10.z.unknown()).default({}),
       timestamp: IsoDatetime
     });
   }
@@ -36926,19 +36971,19 @@ function validateTransition(from, to, request) {
   }
   return { valid: true };
 }
-var import_zod10, TransitionRequest, RecategorizeRequest, ALLOWED_TRANSITIONS;
+var import_zod11, TransitionRequest, RecategorizeRequest, ALLOWED_TRANSITIONS;
 var init_lifecycle = __esm({
   "../bobs-big-brain-registrar/packages/schema/dist/lifecycle.js"() {
     "use strict";
     init_enums();
     init_common();
-    import_zod10 = __toESM(require_zod(), 1);
-    TransitionRequest = import_zod10.z.object({
+    import_zod11 = __toESM(require_zod(), 1);
+    TransitionRequest = import_zod11.z.object({
       reason: NonEmptyString,
       actor: Author,
       supersededBy: Uuid.optional()
     });
-    RecategorizeRequest = import_zod10.z.object({
+    RecategorizeRequest = import_zod11.z.object({
       category: MemoryCategory,
       reason: NonEmptyString,
       actor: Author
@@ -37151,8 +37196,8 @@ function isPathSafe(path, allowedRoots) {
   if (segments.includes("..")) {
     return { safe: false, reason: "Path contains directory traversal (..)" };
   }
-  const isAbsolute = path.startsWith("/") || /^[A-Za-z]:[\\/]/.test(path);
-  if (isAbsolute) {
+  const isAbsolute3 = path.startsWith("/") || /^[A-Za-z]:[\\/]/.test(path);
+  if (isAbsolute3) {
     if (allowedRoots === void 0 || allowedRoots.length === 0) {
       return { safe: false, reason: "Absolute path not allowed (no allowed roots configured)" };
     }
@@ -37173,6 +37218,42 @@ var init_path_safety = __esm({
   }
 });
 
+// ../bobs-big-brain-registrar/packages/common/dist/rerank-policy.js
+function hasHistoryIntent(query) {
+  return query !== void 0 && HISTORY_INTENT_PATTERN.test(query);
+}
+function isHistoricalRecordTitle(title) {
+  return title !== void 0 && HISTORICAL_TITLE_PATTERN.test(title);
+}
+function lifecycleFactor(lifecycle) {
+  switch (lifecycle) {
+    case "deprecated":
+      return LIFECYCLE_DEPRECATED_FACTOR;
+    case "archived":
+    case "superseded":
+      return LIFECYCLE_ARCHIVED_FACTOR;
+    default:
+      return 1;
+  }
+}
+function computeRerankPolicyFactors(input, query) {
+  const lifecycle = lifecycleFactor(input.lifecycle);
+  const demoteHistorical = query !== void 0 && !hasHistoryIntent(query) && isHistoricalRecordTitle(input.title);
+  const historical = demoteHistorical ? HISTORICAL_RECORD_FACTOR : 1;
+  return { lifecycle, historical, product: lifecycle * historical };
+}
+var LIFECYCLE_DEPRECATED_FACTOR, LIFECYCLE_ARCHIVED_FACTOR, HISTORICAL_RECORD_FACTOR, HISTORICAL_TITLE_PATTERN, HISTORY_INTENT_PATTERN;
+var init_rerank_policy = __esm({
+  "../bobs-big-brain-registrar/packages/common/dist/rerank-policy.js"() {
+    "use strict";
+    LIFECYCLE_DEPRECATED_FACTOR = 0.5;
+    LIFECYCLE_ARCHIVED_FACTOR = 0.2;
+    HISTORICAL_RECORD_FACTOR = 0.7;
+    HISTORICAL_TITLE_PATTERN = /\b(?:aar|after[\s-]+action|post[\s-]?mortem|retrospective|audit(?![\s-]+(?:log|logs|trail|chain|event|events|verify))|verification\s+report|status\s+report|hand[\s-]?off|session\s+summary|changelog|phase\s+\d+\s+report)\b/i;
+    HISTORY_INTENT_PATTERN = /\b(?:history|historical|aar|post[\s-]?mortem|what\s+happened|changelog|lessons?|retrospective|why\s+did\s+we|timeline)\b/i;
+  }
+});
+
 // ../bobs-big-brain-registrar/packages/common/dist/freshness.js
 function computeFreshnessScore(updatedAt, nowIso, halfLifeDays = 90) {
   const updatedMs = new Date(updatedAt).getTime();
@@ -37181,11 +37262,12 @@ function computeFreshnessScore(updatedAt, nowIso, halfLifeDays = 90) {
   const lambda = Math.LN2 / halfLifeDays;
   return Math.exp(-lambda * ageDays);
 }
-function rerankSearchHits(hits, nowIso, halfLifeDays = 90) {
+function rerankSearchHits(hits, nowIso, halfLifeDays = 90, options = {}) {
   return hits.map((hit) => {
     const freshness = computeFreshnessScore(hit.updatedAt, nowIso, halfLifeDays);
     const categoryBoost = CATEGORY_BOOST[hit.category] ?? 1;
-    const finalScore = Math.round(hit.score * freshness * categoryBoost * 1e3) / 1e3;
+    const policy = computeRerankPolicyFactors(hit, options.query).product;
+    const finalScore = Math.round(hit.score * freshness * categoryBoost * policy * 1e3) / 1e3;
     return { ...hit, finalScore };
   }).sort((a, b) => b.finalScore - a.finalScore);
 }
@@ -37195,7 +37277,7 @@ function extractMemoryIdFromCitation(citation) {
   const stripped = base.replace(/\.[^.]+$/, "");
   return stripped.length > 0 ? stripped : null;
 }
-function rerankCitedHits(hits, resolveMetadata, nowIso, halfLifeDays = 90) {
+function rerankCitedHits(hits, resolveMetadata, nowIso, halfLifeDays = 90, options = {}) {
   const enriched = hits.map((h) => {
     const id = extractMemoryIdFromCitation(h.file);
     const meta = id === null ? null : resolveMetadata(id);
@@ -37206,15 +37288,20 @@ function rerankCitedHits(hits, resolveMetadata, nowIso, halfLifeDays = 90) {
       updatedAt: meta?.updatedAt ?? nowIso,
       // Unresolvable hit (orphaned citation) is not an identifiable sensitive
       // memory — treat as public/searchable; a resolved hit carries its real level.
-      sensitivity: meta?.sensitivity ?? "public"
+      sensitivity: meta?.sensitivity ?? "public",
+      // Policy inputs; undefined (unresolved hit / resolver omits) = no demotion.
+      // Note: these ride along on the returned hit objects (consumers pick fields).
+      title: meta?.title,
+      lifecycle: meta?.lifecycle
     };
   });
-  return rerankSearchHits(enriched, nowIso, halfLifeDays);
+  return rerankSearchHits(enriched, nowIso, halfLifeDays, options);
 }
 var CATEGORY_BOOST;
 var init_freshness = __esm({
   "../bobs-big-brain-registrar/packages/common/dist/freshness.js"() {
     "use strict";
+    init_rerank_policy();
     CATEGORY_BOOST = {
       decision: 1.2,
       architecture: 1.15,
@@ -37470,6 +37557,7 @@ var init_dist2 = __esm({
     init_origin_token();
     init_path_safety();
     init_freshness();
+    init_rerank_policy();
     init_disclosure_filter();
   }
 });
@@ -37599,31 +37687,31 @@ function rowToCandidateSafe(row) {
     return null;
   }
 }
-var import_zod11, CandidateRowSchema, CandidateRepository;
+var import_zod12, CandidateRowSchema, CandidateRepository;
 var init_candidate_repository = __esm({
   "../bobs-big-brain-registrar/packages/store/dist/repositories/candidate-repository.js"() {
     "use strict";
-    import_zod11 = __toESM(require_zod(), 1);
+    import_zod12 = __toESM(require_zod(), 1);
     init_dist();
     init_dist2();
     init_enum_membership();
-    CandidateRowSchema = import_zod11.z.object({
-      id: import_zod11.z.string(),
-      status: import_zod11.z.string(),
-      source: import_zod11.z.string(),
-      content: import_zod11.z.string(),
-      title: import_zod11.z.string(),
-      category: import_zod11.z.string(),
-      trust_level: import_zod11.z.string(),
-      author_json: import_zod11.z.string(),
-      tenant_id: import_zod11.z.string(),
-      metadata_json: import_zod11.z.string(),
-      pre_policy_flags_json: import_zod11.z.string(),
-      content_hash: import_zod11.z.string(),
-      captured_at: import_zod11.z.string(),
-      created_at: import_zod11.z.string(),
+    CandidateRowSchema = import_zod12.z.object({
+      id: import_zod12.z.string(),
+      status: import_zod12.z.string(),
+      source: import_zod12.z.string(),
+      content: import_zod12.z.string(),
+      title: import_zod12.z.string(),
+      category: import_zod12.z.string(),
+      trust_level: import_zod12.z.string(),
+      author_json: import_zod12.z.string(),
+      tenant_id: import_zod12.z.string(),
+      metadata_json: import_zod12.z.string(),
+      pre_policy_flags_json: import_zod12.z.string(),
+      content_hash: import_zod12.z.string(),
+      captured_at: import_zod12.z.string(),
+      created_at: import_zod12.z.string(),
       /** Optional write-time provenance attestation (H1) — NULL on every pre-H1 row. */
-      origin_json: import_zod11.z.string().nullable()
+      origin_json: import_zod12.z.string().nullable()
     });
     CandidateRepository = class {
       stmtInsert;
@@ -37917,11 +38005,11 @@ function appendOptionalFilters(conditions, params, tenantId, categories, prefix)
     });
   }
 }
-var import_zod12, InvalidLifecycleTransitionError, MemoryRowSchema, MemoryRepository;
+var import_zod13, InvalidLifecycleTransitionError, MemoryRowSchema, MemoryRepository;
 var init_memory_repository = __esm({
   "../bobs-big-brain-registrar/packages/store/dist/repositories/memory-repository.js"() {
     "use strict";
-    import_zod12 = __toESM(require_zod(), 1);
+    import_zod13 = __toESM(require_zod(), 1);
     init_dist();
     init_enum_membership();
     InvalidLifecycleTransitionError = class extends Error {
@@ -37934,26 +38022,26 @@ var init_memory_repository = __esm({
         this.name = "InvalidLifecycleTransitionError";
       }
     };
-    MemoryRowSchema = import_zod12.z.object({
-      id: import_zod12.z.string(),
-      candidate_id: import_zod12.z.string(),
-      source: import_zod12.z.string(),
-      content: import_zod12.z.string(),
-      title: import_zod12.z.string(),
-      category: import_zod12.z.string(),
-      trust_level: import_zod12.z.string(),
-      sensitivity: import_zod12.z.string(),
-      author_json: import_zod12.z.string(),
-      tenant_id: import_zod12.z.string(),
-      metadata_json: import_zod12.z.string(),
-      lifecycle: import_zod12.z.string(),
-      content_hash: import_zod12.z.string(),
-      policy_evaluations_json: import_zod12.z.string(),
-      supersession_json: import_zod12.z.string().nullable(),
-      promoted_at: import_zod12.z.string(),
-      promoted_by_json: import_zod12.z.string(),
-      updated_at: import_zod12.z.string(),
-      version: import_zod12.z.number()
+    MemoryRowSchema = import_zod13.z.object({
+      id: import_zod13.z.string(),
+      candidate_id: import_zod13.z.string(),
+      source: import_zod13.z.string(),
+      content: import_zod13.z.string(),
+      title: import_zod13.z.string(),
+      category: import_zod13.z.string(),
+      trust_level: import_zod13.z.string(),
+      sensitivity: import_zod13.z.string(),
+      author_json: import_zod13.z.string(),
+      tenant_id: import_zod13.z.string(),
+      metadata_json: import_zod13.z.string(),
+      lifecycle: import_zod13.z.string(),
+      content_hash: import_zod13.z.string(),
+      policy_evaluations_json: import_zod13.z.string(),
+      supersession_json: import_zod13.z.string().nullable(),
+      promoted_at: import_zod13.z.string(),
+      promoted_by_json: import_zod13.z.string(),
+      updated_at: import_zod13.z.string(),
+      version: import_zod13.z.number()
     });
     MemoryRepository = class {
       db;
@@ -38349,21 +38437,21 @@ function rowToPolicy(row) {
   }
   return domainResult.data;
 }
-var import_zod13, PolicyRowSchema, PolicyRepository;
+var import_zod14, PolicyRowSchema, PolicyRepository;
 var init_policy_repository = __esm({
   "../bobs-big-brain-registrar/packages/store/dist/repositories/policy-repository.js"() {
     "use strict";
-    import_zod13 = __toESM(require_zod(), 1);
+    import_zod14 = __toESM(require_zod(), 1);
     init_dist();
-    PolicyRowSchema = import_zod13.z.object({
-      id: import_zod13.z.string(),
-      name: import_zod13.z.string(),
-      tenant_id: import_zod13.z.string(),
-      rules_json: import_zod13.z.string(),
-      enabled: import_zod13.z.number(),
-      version: import_zod13.z.number(),
-      created_at: import_zod13.z.string(),
-      updated_at: import_zod13.z.string()
+    PolicyRowSchema = import_zod14.z.object({
+      id: import_zod14.z.string(),
+      name: import_zod14.z.string(),
+      tenant_id: import_zod14.z.string(),
+      rules_json: import_zod14.z.string(),
+      enabled: import_zod14.z.number(),
+      version: import_zod14.z.number(),
+      created_at: import_zod14.z.string(),
+      updated_at: import_zod14.z.string()
     });
     PolicyRepository = class {
       stmtInsert;
@@ -38546,25 +38634,25 @@ function rowToEvent(row) {
   }
   return domainResult.data;
 }
-var import_zod14, AuditRowSchema, AuditRepository;
+var import_zod15, AuditRowSchema, AuditRepository;
 var init_audit_repository = __esm({
   "../bobs-big-brain-registrar/packages/store/dist/repositories/audit-repository.js"() {
     "use strict";
-    import_zod14 = __toESM(require_zod(), 1);
+    import_zod15 = __toESM(require_zod(), 1);
     init_dist();
     init_audit_chain();
-    AuditRowSchema = import_zod14.z.object({
-      id: import_zod14.z.string(),
-      action: import_zod14.z.string(),
-      memory_id: import_zod14.z.string(),
-      tenant_id: import_zod14.z.string(),
-      actor_json: import_zod14.z.string(),
-      reason: import_zod14.z.string().nullable(),
-      details_json: import_zod14.z.string(),
-      timestamp: import_zod14.z.string(),
-      entry_hash: import_zod14.z.string().nullable().optional(),
-      prev_entry_hash: import_zod14.z.string().nullable().optional(),
-      hash_version: import_zod14.z.number().int().nullable().optional()
+    AuditRowSchema = import_zod15.z.object({
+      id: import_zod15.z.string(),
+      action: import_zod15.z.string(),
+      memory_id: import_zod15.z.string(),
+      tenant_id: import_zod15.z.string(),
+      actor_json: import_zod15.z.string(),
+      reason: import_zod15.z.string().nullable(),
+      details_json: import_zod15.z.string(),
+      timestamp: import_zod15.z.string(),
+      entry_hash: import_zod15.z.string().nullable().optional(),
+      prev_entry_hash: import_zod15.z.string().nullable().optional(),
+      hash_version: import_zod15.z.number().int().nullable().optional()
     });
     AuditRepository = class {
       stmtInsert;
@@ -39067,50 +39155,50 @@ function classifyChainBreaks(breaks, manifest, rowsById) {
     chainForks
   };
 }
-var import_node_crypto7, import_node_fs5, import_zod15, TAMPER_REASONS, TAMPER_REASON_SET, ExceptionManifestEntrySchema, ExceptionManifestSchema, ExceptionManifestError;
+var import_node_crypto7, import_node_fs5, import_zod16, TAMPER_REASONS, TAMPER_REASON_SET, ExceptionManifestEntrySchema, ExceptionManifestSchema, ExceptionManifestError;
 var init_exception_manifest = __esm({
   "../bobs-big-brain-registrar/packages/store/dist/exception-manifest.js"() {
     "use strict";
     import_node_crypto7 = require("node:crypto");
     import_node_fs5 = require("node:fs");
-    import_zod15 = __toESM(require_zod(), 1);
+    import_zod16 = __toESM(require_zod(), 1);
     TAMPER_REASONS = [
       "ENTRY_HASH_MISMATCH",
       "PREV_LINK_MISMATCH",
       "PREV_LINK_AND_ENTRY_HASH_MISMATCH"
     ];
     TAMPER_REASON_SET = new Set(TAMPER_REASONS);
-    ExceptionManifestEntrySchema = import_zod15.z.object({
+    ExceptionManifestEntrySchema = import_zod16.z.object({
       /** Audit row primary key. Names the exception uniquely. */
-      id: import_zod15.z.string(),
+      id: import_zod16.z.string(),
       /** The row's CURRENT stored `entry_hash` at manifest-generation time (nullable). */
-      entryHash: import_zod15.z.string().nullable(),
+      entryHash: import_zod16.z.string().nullable(),
       /** The row's CURRENT stored `prev_entry_hash` (null for the first chained row). */
-      prevEntryHash: import_zod15.z.string().nullable(),
+      prevEntryHash: import_zod16.z.string().nullable(),
       /** The row's stored `hash_version` (1 = pre-migration v1 form, 2 = v2). */
-      hashVersion: import_zod15.z.number(),
+      hashVersion: import_zod16.z.number(),
       /** The row's monotonic write-order key. Part of the pinned identity. */
-      seq: import_zod15.z.number(),
+      seq: import_zod16.z.number(),
       /**
        * The tamper reason this exception covers. The classifier requires the live
        * break's reason to still match this — a documented ENTRY_HASH_MISMATCH that
        * later reads as PREV_LINK_MISMATCH is drift, not the same exception.
        * CHAIN_FORK is intentionally NOT a permitted value.
        */
-      reason: import_zod15.z.enum(TAMPER_REASONS)
+      reason: import_zod16.z.enum(TAMPER_REASONS)
     });
-    ExceptionManifestSchema = import_zod15.z.object({
-      schemaVersion: import_zod15.z.literal(1),
+    ExceptionManifestSchema = import_zod16.z.object({
+      schemaVersion: import_zod16.z.literal(1),
       /** Optional brain identifier (a manifest is brain-specific data); null when absent. */
-      brainId: import_zod15.z.string().nullable().optional(),
+      brainId: import_zod16.z.string().nullable().optional(),
       /** ISO-8601 timestamp the manifest was generated. */
-      generatedAt: import_zod15.z.string(),
+      generatedAt: import_zod16.z.string(),
       /** Frozen count of entries. `readManifest` HARD-asserts entries.length === this (R2). */
-      entryCount: import_zod15.z.number(),
+      entryCount: import_zod16.z.number(),
       /** The pinned exceptions. */
-      entries: import_zod15.z.array(ExceptionManifestEntrySchema),
+      entries: import_zod16.z.array(ExceptionManifestEntrySchema),
       /** SHA-256 hex over the canonical body (everything above, entries sorted). */
-      manifestHash: import_zod15.z.string()
+      manifestHash: import_zod16.z.string()
     });
     ExceptionManifestError = class extends Error {
       constructor(message) {
@@ -39152,15 +39240,15 @@ function rowToState(row) {
     updatedAt: flat.updated_at
   };
 }
-var import_zod16, ExportStateRowSchema, ExportStateRepository;
+var import_zod17, ExportStateRowSchema, ExportStateRepository;
 var init_export_state_repository = __esm({
   "../bobs-big-brain-registrar/packages/store/dist/repositories/export-state-repository.js"() {
     "use strict";
-    import_zod16 = __toESM(require_zod(), 1);
-    ExportStateRowSchema = import_zod16.z.object({
-      target_id: import_zod16.z.string(),
-      last_exported_at: import_zod16.z.string(),
-      updated_at: import_zod16.z.string()
+    import_zod17 = __toESM(require_zod(), 1);
+    ExportStateRowSchema = import_zod17.z.object({
+      target_id: import_zod17.z.string(),
+      last_exported_at: import_zod17.z.string(),
+      updated_at: import_zod17.z.string()
     });
     ExportStateRepository = class {
       stmtGet;
@@ -39197,15 +39285,15 @@ var init_export_state_repository = __esm({
 });
 
 // ../bobs-big-brain-registrar/packages/store/dist/repositories/index-state-repository.js
-var import_zod17, IndexStateRowSchema;
+var import_zod18, IndexStateRowSchema;
 var init_index_state_repository = __esm({
   "../bobs-big-brain-registrar/packages/store/dist/repositories/index-state-repository.js"() {
     "use strict";
-    import_zod17 = __toESM(require_zod(), 1);
-    IndexStateRowSchema = import_zod17.z.object({
-      tenant_id: import_zod17.z.string(),
-      last_indexed_at: import_zod17.z.string(),
-      updated_at: import_zod17.z.string()
+    import_zod18 = __toESM(require_zod(), 1);
+    IndexStateRowSchema = import_zod18.z.object({
+      tenant_id: import_zod18.z.string(),
+      last_indexed_at: import_zod18.z.string(),
+      updated_at: import_zod18.z.string()
     });
   }
 });
@@ -39264,7 +39352,7 @@ function getDefaultDenseConfig(env = process.env) {
   const enabled = rawEnabled === void 0 || !["0", "false", "off", "no"].includes(rawEnabled);
   return { enabled, url: DEFAULT_DENSE_URL };
 }
-var import_node_path6, QMD_INDEX_DIR, DEFAULT_DENSE_URL, DEFAULT_QMD_BINARY, DEFAULT_TIMEOUT;
+var import_node_path6, QMD_INDEX_DIR, DEFAULT_DENSE_URL, DEFAULT_TIMEOUT;
 var init_config = __esm({
   "../bobs-big-brain-registrar/packages/qmd-adapter/dist/config.js"() {
     "use strict";
@@ -39272,22 +39360,100 @@ var init_config = __esm({
     init_dist2();
     QMD_INDEX_DIR = "qmd-index";
     DEFAULT_DENSE_URL = "http://127.0.0.1:8098";
-    DEFAULT_QMD_BINARY = "qmd";
     DEFAULT_TIMEOUT = 3e4;
   }
 });
 
+// ../bobs-big-brain-registrar/packages/qmd-adapter/dist/executor/resolve-binary.js
+function defaultIsExecutable(p) {
+  try {
+    if (!(0, import_node_fs6.statSync)(p).isFile())
+      return false;
+    (0, import_node_fs6.accessSync)(p, import_node_fs6.constants.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+function resolveQmdBinary(options = {}) {
+  const env = options.env ?? process.env;
+  const isExecutable = options.isExecutable ?? defaultIsExecutable;
+  const searched = [];
+  const pinned = (value, source, label) => {
+    const v = value?.trim();
+    if (v === void 0 || v === "")
+      return null;
+    searched.push(`${label}=${v}`);
+    if (!(0, import_node_path7.isAbsolute)(v) && !v.includes("/")) {
+      const hit = findOnPath(v, env, isExecutable);
+      if (hit !== null)
+        return { path: hit, source };
+      throw new QmdBinaryNotFoundError(`${label} is set to "${v}" but no executable by that name is on PATH. Fix ${label}, or unset it to fall back to PATH and ~/.bun/bin/qmd.`, searched);
+    }
+    if (isExecutable(v))
+      return { path: v, source };
+    throw new QmdBinaryNotFoundError(`${label} is set to "${v}" but that is not an executable file. Fix ${label}, or unset it to fall back to PATH and ~/.bun/bin/qmd.`, searched);
+  };
+  const fromExplicit = pinned(options.explicit, "explicit", "qmdBinary");
+  if (fromExplicit !== null)
+    return fromExplicit;
+  const fromEnv = pinned(env[QMD_BIN_ENV], "env", QMD_BIN_ENV);
+  if (fromEnv !== null)
+    return fromEnv;
+  const onPath = findOnPath("qmd", env, isExecutable);
+  searched.push("PATH");
+  if (onPath !== null)
+    return { path: onPath, source: "path" };
+  const bunDefault = (0, import_node_path7.join)(options.home ?? (0, import_node_os4.homedir)(), ".bun", "bin", "qmd");
+  searched.push(bunDefault);
+  if (isExecutable(bunDefault))
+    return { path: bunDefault, source: "bun-default" };
+  throw new QmdBinaryNotFoundError(`qmd binary not found (searched: ${searched.join(", ")}). The search index cannot be refreshed until it is available. Install it (bun add -g @tobilu/qmd) and either put it on PATH or set ${QMD_BIN_ENV}=/absolute/path/to/qmd in the MCP server environment, then re-run.`, searched);
+}
+function findOnPath(name, env, isExecutable) {
+  for (const dir of (env["PATH"] ?? "").split(import_node_path7.delimiter)) {
+    if (dir === "")
+      continue;
+    const candidate = (0, import_node_path7.join)(dir, name);
+    if (isExecutable(candidate))
+      return candidate;
+  }
+  return null;
+}
+var import_node_fs6, import_node_os4, import_node_path7, QMD_BIN_ENV, QMD_NOT_FOUND_EXIT_CODE, QmdBinaryNotFoundError;
+var init_resolve_binary = __esm({
+  "../bobs-big-brain-registrar/packages/qmd-adapter/dist/executor/resolve-binary.js"() {
+    "use strict";
+    import_node_fs6 = require("node:fs");
+    import_node_os4 = require("node:os");
+    import_node_path7 = require("node:path");
+    QMD_BIN_ENV = "TEAMKB_QMD_BIN";
+    QMD_NOT_FOUND_EXIT_CODE = 127;
+    QmdBinaryNotFoundError = class extends Error {
+      searched;
+      constructor(message, searched) {
+        super(message);
+        this.searched = searched;
+        this.name = "QmdBinaryNotFoundError";
+      }
+    };
+  }
+});
+
 // ../bobs-big-brain-registrar/packages/qmd-adapter/dist/executor/real-executor.js
-var import_node_child_process, import_node_util, execFileAsync, RealQmdExecutor;
+var import_node_child_process, import_node_util, import_node_path8, execFileAsync, RealQmdExecutor;
 var init_real_executor = __esm({
   "../bobs-big-brain-registrar/packages/qmd-adapter/dist/executor/real-executor.js"() {
     "use strict";
     import_node_child_process = require("node:child_process");
     import_node_util = require("node:util");
+    import_node_path8 = require("node:path");
     init_config();
+    init_resolve_binary();
     execFileAsync = (0, import_node_util.promisify)(import_node_child_process.execFile);
     RealQmdExecutor = class {
-      binary;
+      explicitBinary;
+      resolved = null;
       timeout;
       env;
       /**
@@ -39299,21 +39465,54 @@ var init_real_executor = __esm({
        *   `000-docs/037-AT-DSGN-qmd-adapter-source-index-separation.md`.
        */
       constructor(options) {
-        this.binary = options?.binary ?? DEFAULT_QMD_BINARY;
+        this.explicitBinary = options?.binary;
         this.timeout = options?.timeout ?? DEFAULT_TIMEOUT;
         this.env = options?.env ?? null;
       }
-      async execute(args) {
+      /**
+       * The binary to run, or the actionable reason there is none. Discovery order
+       * (env var, PATH, `~/.bun/bin/qmd`) lives in {@link resolveQmdBinary}. A
+       * successful resolution is cached; a failure is NOT, so installing qmd (or
+       * fixing the env) takes effect on the next call without a restart.
+       */
+      resolveBinary() {
+        if (this.explicitBinary !== void 0)
+          return { binary: this.explicitBinary };
+        if (this.resolved !== null)
+          return { binary: this.resolved };
         try {
-          const { stdout, stderr } = await execFileAsync(this.binary, args, {
+          this.resolved = resolveQmdBinary().path;
+          return { binary: this.resolved };
+        } catch (e) {
+          return { message: e instanceof Error ? e.message : String(e) };
+        }
+      }
+      async execute(args) {
+        const target = this.resolveBinary();
+        if (target.message !== void 0) {
+          return { stdout: "", stderr: target.message, exitCode: QMD_NOT_FOUND_EXIT_CODE };
+        }
+        const binary = target.binary;
+        try {
+          const env = { ...process.env, ...this.env ?? {} };
+          if ((0, import_node_path8.isAbsolute)(binary)) {
+            env["PATH"] = [(0, import_node_path8.dirname)(binary), env["PATH"]].filter((p) => p).join(import_node_path8.delimiter);
+          }
+          const { stdout, stderr } = await execFileAsync(binary, args, {
             timeout: this.timeout,
             maxBuffer: 10 * 1024 * 1024,
-            // Merge over process.env so PATH (qmd discovery) is preserved while
-            // tenant-scoped XDG_* vars isolate the registry + index.
-            ...this.env ? { env: { ...process.env, ...this.env } } : {}
+            env
           });
           return { stdout, stderr, exitCode: 0 };
         } catch (e) {
+          const spawnCode = e && typeof e === "object" && "code" in e ? e.code : void 0;
+          if (spawnCode === "ENOENT" || spawnCode === "EACCES") {
+            return {
+              stdout: "",
+              stderr: `qmd binary "${binary}" cannot be executed (${spawnCode}). Fix the qmdBinary option or TEAMKB_QMD_BIN, or omit it to search PATH and ~/.bun/bin/qmd.`,
+              exitCode: QMD_NOT_FOUND_EXIT_CODE
+            };
+          }
           if (e && typeof e === "object" && "stdout" in e && "stderr" in e && "code" in e) {
             const err2 = e;
             return {
@@ -39404,11 +39603,12 @@ var init_collection_registry = __esm({
 });
 
 // ../bobs-big-brain-registrar/packages/qmd-adapter/dist/collections/collection-manager.js
-var import_node_path7, CollectionManager;
+var import_node_path9, CollectionManager;
 var init_collection_manager = __esm({
   "../bobs-big-brain-registrar/packages/qmd-adapter/dist/collections/collection-manager.js"() {
     "use strict";
-    import_node_path7 = require("node:path");
+    import_node_path9 = require("node:path");
+    init_resolve_binary();
     init_collection_registry();
     CollectionManager = class {
       executor;
@@ -39450,6 +39650,16 @@ var init_collection_manager = __esm({
       /** List existing collections */
       async listCollections() {
         const result = await this.executor.execute(["collection", "list"]);
+        if (result.exitCode === QMD_NOT_FOUND_EXIT_CODE) {
+          return {
+            ok: false,
+            error: {
+              code: "not_available",
+              message: result.stderr,
+              command: "qmd collection list"
+            }
+          };
+        }
         if (result.exitCode !== 0) {
           return {
             ok: false,
@@ -39476,11 +39686,14 @@ var init_collection_manager = __esm({
        */
       async ensureCollections(exportBaseDir) {
         const listResult = await this.listCollections();
+        if (!listResult.ok && listResult.error.code === "not_available") {
+          return { ok: false, error: listResult.error };
+        }
         const existing = listResult.ok ? listResult.value : [];
         const created = [];
         for (const def of getExportableCollections()) {
           if (!existing.some((e) => e.includes(def.name))) {
-            const path = (0, import_node_path7.join)(exportBaseDir, def.sourceSubdir);
+            const path = (0, import_node_path9.join)(exportBaseDir, def.sourceSubdir);
             const addResult = await this.addCollection(def.name, path);
             if (!addResult.ok)
               return { ok: false, error: addResult.error };
@@ -39506,6 +39719,7 @@ var IndexLifecycleManager;
 var init_index_lifecycle = __esm({
   "../bobs-big-brain-registrar/packages/qmd-adapter/dist/index-manager/index-lifecycle.js"() {
     "use strict";
+    init_resolve_binary();
     IndexLifecycleManager = class {
       executor;
       constructor(executor) {
@@ -39514,6 +39728,12 @@ var init_index_lifecycle = __esm({
       /** Update the qmd index (re-index all collections) */
       async update() {
         const result = await this.executor.execute(["update"]);
+        if (result.exitCode === QMD_NOT_FOUND_EXIT_CODE) {
+          return {
+            ok: false,
+            error: { code: "not_available", message: result.stderr, command: "qmd update" }
+          };
+        }
         if (result.exitCode !== 0) {
           return {
             ok: false,
@@ -39877,12 +40097,12 @@ function getNativeIndexManager(opts) {
   managerCache.set(opts.indexPath, manager);
   return manager;
 }
-var import_node_fs6, import_node_path8, import_better_sqlite33, NativeIndexManager, managerCache;
+var import_node_fs7, import_node_path10, import_better_sqlite33, NativeIndexManager, managerCache;
 var init_native_index_manager = __esm({
   "../bobs-big-brain-registrar/packages/qmd-adapter/dist/native/native-index-manager.js"() {
     "use strict";
-    import_node_fs6 = require("node:fs");
-    import_node_path8 = require("node:path");
+    import_node_fs7 = require("node:fs");
+    import_node_path10 = require("node:path");
     import_better_sqlite33 = __toESM(require("better-sqlite3"), 1);
     init_collection_registry();
     init_fts5_backend();
@@ -39899,7 +40119,7 @@ var init_native_index_manager = __esm({
         this.exportDir = opts.exportDir;
         this.refreshTtlMs = opts.refreshTtlMs ?? 15e3;
         if (opts.indexPath !== ":memory:") {
-          (0, import_node_fs6.mkdirSync)((0, import_node_path8.dirname)(opts.indexPath), { recursive: true });
+          (0, import_node_fs7.mkdirSync)((0, import_node_path10.dirname)(opts.indexPath), { recursive: true });
         }
         this.db = new import_better_sqlite33.default(opts.indexPath);
         this.backend = new Fts5Backend({ db: this.db });
@@ -39918,16 +40138,16 @@ var init_native_index_manager = __esm({
         this.lastRefreshMs = nowMs;
         const onDisk = /* @__PURE__ */ new Map();
         for (const def of getExportableCollections()) {
-          const dir = (0, import_node_path8.join)(this.exportDir, def.sourceSubdir);
-          if (!(0, import_node_fs6.existsSync)(dir))
+          const dir = (0, import_node_path10.join)(this.exportDir, def.sourceSubdir);
+          if (!(0, import_node_fs7.existsSync)(dir))
             continue;
-          for (const name of (0, import_node_fs6.readdirSync)(dir)) {
+          for (const name of (0, import_node_fs7.readdirSync)(dir)) {
             if (!name.endsWith(".md"))
               continue;
-            const path = (0, import_node_path8.join)(dir, name);
+            const path = (0, import_node_path10.join)(dir, name);
             let mtimeMs;
             try {
-              mtimeMs = (0, import_node_fs6.statSync)(path).mtimeMs;
+              mtimeMs = (0, import_node_fs7.statSync)(path).mtimeMs;
             } catch {
               continue;
             }
@@ -39947,7 +40167,7 @@ var init_native_index_manager = __esm({
             continue;
           let content;
           try {
-            content = (0, import_node_fs6.readFileSync)(path, "utf8");
+            content = (0, import_node_fs7.readFileSync)(path, "utf8");
           } catch {
             continue;
           }
@@ -40076,12 +40296,12 @@ var init_rerank_client = __esm({
 });
 
 // ../bobs-big-brain-registrar/packages/qmd-adapter/dist/rerank/rerank-cache.js
-var import_node_fs7, import_node_path9, import_better_sqlite34, RerankCache;
+var import_node_fs8, import_node_path11, import_better_sqlite34, RerankCache;
 var init_rerank_cache = __esm({
   "../bobs-big-brain-registrar/packages/qmd-adapter/dist/rerank/rerank-cache.js"() {
     "use strict";
-    import_node_fs7 = require("node:fs");
-    import_node_path9 = require("node:path");
+    import_node_fs8 = require("node:fs");
+    import_node_path11 = require("node:path");
     import_better_sqlite34 = __toESM(require("better-sqlite3"), 1);
     init_dist2();
     init_rerank_client();
@@ -40096,7 +40316,7 @@ var init_rerank_cache = __esm({
         this.modelId = opts.modelId;
         this.modelVersion = opts.modelVersion;
         if (opts.path !== ":memory:") {
-          (0, import_node_fs7.mkdirSync)((0, import_node_path9.dirname)(opts.path), { recursive: true });
+          (0, import_node_fs8.mkdirSync)((0, import_node_path11.dirname)(opts.path), { recursive: true });
         }
         this.db = new import_better_sqlite34.default(opts.path);
         this.db.pragma("journal_mode = WAL");
@@ -40158,19 +40378,19 @@ function resolveCitationPath(exportDir, citation) {
     return null;
   const collectionName = rest.slice(0, slash);
   const fileName = rest.slice(slash + 1);
-  if (fileName.length === 0 || (0, import_node_path10.basename)(fileName) !== fileName)
+  if (fileName.length === 0 || (0, import_node_path12.basename)(fileName) !== fileName)
     return null;
   const def = getExportableCollections().find((c) => c.name === collectionName);
   if (def === void 0)
     return null;
-  return (0, import_node_path10.join)(exportDir, def.sourceSubdir, fileName);
+  return (0, import_node_path12.join)(exportDir, def.sourceSubdir, fileName);
 }
-var import_node_fs8, import_node_path10, DEFAULT_CANDIDATE_WINDOW, DEFAULT_RERANK_TOP_N, DEFAULT_MAX_DOC_CHARS, RerankStage;
+var import_node_fs9, import_node_path12, DEFAULT_CANDIDATE_WINDOW, DEFAULT_RERANK_TOP_N, DEFAULT_MAX_DOC_CHARS, RerankStage;
 var init_rerank_stage = __esm({
   "../bobs-big-brain-registrar/packages/qmd-adapter/dist/rerank/rerank-stage.js"() {
     "use strict";
-    import_node_fs8 = require("node:fs");
-    import_node_path10 = require("node:path");
+    import_node_fs9 = require("node:fs");
+    import_node_path12 = require("node:path");
     init_dist2();
     init_collection_registry();
     DEFAULT_CANDIDATE_WINDOW = 50;
@@ -40245,7 +40465,7 @@ var init_rerank_stage = __esm({
         const path = resolveCitationPath(this.exportDir, hit.file);
         if (path !== null) {
           try {
-            return (0, import_node_fs8.readFileSync)(path, "utf8").slice(0, this.maxDocChars);
+            return (0, import_node_fs9.readFileSync)(path, "utf8").slice(0, this.maxDocChars);
           } catch {
           }
         }
@@ -40338,12 +40558,12 @@ var init_embed_client = __esm({
 });
 
 // ../bobs-big-brain-registrar/packages/qmd-adapter/dist/dense/dense-index.js
-var import_node_fs9, import_node_path11, import_better_sqlite35, sqliteVec, DENSE_SNIPPET_CHARS, DenseVecIndex;
+var import_node_fs10, import_node_path13, import_better_sqlite35, sqliteVec, DENSE_SNIPPET_CHARS, DenseVecIndex;
 var init_dense_index = __esm({
   "../bobs-big-brain-registrar/packages/qmd-adapter/dist/dense/dense-index.js"() {
     "use strict";
-    import_node_fs9 = require("node:fs");
-    import_node_path11 = require("node:path");
+    import_node_fs10 = require("node:fs");
+    import_node_path13 = require("node:path");
     import_better_sqlite35 = __toESM(require("better-sqlite3"), 1);
     sqliteVec = __toESM(require("sqlite-vec"), 1);
     init_embed_client();
@@ -40353,7 +40573,7 @@ var init_dense_index = __esm({
       dims;
       constructor(opts) {
         if (opts.path !== ":memory:") {
-          (0, import_node_fs9.mkdirSync)((0, import_node_path11.dirname)(opts.path), { recursive: true });
+          (0, import_node_fs10.mkdirSync)((0, import_node_path13.dirname)(opts.path), { recursive: true });
         }
         this.db = new import_better_sqlite35.default(opts.path);
         sqliteVec.load(this.db);
@@ -40475,12 +40695,12 @@ var init_dense_index = __esm({
 function delay(ms) {
   return new Promise((resolve3) => setTimeout(resolve3, ms));
 }
-var import_node_fs10, import_node_path12, DEFAULT_DENSE_MAX_DOC_CHARS, DEFAULT_DENSE_BATCH_SIZE, DenseIndexer;
+var import_node_fs11, import_node_path14, DEFAULT_DENSE_MAX_DOC_CHARS, DEFAULT_DENSE_BATCH_SIZE, DenseIndexer;
 var init_dense_indexer = __esm({
   "../bobs-big-brain-registrar/packages/qmd-adapter/dist/dense/dense-indexer.js"() {
     "use strict";
-    import_node_fs10 = require("node:fs");
-    import_node_path12 = require("node:path");
+    import_node_fs11 = require("node:fs");
+    import_node_path14 = require("node:path");
     init_dist2();
     init_collection_registry();
     init_dense_index();
@@ -40533,15 +40753,15 @@ var init_dense_indexer = __esm({
       async sync() {
         const onDisk = /* @__PURE__ */ new Map();
         for (const def of getExportableCollections()) {
-          const dir = (0, import_node_path12.join)(this.exportDir, def.sourceSubdir);
-          if (!(0, import_node_fs10.existsSync)(dir))
+          const dir = (0, import_node_path14.join)(this.exportDir, def.sourceSubdir);
+          if (!(0, import_node_fs11.existsSync)(dir))
             continue;
-          for (const name of (0, import_node_fs10.readdirSync)(dir)) {
+          for (const name of (0, import_node_fs11.readdirSync)(dir)) {
             if (!name.endsWith(".md"))
               continue;
             let raw;
             try {
-              raw = (0, import_node_fs10.readFileSync)((0, import_node_path12.join)(dir, name), "utf8");
+              raw = (0, import_node_fs11.readFileSync)((0, import_node_path14.join)(dir, name), "utf8");
             } catch {
               continue;
             }
@@ -40668,7 +40888,7 @@ function buildDenseArm(config2) {
     const pinned = QMD_WEIGHTS_MANIFEST.models.find((m) => m.id === "embedding");
     const modelVersion = `${pinned?.sha256 ?? "unpinned"}|q:${EMBEDDINGGEMMA_QUERY_PREFIX}|d:${EMBEDDINGGEMMA_DOCUMENT_PREFIX}`;
     const index = new DenseVecIndex({
-      path: dense.indexPath ?? (0, import_node_path13.join)(getQmdTenantIndexPath(config2.tenantId), "dense-vec.sqlite"),
+      path: dense.indexPath ?? (0, import_node_path15.join)(getQmdTenantIndexPath(config2.tenantId), "dense-vec.sqlite"),
       modelId: pinned?.file ?? "unknown-embedding",
       modelVersion
     });
@@ -40706,7 +40926,7 @@ function buildRerankStage(config2) {
     let cache = null;
     try {
       cache = new RerankCache({
-        path: rerank.cachePath ?? (0, import_node_path13.join)(getQmdTenantIndexPath(config2.tenantId), "rerank-cache.sqlite"),
+        path: rerank.cachePath ?? (0, import_node_path15.join)(getQmdTenantIndexPath(config2.tenantId), "rerank-cache.sqlite"),
         modelId: pinned?.file ?? "unknown-reranker",
         modelVersion: pinned?.sha256 ?? "unpinned"
       });
@@ -40725,12 +40945,12 @@ function buildRerankStage(config2) {
     return null;
   }
 }
-var import_node_fs11, import_node_path13, NATIVE_SEARCH_K, DENSE_SEARCH_K, DENSE_INDEX_TIMEOUT_MS, QmdAdapter;
+var import_node_fs12, import_node_path15, NATIVE_SEARCH_K, DENSE_SEARCH_K, DENSE_INDEX_TIMEOUT_MS, QmdAdapter;
 var init_adapter = __esm({
   "../bobs-big-brain-registrar/packages/qmd-adapter/dist/adapter.js"() {
     "use strict";
-    import_node_fs11 = require("node:fs");
-    import_node_path13 = require("node:path");
+    import_node_fs12 = require("node:fs");
+    import_node_path15 = require("node:path");
     init_real_executor();
     init_collection_manager();
     init_collection_registry();
@@ -40786,7 +41006,7 @@ var init_adapter = __esm({
           try {
             this.native = getNativeIndexManager({
               exportDir: config2.exportDir,
-              indexPath: config2.nativeIndexPath ?? (0, import_node_path13.join)(getQmdTenantIndexPath(config2.tenantId), "native-fts5.sqlite")
+              indexPath: config2.nativeIndexPath ?? (0, import_node_path15.join)(getQmdTenantIndexPath(config2.tenantId), "native-fts5.sqlite")
             });
           } catch {
             this.native = null;
@@ -40936,7 +41156,7 @@ var init_adapter = __esm({
        */
       async ensureCollections() {
         for (const def of getExportableCollections()) {
-          (0, import_node_fs11.mkdirSync)((0, import_node_path13.join)(this.exportDir, def.sourceSubdir), { recursive: true });
+          (0, import_node_fs12.mkdirSync)((0, import_node_path15.join)(this.exportDir, def.sourceSubdir), { recursive: true });
         }
         return this.collections.ensureCollections(this.exportDir);
       }
@@ -41091,6 +41311,7 @@ var init_dist4 = __esm({
     init_config();
     init_real_executor();
     init_mock_executor();
+    init_resolve_binary();
     init_collection_registry();
     init_collection_manager();
     init_index_paths();
@@ -41557,35 +41778,35 @@ var init_candidate_builder = __esm({
 });
 
 // ../bobs-big-brain-registrar/packages/repo-resolver/dist/types.js
-var import_zod18, RepoContext, ResolverError;
+var import_zod19, RepoContext, ResolverError;
 var init_types2 = __esm({
   "../bobs-big-brain-registrar/packages/repo-resolver/dist/types.js"() {
     "use strict";
-    import_zod18 = __toESM(require_zod(), 1);
-    RepoContext = import_zod18.z.object({
+    import_zod19 = __toESM(require_zod(), 1);
+    RepoContext = import_zod19.z.object({
       /** Absolute path to the repo working tree root. */
-      repoRoot: import_zod18.z.string().min(1),
+      repoRoot: import_zod19.z.string().min(1),
       /** Lowercased basename of `repoRoot`. */
-      repoName: import_zod18.z.string().min(1),
+      repoName: import_zod19.z.string().min(1),
       /** Origin remote URL, or null when no origin is configured. */
-      remoteUrl: import_zod18.z.string().nullable(),
+      remoteUrl: import_zod19.z.string().nullable(),
       /** Current branch, or null when HEAD is detached. */
-      branch: import_zod18.z.string().nullable(),
+      branch: import_zod19.z.string().nullable(),
       /** HEAD commit SHA (40-char hex). */
-      commitSha: import_zod18.z.string().regex(/^[0-9a-f]{40}$/),
+      commitSha: import_zod19.z.string().regex(/^[0-9a-f]{40}$/),
       /** True when a workspace manifest was detected. */
-      isMonorepo: import_zod18.z.boolean(),
+      isMonorepo: import_zod19.z.boolean(),
       /** Monorepo root (may equal `repoRoot`), or null when not a monorepo. */
-      workspaceRoot: import_zod18.z.string().nullable(),
+      workspaceRoot: import_zod19.z.string().nullable(),
       /** Workspace package `name` containing `cwd`, or null. */
-      workspacePackage: import_zod18.z.string().nullable()
+      workspacePackage: import_zod19.z.string().nullable()
     });
-    ResolverError = import_zod18.z.discriminatedUnion("kind", [
-      import_zod18.z.object({ kind: import_zod18.z.literal("NotAGitRepo"), cwd: import_zod18.z.string() }),
-      import_zod18.z.object({ kind: import_zod18.z.literal("BareRepo"), repoRoot: import_zod18.z.string() }),
-      import_zod18.z.object({ kind: import_zod18.z.literal("NoCommits"), repoRoot: import_zod18.z.string() }),
-      import_zod18.z.object({ kind: import_zod18.z.literal("GitUnavailable"), cause: import_zod18.z.string() }),
-      import_zod18.z.object({ kind: import_zod18.z.literal("Io"), path: import_zod18.z.string(), cause: import_zod18.z.string() })
+    ResolverError = import_zod19.z.discriminatedUnion("kind", [
+      import_zod19.z.object({ kind: import_zod19.z.literal("NotAGitRepo"), cwd: import_zod19.z.string() }),
+      import_zod19.z.object({ kind: import_zod19.z.literal("BareRepo"), repoRoot: import_zod19.z.string() }),
+      import_zod19.z.object({ kind: import_zod19.z.literal("NoCommits"), repoRoot: import_zod19.z.string() }),
+      import_zod19.z.object({ kind: import_zod19.z.literal("GitUnavailable"), cause: import_zod19.z.string() }),
+      import_zod19.z.object({ kind: import_zod19.z.literal("Io"), path: import_zod19.z.string(), cause: import_zod19.z.string() })
     ]);
   }
 });
@@ -41728,8 +41949,8 @@ var init_context_provider = __esm({
 async function writeToSpool(candidate, spoolDir, agentId) {
   const dir = spoolDir ?? getSpoolPath();
   const filename = agentId ? `spool-${agentId}.jsonl` : getSpoolFilename();
-  const filepath = (0, import_node_path14.resolve)(dir, filename);
-  const resolvedDir = (0, import_node_path14.resolve)(dir);
+  const filepath = (0, import_node_path16.resolve)(dir, filename);
+  const resolvedDir = (0, import_node_path16.resolve)(dir);
   if (!filepath.startsWith(resolvedDir + "/") && filepath !== resolvedDir) {
     return { ok: false, error: `Path traversal rejected: ${filename}` };
   }
@@ -41751,12 +41972,12 @@ async function writeToSpool(candidate, spoolDir, agentId) {
     return { ok: false, error: `Failed to write to spool: ${msg}` };
   }
 }
-var import_promises2, import_node_path14;
+var import_promises2, import_node_path16;
 var init_spool_writer = __esm({
   "../bobs-big-brain-registrar/packages/claude-runtime/dist/spool/spool-writer.js"() {
     "use strict";
     import_promises2 = require("node:fs/promises");
-    import_node_path14 = require("node:path");
+    import_node_path16 = require("node:path");
     init_dist2();
     init_config2();
   }
@@ -41864,20 +42085,20 @@ async function listSpoolFiles(spoolDir) {
   const dir = spoolDir ?? getSpoolPath();
   try {
     const files = await (0, import_promises3.readdir)(dir);
-    const spoolFiles = files.filter((f) => f.startsWith("spool-") && f.endsWith(".jsonl")).sort().map((f) => (0, import_node_path15.join)(dir, f));
+    const spoolFiles = files.filter((f) => f.startsWith("spool-") && f.endsWith(".jsonl")).sort().map((f) => (0, import_node_path17.join)(dir, f));
     return { ok: true, value: spoolFiles };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return { ok: false, error: `Failed to list spool files: ${msg}` };
   }
 }
-var import_node_crypto8, import_promises3, import_node_path15;
+var import_node_crypto8, import_promises3, import_node_path17;
 var init_spool_reader = __esm({
   "../bobs-big-brain-registrar/packages/claude-runtime/dist/spool/spool-reader.js"() {
     "use strict";
     import_node_crypto8 = require("node:crypto");
     import_promises3 = require("node:fs/promises");
-    import_node_path15 = require("node:path");
+    import_node_path17 = require("node:path");
     init_dist();
     init_config2();
   }
@@ -41944,7 +42165,7 @@ var init_dist6 = __esm({
 
 // src/config.ts
 function resolveQmdIndexPath(basePath, tenantId) {
-  return (0, import_node_path16.join)(basePath, "qmd-index", tenantId);
+  return (0, import_node_path18.join)(basePath, "qmd-index", tenantId);
 }
 function resolveConfig() {
   const tenantId = (process.env["TEAMKB_TENANT_ID"] ?? "local").trim() || "local";
@@ -41953,19 +42174,29 @@ function resolveConfig() {
   return {
     tenantId,
     basePath,
-    spoolPath: (0, import_node_path16.join)(basePath, "spool"),
-    dbPath: (0, import_node_path16.join)(basePath, "teamkb.db"),
-    feedbackPath: (0, import_node_path16.join)(basePath, "feedback"),
-    exportDir: envExport && envExport.length > 0 ? envExport : (0, import_node_path16.join)(basePath, "kb-export"),
+    spoolPath: (0, import_node_path18.join)(basePath, "spool"),
+    dbPath: (0, import_node_path18.join)(basePath, "teamkb.db"),
+    feedbackPath: (0, import_node_path18.join)(basePath, "feedback"),
+    exportDir: envExport && envExport.length > 0 ? envExport : (0, import_node_path18.join)(basePath, "kb-export"),
     qmdIndexPath: resolveQmdIndexPath(basePath, tenantId)
   };
 }
-var import_node_path16;
+var import_node_path18;
 var init_config3 = __esm({
   "src/config.ts"() {
     "use strict";
-    import_node_path16 = require("node:path");
+    import_node_path18 = require("node:path");
     init_dist2();
+  }
+});
+
+// src/rerank-meta.ts
+function toCitedHitMetadata(m) {
+  return { category: m.category, updatedAt: m.updatedAt, title: m.title, lifecycle: m.lifecycle };
+}
+var init_rerank_meta = __esm({
+  "src/rerank-meta.ts"() {
+    "use strict";
   }
 });
 
@@ -43629,23 +43860,23 @@ async function ingestFromSpoolDetailed(candidateRepo, spoolDir, opts) {
 async function archiveIngestedFile(spoolFilePath, archiveDir) {
   try {
     await (0, import_promises4.mkdir)(archiveDir, { recursive: true });
-    const dest = (0, import_node_path17.join)(archiveDir, (0, import_node_path17.basename)(spoolFilePath));
+    const dest = (0, import_node_path19.join)(archiveDir, (0, import_node_path19.basename)(spoolFilePath));
     await (0, import_promises4.rename)(spoolFilePath, dest);
     try {
       await (0, import_promises4.rename)(`${spoolFilePath}.manifest.json`, `${dest}.manifest.json`);
     } catch {
     }
   } catch (e) {
-    process.stderr.write(`[spool-intake] archive skipped for ${(0, import_node_path17.basename)(spoolFilePath)}: ${e instanceof Error ? e.message : String(e)}
+    process.stderr.write(`[spool-intake] archive skipped for ${(0, import_node_path19.basename)(spoolFilePath)}: ${e instanceof Error ? e.message : String(e)}
 `);
   }
 }
 async function quarantineTamperedFile(spoolFilePath, spoolDir, quarantineDirOverride, expected, actual) {
   try {
-    const baseDir = quarantineDirOverride ?? (0, import_node_path17.join)(spoolDir ?? ".", "quarantine");
+    const baseDir = quarantineDirOverride ?? (0, import_node_path19.join)(spoolDir ?? ".", "quarantine");
     await (0, import_promises4.mkdir)(baseDir, { recursive: true });
-    const name = (0, import_node_path17.basename)(spoolFilePath);
-    const dest = (0, import_node_path17.join)(baseDir, name);
+    const name = (0, import_node_path19.basename)(spoolFilePath);
+    const dest = (0, import_node_path19.join)(baseDir, name);
     const evidence = {
       spoolFile: name,
       detectedAt: (/* @__PURE__ */ new Date()).toISOString(),
@@ -43664,12 +43895,12 @@ async function quarantineTamperedFile(spoolFilePath, spoolDir, quarantineDirOver
     return null;
   }
 }
-var import_promises4, import_node_path17, DEFAULT_BROAD_IMPORT_CANDIDATE_LIMIT;
+var import_promises4, import_node_path19, DEFAULT_BROAD_IMPORT_CANDIDATE_LIMIT;
 var init_spool_intake = __esm({
   "../bobs-big-brain-registrar/apps/curator/dist/intake/spool-intake.js"() {
     "use strict";
     import_promises4 = require("node:fs/promises");
-    import_node_path17 = require("node:path");
+    import_node_path19 = require("node:path");
     init_dist6();
     init_dist2();
     DEFAULT_BROAD_IMPORT_CANDIDATE_LIMIT = 100;
@@ -43884,6 +44115,109 @@ var init_directory_mapper = __esm({
   }
 });
 
+// ../bobs-big-brain-registrar/apps/git-exporter/dist/sensitivity.js
+function isSensitivityRestricted(level) {
+  const idx = Sensitivity.options.indexOf(level);
+  return idx >= CONFIDENTIAL_INDEX;
+}
+var CONFIDENTIAL_INDEX;
+var init_sensitivity = __esm({
+  "../bobs-big-brain-registrar/apps/git-exporter/dist/sensitivity.js"() {
+    "use strict";
+    init_dist();
+    CONFIDENTIAL_INDEX = Sensitivity.options.indexOf("confidential");
+  }
+});
+
+// ../bobs-big-brain-registrar/apps/git-exporter/dist/diff/stale-files.js
+function readFileTenant(filePath) {
+  try {
+    const text = (0, import_node_fs13.readFileSync)(filePath, "utf8");
+    if (!text.startsWith("---"))
+      return null;
+    const end = text.indexOf("\n---", 3);
+    if (end === -1)
+      return null;
+    const m = /^tenant_id:\s*"([^"\n]*)"\s*$/m.exec(text.slice(0, end));
+    return m?.[1] ?? null;
+  } catch {
+    return null;
+  }
+}
+function findStaleFiles(outputDir, memories, quarantinedIds, tenantId, maxOrphanRemovals) {
+  const desired = /* @__PURE__ */ new Map();
+  for (const m of memories) {
+    if (quarantinedIds.has(m.id))
+      continue;
+    if (isSensitivityRestricted(m.sensitivity)) {
+      desired.set(m.id, null);
+      continue;
+    }
+    try {
+      desired.set(m.id, getRelativePath2(m));
+    } catch {
+    }
+  }
+  const known = new Set(memories.map((m) => m.id));
+  const relocated = [];
+  const orphans = [];
+  for (const dir of EXPORT_DIRS) {
+    const absDir = (0, import_node_path20.join)(outputDir, dir);
+    if (!(0, import_node_fs13.existsSync)(absDir))
+      continue;
+    let names;
+    try {
+      names = (0, import_node_fs13.readdirSync)(absDir);
+    } catch {
+      continue;
+    }
+    for (const name of names.sort()) {
+      const m = MEMORY_FILE.exec(name);
+      if (m === null)
+        continue;
+      const id = m[1].toLowerCase();
+      if (quarantinedIds.has(id))
+        continue;
+      const rel = `${dir}/${name}`;
+      const abs = (0, import_node_path20.join)(absDir, name);
+      if (known.has(id)) {
+        if (!desired.has(id))
+          continue;
+        const want = desired.get(id);
+        if (want === void 0 || want !== rel) {
+          const owner = tenantId === void 0 ? null : readFileTenant(abs);
+          if (owner !== null && owner !== tenantId)
+            continue;
+          relocated.push(abs);
+        }
+        continue;
+      }
+      if (tenantId !== void 0 && readFileTenant(abs) !== tenantId)
+        continue;
+      orphans.push(abs);
+    }
+  }
+  if (orphans.length > maxOrphanRemovals) {
+    return {
+      toRemove: relocated,
+      removalBlocked: { orphans: orphans.length, limit: maxOrphanRemovals }
+    };
+  }
+  return { toRemove: [...relocated, ...orphans] };
+}
+var import_node_fs13, import_node_path20, EXPORT_DIRS, MEMORY_FILE;
+var init_stale_files = __esm({
+  "../bobs-big-brain-registrar/apps/git-exporter/dist/diff/stale-files.js"() {
+    "use strict";
+    import_node_fs13 = require("node:fs");
+    import_node_path20 = require("node:path");
+    init_directory_mapper();
+    init_sensitivity();
+    EXPORT_DIRS = ["decisions", "curated", "guides", "archive", "bulk"];
+    MEMORY_FILE = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.md$/i;
+  }
+});
+
 // ../bobs-big-brain-registrar/apps/git-exporter/dist/diff/change-detector.js
 function detectChanges(memoryRepo, exportStateRepo, config2) {
   const exportState = exportStateRepo.get(config2.targetId);
@@ -43898,7 +44232,9 @@ function detectChanges(memoryRepo, exportStateRepo, config2) {
     memories = parts.flatMap((p) => p.memories);
     readFailures.push(...parts.flatMap((p) => p.failures));
   }
-  if (exportState !== null) {
+  const allMemories = memories;
+  const reconcile = config2.reconcile === true;
+  if (exportState !== null && !reconcile) {
     memories = memories.filter((m) => m.updatedAt > exportState.lastExportedAt);
   }
   const toWrite = [];
@@ -43912,11 +44248,11 @@ function detectChanges(memoryRepo, exportStateRepo, config2) {
     try {
       if (memory.lifecycle === "archived" || memory.lifecycle === "superseded") {
         const activeDir = getActiveDirectory(memory);
-        const fromPath = (0, import_node_path18.join)(config2.outputDir, activeDir, `${memory.id}.md`);
-        const toPath = (0, import_node_path18.join)(config2.outputDir, getRelativePath2(memory));
+        const fromPath = (0, import_node_path21.join)(config2.outputDir, activeDir, `${memory.id}.md`);
+        const toPath = (0, import_node_path21.join)(config2.outputDir, getRelativePath2(memory));
         toArchive.push({ memory, fromPath, toPath });
       } else {
-        const filePath = (0, import_node_path18.join)(config2.outputDir, getRelativePath2(memory));
+        const filePath = (0, import_node_path21.join)(config2.outputDir, getRelativePath2(memory));
         toWrite.push({ memory, filePath });
       }
     } catch (err2) {
@@ -43927,14 +44263,26 @@ function detectChanges(memoryRepo, exportStateRepo, config2) {
       });
     }
   }
-  return { toWrite, toArchive, toRemove: [], quarantined };
+  if (!reconcile) {
+    return { toWrite, toArchive, toRemove: [], quarantined };
+  }
+  const stale = findStaleFiles(config2.outputDir, allMemories, new Set(quarantined.map((q) => q.id)), config2.tenantId, config2.maxOrphanRemovals ?? DEFAULT_MAX_ORPHAN_REMOVALS);
+  return {
+    toWrite,
+    toArchive,
+    toRemove: stale.toRemove,
+    quarantined,
+    ...stale.removalBlocked !== void 0 ? { removalBlocked: stale.removalBlocked } : {}
+  };
 }
-var import_node_path18;
+var import_node_path21, DEFAULT_MAX_ORPHAN_REMOVALS;
 var init_change_detector = __esm({
   "../bobs-big-brain-registrar/apps/git-exporter/dist/diff/change-detector.js"() {
     "use strict";
     init_directory_mapper();
-    import_node_path18 = require("node:path");
+    import_node_path21 = require("node:path");
+    init_stale_files();
+    DEFAULT_MAX_ORPHAN_REMOVALS = 50;
   }
 });
 
@@ -43948,8 +44296,8 @@ function assertPathSafe(filePath, allowedRoot) {
     throw new Error("Unsafe file path: Path contains directory traversal (..)");
   }
   if (allowedRoot !== void 0) {
-    const resolved = (0, import_node_path19.resolve)(filePath);
-    const resolvedRoot = (0, import_node_path19.resolve)(allowedRoot);
+    const resolved = (0, import_node_path22.resolve)(filePath);
+    const resolvedRoot = (0, import_node_path22.resolve)(allowedRoot);
     if (!resolved.startsWith(resolvedRoot + "/") && resolved !== resolvedRoot) {
       throw new Error(`Path traversal rejected: ${filePath} is outside ${allowedRoot}`);
     }
@@ -43957,44 +44305,40 @@ function assertPathSafe(filePath, allowedRoot) {
 }
 function writeFile3(filePath, content, exportRoot) {
   assertPathSafe(filePath, exportRoot);
-  (0, import_node_fs12.mkdirSync)((0, import_node_path19.dirname)(filePath), { recursive: true });
-  (0, import_node_fs12.writeFileSync)(filePath, content, "utf8");
+  (0, import_node_fs14.mkdirSync)((0, import_node_path22.dirname)(filePath), { recursive: true });
+  (0, import_node_fs14.writeFileSync)(filePath, content, "utf8");
 }
 function archiveFile(fromPath, toPath, content, exportRoot) {
   assertPathSafe(toPath, exportRoot);
   if (exportRoot !== void 0) {
     assertPathSafe(fromPath, exportRoot);
   }
-  (0, import_node_fs12.mkdirSync)((0, import_node_path19.dirname)(toPath), { recursive: true });
-  if ((0, import_node_fs12.existsSync)(fromPath)) {
-    (0, import_node_fs12.unlinkSync)(fromPath);
+  (0, import_node_fs14.mkdirSync)((0, import_node_path22.dirname)(toPath), { recursive: true });
+  if ((0, import_node_fs14.existsSync)(fromPath)) {
+    (0, import_node_fs14.unlinkSync)(fromPath);
   }
-  (0, import_node_fs12.writeFileSync)(toPath, content, "utf8");
+  (0, import_node_fs14.writeFileSync)(toPath, content, "utf8");
 }
 function removeFile(filePath, exportRoot) {
   if (exportRoot !== void 0) {
     assertPathSafe(filePath, exportRoot);
   }
-  if ((0, import_node_fs12.existsSync)(filePath)) {
-    (0, import_node_fs12.unlinkSync)(filePath);
+  if ((0, import_node_fs14.existsSync)(filePath)) {
+    (0, import_node_fs14.unlinkSync)(filePath);
     return true;
   }
   return false;
 }
-var import_node_fs12, import_node_path19;
+var import_node_fs14, import_node_path22;
 var init_file_writer = __esm({
   "../bobs-big-brain-registrar/apps/git-exporter/dist/writer/file-writer.js"() {
     "use strict";
-    import_node_fs12 = require("node:fs");
-    import_node_path19 = require("node:path");
+    import_node_fs14 = require("node:fs");
+    import_node_path22 = require("node:path");
   }
 });
 
 // ../bobs-big-brain-registrar/apps/git-exporter/dist/exporter.js
-function isSensitivityRestricted(level) {
-  const idx = Sensitivity.options.indexOf(level);
-  return idx >= CONFIDENTIAL_INDEX;
-}
 function runExport(memoryRepo, exportStateRepo, config2, nowFn = () => (/* @__PURE__ */ new Date()).toISOString()) {
   const changeset = detectChanges(memoryRepo, exportStateRepo, config2);
   const written = [];
@@ -44010,8 +44354,8 @@ function runExport(memoryRepo, exportStateRepo, config2, nowFn = () => (/* @__PU
     }
     try {
       const content = formatMemoryAsMarkdown(item.memory);
-      if ((0, import_node_fs13.existsSync)(item.filePath)) {
-        const existing = (0, import_node_fs13.readFileSync)(item.filePath, "utf8");
+      if ((0, import_node_fs15.existsSync)(item.filePath)) {
+        const existing = (0, import_node_fs15.readFileSync)(item.filePath, "utf8");
         if (existing === content) {
           unchanged++;
           continue;
@@ -44034,6 +44378,10 @@ function runExport(memoryRepo, exportStateRepo, config2, nowFn = () => (/* @__PU
     }
     try {
       const content = formatMemoryAsMarkdown(item.memory);
+      if (!(0, import_node_fs15.existsSync)(item.fromPath) && (0, import_node_fs15.existsSync)(item.toPath) && (0, import_node_fs15.readFileSync)(item.toPath, "utf8") === content) {
+        unchanged++;
+        continue;
+      }
       archiveFile(item.fromPath, item.toPath, content);
       archived.push(item.toPath);
     } catch (err2) {
@@ -44057,19 +44405,19 @@ function runExport(memoryRepo, exportStateRepo, config2, nowFn = () => (/* @__PU
     skipped,
     quarantined,
     unchanged,
-    totalProcessed: changeset.toWrite.length + changeset.toArchive.length + changeset.toRemove.length
+    totalProcessed: changeset.toWrite.length + changeset.toArchive.length + changeset.toRemove.length,
+    ...changeset.removalBlocked !== void 0 ? { removalBlocked: changeset.removalBlocked } : {}
   };
 }
-var import_node_fs13, CONFIDENTIAL_INDEX;
+var import_node_fs15;
 var init_exporter = __esm({
   "../bobs-big-brain-registrar/apps/git-exporter/dist/exporter.js"() {
     "use strict";
-    init_dist();
+    init_sensitivity();
     init_change_detector();
     init_markdown_formatter();
     init_file_writer();
-    import_node_fs13 = require("node:fs");
-    CONFIDENTIAL_INDEX = Sensitivity.options.indexOf("confidential");
+    import_node_fs15 = require("node:fs");
   }
 });
 
@@ -44155,7 +44503,7 @@ function commitAnchor(auditDir) {
   };
   const git = (args) => (0, import_node_child_process3.execFileSync)("git", args, { cwd: auditDir, stdio: "ignore", env });
   try {
-    if (!(0, import_node_fs14.existsSync)((0, import_node_path20.join)(auditDir, ".git"))) git(["init", "-q"]);
+    if (!(0, import_node_fs16.existsSync)((0, import_node_path23.join)(auditDir, ".git"))) git(["init", "-q"]);
     git(["add", "anchors.jsonl"]);
     git(["commit", "-q", "-m", `anchor ${(/* @__PURE__ */ new Date()).toISOString()}`]);
     try {
@@ -44171,9 +44519,9 @@ function commitAnchor(auditDir) {
 }
 function anchorChainHead(auditRepo, basePath, tenantId) {
   try {
-    const auditDir = (0, import_node_path20.join)(basePath, "audit");
-    (0, import_node_fs14.mkdirSync)(auditDir, { recursive: true });
-    const rec = appendAnchor(auditRepo, (0, import_node_path20.join)(auditDir, "anchors.jsonl"), { tenantId });
+    const auditDir = (0, import_node_path23.join)(basePath, "audit");
+    (0, import_node_fs16.mkdirSync)(auditDir, { recursive: true });
+    const rec = appendAnchor(auditRepo, (0, import_node_path23.join)(auditDir, "anchors.jsonl"), { tenantId });
     return {
       chainHead: rec.chainHead,
       chainedRows: rec.chainedRows,
@@ -44183,14 +44531,14 @@ function anchorChainHead(auditRepo, basePath, tenantId) {
     return void 0;
   }
 }
-var import_node_child_process3, import_node_fs14, import_node_path20;
+var import_node_child_process3, import_node_fs16, import_node_path23;
 var init_anchor = __esm({
   "src/anchor.ts"() {
     "use strict";
     init_dist3();
     import_node_child_process3 = require("node:child_process");
-    import_node_fs14 = require("node:fs");
-    import_node_path20 = require("node:path");
+    import_node_fs16 = require("node:fs");
+    import_node_path23 = require("node:path");
   }
 });
 
@@ -44208,9 +44556,9 @@ function isContention(err2) {
   return err2.code === "EAGAIN" || err2.code === "EWOULDBLOCK";
 }
 async function acquireWriteLock(basePath, timeoutMs = DEFAULT_TIMEOUT_MS) {
-  (0, import_node_fs15.mkdirSync)(basePath, { recursive: true });
-  const lockPath = (0, import_node_path21.join)(basePath, LOCK_FILENAME);
-  const fd = (0, import_node_fs15.openSync)(lockPath, "a");
+  (0, import_node_fs17.mkdirSync)(basePath, { recursive: true });
+  const lockPath = (0, import_node_path24.join)(basePath, LOCK_FILENAME);
+  const fd = (0, import_node_fs17.openSync)(lockPath, "a");
   const deadline = Date.now() + Math.max(0, timeoutMs);
   for (; ; ) {
     const err2 = await tryFlockExclusive(fd);
@@ -44222,7 +44570,7 @@ async function acquireWriteLock(basePath, timeoutMs = DEFAULT_TIMEOUT_MS) {
           } catch {
           } finally {
             try {
-              (0, import_node_fs15.closeSync)(fd);
+              (0, import_node_fs17.closeSync)(fd);
             } catch {
             }
           }
@@ -44231,14 +44579,14 @@ async function acquireWriteLock(basePath, timeoutMs = DEFAULT_TIMEOUT_MS) {
     }
     if (!isContention(err2)) {
       try {
-        (0, import_node_fs15.closeSync)(fd);
+        (0, import_node_fs17.closeSync)(fd);
       } catch {
       }
       throw err2;
     }
     if (Date.now() >= deadline) {
       try {
-        (0, import_node_fs15.closeSync)(fd);
+        (0, import_node_fs17.closeSync)(fd);
       } catch {
       }
       throw new WriteLockBusyError();
@@ -44246,12 +44594,12 @@ async function acquireWriteLock(basePath, timeoutMs = DEFAULT_TIMEOUT_MS) {
     await sleep(RETRY_INTERVAL_MS);
   }
 }
-var import_node_fs15, import_node_path21, import_fs_ext, LOCK_FILENAME, DEFAULT_TIMEOUT_MS, RETRY_INTERVAL_MS, WriteLockBusyError, sleep;
+var import_node_fs17, import_node_path24, import_fs_ext, LOCK_FILENAME, DEFAULT_TIMEOUT_MS, RETRY_INTERVAL_MS, WriteLockBusyError, sleep;
 var init_write_lock = __esm({
   "src/write-lock.ts"() {
     "use strict";
-    import_node_fs15 = require("node:fs");
-    import_node_path21 = require("node:path");
+    import_node_fs17 = require("node:fs");
+    import_node_path24 = require("node:path");
     import_fs_ext = require("fs-ext");
     LOCK_FILENAME = ".write.lock";
     DEFAULT_TIMEOUT_MS = 8e3;
@@ -44267,6 +44615,10 @@ var init_write_lock = __esm({
 });
 
 // src/govern.ts
+function describeQmdError(error) {
+  const tail = error.stderr?.trim().split("\n").slice(-3).join(" | ");
+  return tail !== void 0 && tail !== "" && error.code !== "not_available" ? `${error.message}: ${tail}` : error.message;
+}
 async function runGovern(config2) {
   const lock = await acquireWriteLock(config2.basePath);
   try {
@@ -44292,29 +44644,48 @@ async function runGovernLocked(config2) {
       );
     }
     const ingestResult = await ingestFromSpool(candidateRepo, config2.spoolPath, {
-      archiveIngestedDir: (0, import_node_path22.join)(config2.spoolPath, "ingested")
+      archiveIngestedDir: (0, import_node_path25.join)(config2.spoolPath, "ingested")
     });
     const ingested = ingestResult.ok ? ingestResult.value.length : 0;
     const curation = sweepInbox(config2, { candidateRepo, memoryRepo, policyRepo, auditRepo });
     let exported = 0;
+    let exportSummary;
+    let exportError;
     try {
       const ex = await runExport(
         memoryRepo,
         exportStateRepo,
-        { outputDir: config2.exportDir, targetId: "kb-export-default", tenantId: config2.tenantId },
+        {
+          outputDir: config2.exportDir,
+          targetId: "kb-export-default",
+          tenantId: config2.tenantId,
+          reconcile: true
+        },
         () => (/* @__PURE__ */ new Date()).toISOString()
       );
-      exported = ex.written.length;
+      exportSummary = {
+        written: ex.written.length,
+        archived: ex.archived.length,
+        removed: ex.removed.length,
+        unchanged: ex.unchanged,
+        quarantined: ex.quarantined.length,
+        ...ex.removalBlocked !== void 0 ? { removalBlocked: ex.removalBlocked } : {}
+      };
+      exported = exportSummary.written + exportSummary.archived + exportSummary.removed;
     } catch (e) {
-      process.stderr.write(`[govern] export failed: ${e instanceof Error ? e.message : String(e)}
+      exportError = e instanceof Error ? e.message : String(e);
+      process.stderr.write(`[govern] export failed: ${exportError}
 `);
     }
     let indexUpdated = false;
     let indexError;
+    let qmdBinary;
     try {
+      qmdBinary = resolveQmdBinary();
       const adapter = new QmdAdapter({
         tenantId: config2.tenantId,
         exportDir: config2.exportDir,
+        qmdBinary: qmdBinary.path,
         // Dense arm ON by default via the registrar's shared production seam
         // (#328); TEAMKB_DENSE_ENABLED=false is the emergency kill switch. This
         // site was the vps.1 drift class — the plugin bypasses the API, so
@@ -44322,9 +44693,9 @@ async function runGovernLocked(config2) {
         dense: getDefaultDenseConfig()
       });
       const ensure = await adapter.ensureCollections();
-      if (!ensure.ok) throw new Error(ensure.error.message);
+      if (!ensure.ok) throw new Error(describeQmdError(ensure.error));
       const upd = await adapter.update();
-      if (!upd.ok) throw new Error(upd.error.message);
+      if (!upd.ok) throw new Error(describeQmdError(upd.error));
       indexUpdated = true;
     } catch (e) {
       indexError = e instanceof Error ? e.message : String(e);
@@ -44343,8 +44714,11 @@ async function runGovernLocked(config2) {
       quarantined: curation.quarantined,
       skipped: curation.skipped,
       exported,
+      ...exportSummary !== void 0 ? { export: exportSummary } : {},
+      ...exportError !== void 0 ? { exportError } : {},
       indexUpdated,
       indexError,
+      ...qmdBinary !== void 0 ? { qmdBinary } : {},
       anchored
     };
   } finally {
@@ -44450,12 +44824,12 @@ function sweepInbox(config2, deps) {
 function isMemberAuthored(candidate) {
   return candidate.metadata?.proposedByRole === "member";
 }
-var import_node_crypto11, import_node_path22, SWEEP_RECEIPT_MEMORY_ID;
+var import_node_crypto11, import_node_path25, SWEEP_RECEIPT_MEMORY_ID;
 var init_govern = __esm({
   "src/govern.ts"() {
     "use strict";
     import_node_crypto11 = require("node:crypto");
-    import_node_path22 = require("node:path");
+    import_node_path25 = require("node:path");
     init_dist8();
     init_dist9();
     init_dist2();
@@ -44470,14 +44844,38 @@ var init_govern = __esm({
 });
 
 // src/govern-message.ts
-function formatGovernMessage(s) {
-  const idle = s.ingested === 0 && s.processed === 0 && s.promoted === 0 && s.rejected === 0 && s.flagged === 0 && s.duplicates === 0 && s.quarantined === 0 && s.skipped === 0;
-  if (idle) {
-    let message2 = "Nothing to govern \u2014 spool and inbox are empty (not a failure). Capture something first with /brain-save (or brain_capture), then run brain_govern again.";
-    if (!s.indexUpdated) {
-      message2 += " Search index not refreshed \u2014 install qmd 2.x on PATH and re-run brain_govern to make new memories searchable.";
+function isIdle(s) {
+  return s.ingested === 0 && s.processed === 0 && s.promoted === 0 && s.rejected === 0 && s.flagged === 0 && s.duplicates === 0 && s.quarantined === 0 && s.skipped === 0 && (s.exported ?? 0) === 0;
+}
+function exportSentence(s) {
+  const parts = [];
+  if (s.exportError !== void 0) {
+    parts.push(` Export FAILED: ${s.exportError}.`);
+  } else if (s.export !== void 0) {
+    const e = s.export;
+    if (e.written + e.archived + e.removed > 0) {
+      parts.push(
+        ` Export reconciled: ${e.written} written, ${e.archived} archived, ${e.removed} removed (${e.unchanged} unchanged).`
+      );
     }
-    return message2;
+    if (e.quarantined > 0) {
+      parts.push(` ${e.quarantined} memory(ies) could not be exported and were set aside.`);
+    }
+    if (e.removalBlocked !== void 0) {
+      parts.push(
+        ` Refused to remove ${e.removalBlocked.orphans} orphan export file(s) (over the safety cap of ${e.removalBlocked.limit}); check the brain DB is the right one.`
+      );
+    }
+  }
+  return parts.join("");
+}
+function indexSentence(s) {
+  if (s.indexUpdated) return "";
+  return s.indexError !== void 0 && s.indexError !== "" ? ` Search index NOT refreshed: ${s.indexError}` : " Search index not refreshed \u2014 install qmd 2.x (on PATH, ~/.bun/bin, or TEAMKB_QMD_BIN) and re-run brain_govern to make new memories searchable.";
+}
+function formatGovernMessage(s) {
+  if (isIdle(s)) {
+    return "Nothing to govern \u2014 spool and inbox are empty (not a failure). Capture something first with /brain-save (or brain_capture), then run brain_govern again." + exportSentence(s) + indexSentence(s);
   }
   const parts = [
     `${s.promoted} promoted`,
@@ -44487,11 +44885,7 @@ function formatGovernMessage(s) {
     `${s.flagged} flagged`
   ];
   if (s.skipped > 0) parts.push(`${s.skipped} skipped`);
-  let message = `Governed ${s.processed} inbox candidate(s) (${s.ingested} newly ingested): ${parts.join(", ")}.`;
-  if (!s.indexUpdated) {
-    message += " Search index not refreshed \u2014 install qmd 2.x on PATH and re-run brain_govern to make new memories searchable.";
-  }
-  return message;
+  return `Governed ${s.processed} inbox candidate(s) (${s.ingested} newly ingested): ${parts.join(", ")}.` + exportSentence(s) + indexSentence(s);
 }
 var init_govern_message = __esm({
   "src/govern-message.ts"() {
@@ -44523,11 +44917,11 @@ function isMissingNativeDep(e) {
   );
 }
 function manifestPath(basePath) {
-  return (0, import_node_path23.join)(basePath, "audit", "exceptions.manifest.json");
+  return (0, import_node_path26.join)(basePath, "audit", "exceptions.manifest.json");
 }
 function loadExceptionManifest(basePath) {
   const p = manifestPath(basePath);
-  if (!(0, import_node_fs16.existsSync)(p)) return null;
+  if (!(0, import_node_fs18.existsSync)(p)) return null;
   try {
     return readManifest(p);
   } catch (e) {
@@ -44577,26 +44971,28 @@ async function startLocalServer() {
 `
   );
 }
-var import_node_crypto12, import_node_fs16, import_zod19, import_node_path23, VERSION2, config, CATEGORIES2, NATIVE_DEP_HINT, server2;
+var import_node_crypto12, import_node_fs18, import_zod20, import_node_path26, VERSION2, config, CATEGORIES2, NATIVE_DEP_HINT, server2;
 var init_local_server = __esm({
   "src/local-server.ts"() {
     "use strict";
     import_node_crypto12 = require("node:crypto");
-    import_node_fs16 = require("node:fs");
+    import_node_fs18 = require("node:fs");
     init_mcp();
     init_stdio2();
-    import_zod19 = __toESM(require_zod(), 1);
-    import_node_path23 = require("node:path");
+    import_zod20 = __toESM(require_zod(), 1);
+    import_node_path26 = require("node:path");
     init_dist3();
     init_dist4();
     init_dist2();
     init_dist6();
     init_dist();
     init_config3();
+    init_rerank_meta();
     init_govern();
     init_govern_message();
     init_anchor();
     init_write_lock();
+    init_subjects();
     VERSION2 = "1.2.0";
     config = resolveConfig();
     CATEGORIES2 = [
@@ -44614,9 +45010,9 @@ var init_local_server = __esm({
       "brain_search",
       "Search your governed knowledge brain and return qmd:// citations \u2014 receipts, not recall. Runs in-process against your local qmd index (no network, no API key). Curated scope by default.",
       {
-        query: import_zod19.z.string().min(1).describe("Natural-language search query"),
-        scope: import_zod19.z.enum(["curated", "all", "inbox", "archived"]).optional().describe("Search scope: curated (default, governed knowledge), all, inbox, or archived"),
-        limit: import_zod19.z.number().int().min(1).max(50).optional().describe("Maximum number of cited hits to return (default 10)")
+        query: import_zod20.z.string().min(1).describe("Natural-language search query"),
+        scope: import_zod20.z.enum(["curated", "all", "inbox", "archived"]).optional().describe("Search scope: curated (default, governed knowledge), all, inbox, or archived"),
+        limit: import_zod20.z.number().int().min(1).max(50).optional().describe("Maximum number of cited hits to return (default 10)")
       },
       async (params) => {
         const scope = params.scope ?? "curated";
@@ -44656,9 +45052,13 @@ var init_local_server = __esm({
             normalised,
             (memoryId) => {
               const m = repo.findById(memoryId);
-              return m ? { category: m.category, updatedAt: m.updatedAt } : null;
+              return m ? toCitedHitMetadata(m) : null;
             },
-            nowIso
+            nowIso,
+            void 0,
+            // The query enables the historical-record demotion (and its history-intent
+            // bypass); title/lifecycle ride in via toCitedHitMetadata above.
+            { query: params.query }
           );
           ranked = reranked.map((r) => ({
             file: r.file,
@@ -44714,7 +45114,7 @@ var init_local_server = __esm({
       "brain_audit_verify",
       "Verify the integrity of your brain's audit trail \u2014 the SHA-256 hash chain AND the external anchor log. Reports an honest 3-state summary: tamper signatures (a broken hash link, or a silent rewrite of history caught by cross-checking the anchored snapshots), documented migration exceptions, and benign chain-ordering forks. Read-only.",
       {
-        verbose: import_zod19.z.boolean().optional().describe(
+        verbose: import_zod20.z.boolean().optional().describe(
           "Include the raw per-break detail arrays (row ids, tenants). Default false \u2014 the summary reports counts only, to avoid leaking row identity on a read surface an outsider may hit."
         )
       },
@@ -44729,7 +45129,7 @@ var init_local_server = __esm({
         }
         try {
           const auditRepo = new AuditRepository(db);
-          const result = verifyAnchors(auditRepo, (0, import_node_path23.join)(config.basePath, "audit", "anchors.jsonl"));
+          const result = verifyAnchors(auditRepo, (0, import_node_path26.join)(config.basePath, "audit", "anchors.jsonl"));
           const manifest = loadExceptionManifest(config.basePath);
           const rowsById = buildRowsById(auditRepo);
           const classified = classifyChainBreaks(result.chain.breaks, manifest, rowsById);
@@ -44769,12 +45169,29 @@ var init_local_server = __esm({
       "brain_capture",
       "Capture a single fact, decision, pattern, or convention as a governance candidate (the model's PROPOSAL). It is appended to the local spool; run brain_govern to put it through deterministic dedupe/policy/promotion with a hash-chained receipt.",
       {
-        title: import_zod19.z.string().min(1).describe("Short, specific title for the memory"),
-        content: import_zod19.z.string().min(1).describe("The fact to remember, in full"),
-        category: import_zod19.z.enum(CATEGORIES2).optional().describe("Memory category (default: reference)"),
-        filePaths: import_zod19.z.array(import_zod19.z.string()).optional().describe("Related file paths, if any")
+        title: import_zod20.z.string().min(1).describe("Short, specific title for the memory"),
+        content: import_zod20.z.string().min(1).describe("The fact to remember, in full"),
+        category: import_zod20.z.enum(CATEGORIES2).optional().describe("Memory category (default: reference)"),
+        filePaths: import_zod20.z.array(import_zod20.z.string()).optional().describe("Related file paths, if any"),
+        subjects: SUBJECTS_PARAM
       },
       async (params) => {
+        const subjectCheck = validateSubjects(params.subjects);
+        if (!subjectCheck.ok) return jsonResult2({ ok: false, error: subjectCheck.error });
+        const metadata = {
+          filePaths: params.filePaths ?? [],
+          tags: [],
+          // Absent (not []) when none declared: spool line stays byte-identical to a
+          // pre-subjects capture.
+          ...subjectCheck.subjects !== void 0 ? { subjects: subjectCheck.subjects } : {}
+        };
+        const metaCheck = ContentMetadata.safeParse(metadata);
+        if (!metaCheck.success) {
+          return jsonResult2({
+            ok: false,
+            error: `subjects: rejected by the registrar schema \u2014 ${metaCheck.error.issues.map((i) => i.message).join("; ")}`
+          });
+        }
         const id = (0, import_node_crypto12.randomUUID)();
         const capturedAt = (/* @__PURE__ */ new Date()).toISOString();
         let origin;
@@ -44805,7 +45222,7 @@ var init_local_server = __esm({
           trustLevel: "medium",
           author: { type: "ai", id: "governed-brain" },
           tenantId: config.tenantId,
-          metadata: { filePaths: params.filePaths ?? [], tags: [] },
+          metadata,
           prePolicyFlags: { potentialSecret: false, lowConfidence: false, duplicateSuspect: false },
           capturedAt,
           ...origin !== void 0 ? { origin } : {}
@@ -44834,7 +45251,7 @@ var init_local_server = __esm({
           throw e;
         }
         const message = formatGovernMessage(s);
-        const idle = s.ingested === 0 && s.processed === 0 && s.promoted === 0 && s.rejected === 0 && s.flagged === 0 && s.duplicates === 0 && s.quarantined === 0 && s.skipped === 0;
+        const idle = isIdle(s);
         return jsonResult2({ ok: true, ...s, idle, message });
       }
     );
@@ -44842,11 +45259,11 @@ var init_local_server = __esm({
       "brain_transition",
       "Change the lifecycle state of an existing governed memory (e.g. retire an outdated one). Writes a hash-chained audit event. Valid moves: active\u2192{deprecated,superseded,archived}, deprecated\u2192{active,archived}, superseded\u2192archived.",
       {
-        memoryId: import_zod19.z.string().uuid().describe("UUID of the memory to transition"),
-        to: import_zod19.z.enum(["active", "deprecated", "superseded", "archived"]).describe("Target lifecycle state"),
-        reason: import_zod19.z.string().min(1).describe("Human-readable justification (lands in the audit trail)"),
-        actor: import_zod19.z.string().optional().describe("Who is making the change (default: owner)"),
-        supersededBy: import_zod19.z.string().uuid().optional().describe('Required UUID when transitioning to "superseded"')
+        memoryId: import_zod20.z.string().uuid().describe("UUID of the memory to transition"),
+        to: import_zod20.z.enum(["active", "deprecated", "superseded", "archived"]).describe("Target lifecycle state"),
+        reason: import_zod20.z.string().min(1).describe("Human-readable justification (lands in the audit trail)"),
+        actor: import_zod20.z.string().optional().describe("Who is making the change (default: owner)"),
+        supersededBy: import_zod20.z.string().uuid().optional().describe('Required UUID when transitioning to "superseded"')
       },
       async (params) => {
         let lock;

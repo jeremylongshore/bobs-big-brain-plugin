@@ -74,6 +74,13 @@ jobs:
       - name: Smoke — B1 auto-govern inbox sweep (quarantine + idempotency)
         run: node smoke/b1-inbox-sweep.mjs
 
+      # 39z.14 / 39z.4: brain_govern reconciles the export tree (lifecycle-only changes,
+      # crash repair, mass-delete guard), resolves qmd without it on PATH (actionable
+      # error when absent), and brain_capture `subjects` reach the promoted memory
+      # (and drive subject-keyed supersession). Fake qmd; isolated HOME + brain root.
+      - name: Smoke — govern export reconcile + qmd resolution + capture subjects
+        run: node smoke/govern-reconcile.mjs
+
       # jfv.8 / 014-AT-DECR: the agent-review admin tools (brain_inbox / brain_approve
       # / brain_reject) driven through the built team-mode runtime over a real socket
       # against a request-capturing stub — proves the tool→wire contract.
