@@ -39462,6 +39462,14 @@ var init_real_executor = __esm({
           });
           return { stdout, stderr, exitCode: 0 };
         } catch (e) {
+          const spawnCode = e && typeof e === "object" && "code" in e ? e.code : void 0;
+          if (spawnCode === "ENOENT" || spawnCode === "EACCES") {
+            return {
+              stdout: "",
+              stderr: `qmd binary "${binary}" cannot be executed (${spawnCode}). Fix the qmdBinary option or TEAMKB_QMD_BIN, or omit it to search PATH and ~/.bun/bin/qmd.`,
+              exitCode: QMD_NOT_FOUND_EXIT_CODE
+            };
+          }
           if (e && typeof e === "object" && "stdout" in e && "stderr" in e && "code" in e) {
             const err2 = e;
             return {
