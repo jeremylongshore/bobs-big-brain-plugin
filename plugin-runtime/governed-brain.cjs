@@ -44131,8 +44131,12 @@ function findStaleFiles(outputDir, memories, quarantinedIds, tenantId, maxOrphan
         if (!desired.has(id))
           continue;
         const want = desired.get(id);
-        if (want === void 0 || want !== rel)
+        if (want === void 0 || want !== rel) {
+          const owner = tenantId === void 0 ? null : readFileTenant(abs);
+          if (owner !== null && owner !== tenantId)
+            continue;
           relocated.push(abs);
+        }
         continue;
       }
       if (tenantId !== void 0 && readFileTenant(abs) !== tenantId)
