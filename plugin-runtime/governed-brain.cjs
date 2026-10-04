@@ -37218,6 +37218,42 @@ var init_path_safety = __esm({
   }
 });
 
+// ../bobs-big-brain-registrar/packages/common/dist/rerank-policy.js
+function hasHistoryIntent(query) {
+  return query !== void 0 && HISTORY_INTENT_PATTERN.test(query);
+}
+function isHistoricalRecordTitle(title) {
+  return title !== void 0 && HISTORICAL_TITLE_PATTERN.test(title);
+}
+function lifecycleFactor(lifecycle) {
+  switch (lifecycle) {
+    case "deprecated":
+      return LIFECYCLE_DEPRECATED_FACTOR;
+    case "archived":
+    case "superseded":
+      return LIFECYCLE_ARCHIVED_FACTOR;
+    default:
+      return 1;
+  }
+}
+function computeRerankPolicyFactors(input, query) {
+  const lifecycle = lifecycleFactor(input.lifecycle);
+  const demoteHistorical = query !== void 0 && !hasHistoryIntent(query) && isHistoricalRecordTitle(input.title);
+  const historical = demoteHistorical ? HISTORICAL_RECORD_FACTOR : 1;
+  return { lifecycle, historical, product: lifecycle * historical };
+}
+var LIFECYCLE_DEPRECATED_FACTOR, LIFECYCLE_ARCHIVED_FACTOR, HISTORICAL_RECORD_FACTOR, HISTORICAL_TITLE_PATTERN, HISTORY_INTENT_PATTERN;
+var init_rerank_policy = __esm({
+  "../bobs-big-brain-registrar/packages/common/dist/rerank-policy.js"() {
+    "use strict";
+    LIFECYCLE_DEPRECATED_FACTOR = 0.5;
+    LIFECYCLE_ARCHIVED_FACTOR = 0.2;
+    HISTORICAL_RECORD_FACTOR = 0.7;
+    HISTORICAL_TITLE_PATTERN = /\b(?:aar|after[\s-]+action|post[\s-]?mortem|retrospective|audit(?![\s-]+(?:log|logs|trail|chain|event|events|verify))|verification\s+report|status\s+report|hand[\s-]?off|session\s+summary|changelog|phase\s+\d+\s+report)\b/i;
+    HISTORY_INTENT_PATTERN = /\b(?:history|historical|aar|post[\s-]?mortem|what\s+happened|changelog|lessons?|retrospective|why\s+did\s+we|timeline)\b/i;
+  }
+});
+
 // ../bobs-big-brain-registrar/packages/common/dist/freshness.js
 function computeFreshnessScore(updatedAt, nowIso, halfLifeDays = 90) {
   const updatedMs = new Date(updatedAt).getTime();
@@ -37226,11 +37262,12 @@ function computeFreshnessScore(updatedAt, nowIso, halfLifeDays = 90) {
   const lambda = Math.LN2 / halfLifeDays;
   return Math.exp(-lambda * ageDays);
 }
-function rerankSearchHits(hits, nowIso, halfLifeDays = 90) {
+function rerankSearchHits(hits, nowIso, halfLifeDays = 90, options = {}) {
   return hits.map((hit) => {
     const freshness = computeFreshnessScore(hit.updatedAt, nowIso, halfLifeDays);
     const categoryBoost = CATEGORY_BOOST[hit.category] ?? 1;
-    const finalScore = Math.round(hit.score * freshness * categoryBoost * 1e3) / 1e3;
+    const policy = computeRerankPolicyFactors(hit, options.query).product;
+    const finalScore = Math.round(hit.score * freshness * categoryBoost * policy * 1e3) / 1e3;
     return { ...hit, finalScore };
   }).sort((a, b) => b.finalScore - a.finalScore);
 }
@@ -37240,7 +37277,7 @@ function extractMemoryIdFromCitation(citation) {
   const stripped = base.replace(/\.[^.]+$/, "");
   return stripped.length > 0 ? stripped : null;
 }
-function rerankCitedHits(hits, resolveMetadata, nowIso, halfLifeDays = 90) {
+function rerankCitedHits(hits, resolveMetadata, nowIso, halfLifeDays = 90, options = {}) {
   const enriched = hits.map((h) => {
     const id = extractMemoryIdFromCitation(h.file);
     const meta = id === null ? null : resolveMetadata(id);
@@ -37251,15 +37288,20 @@ function rerankCitedHits(hits, resolveMetadata, nowIso, halfLifeDays = 90) {
       updatedAt: meta?.updatedAt ?? nowIso,
       // Unresolvable hit (orphaned citation) is not an identifiable sensitive
       // memory — treat as public/searchable; a resolved hit carries its real level.
-      sensitivity: meta?.sensitivity ?? "public"
+      sensitivity: meta?.sensitivity ?? "public",
+      // Policy inputs; undefined (unresolved hit / resolver omits) = no demotion.
+      // Note: these ride along on the returned hit objects (consumers pick fields).
+      title: meta?.title,
+      lifecycle: meta?.lifecycle
     };
   });
-  return rerankSearchHits(enriched, nowIso, halfLifeDays);
+  return rerankSearchHits(enriched, nowIso, halfLifeDays, options);
 }
 var CATEGORY_BOOST;
 var init_freshness = __esm({
   "../bobs-big-brain-registrar/packages/common/dist/freshness.js"() {
     "use strict";
+    init_rerank_policy();
     CATEGORY_BOOST = {
       decision: 1.2,
       architecture: 1.15,
@@ -37515,6 +37557,7 @@ var init_dist2 = __esm({
     init_origin_token();
     init_path_safety();
     init_freshness();
+    init_rerank_policy();
     init_disclosure_filter();
   }
 });
@@ -42147,6 +42190,16 @@ var init_config3 = __esm({
   }
 });
 
+// src/rerank-meta.ts
+function toCitedHitMetadata(m) {
+  return { category: m.category, updatedAt: m.updatedAt, title: m.title, lifecycle: m.lifecycle };
+}
+var init_rerank_meta = __esm({
+  "src/rerank-meta.ts"() {
+    "use strict";
+  }
+});
+
 // ../bobs-big-brain-registrar/packages/policy-engine/dist/rules/secret-detection-rule.js
 function evaluateSecretDetection(candidate, rule, _context) {
   const matches = scanForSecrets(candidate.content);
@@ -44934,6 +44987,7 @@ var init_local_server = __esm({
     init_dist6();
     init_dist();
     init_config3();
+    init_rerank_meta();
     init_govern();
     init_govern_message();
     init_anchor();
@@ -44998,9 +45052,13 @@ var init_local_server = __esm({
             normalised,
             (memoryId) => {
               const m = repo.findById(memoryId);
-              return m ? { category: m.category, updatedAt: m.updatedAt } : null;
+              return m ? toCitedHitMetadata(m) : null;
             },
-            nowIso
+            nowIso,
+            void 0,
+            // The query enables the historical-record demotion (and its history-intent
+            // bypass); title/lifecycle ride in via toCitedHitMetadata above.
+            { query: params.query }
           );
           ranked = reranked.map((r) => ({
             file: r.file,
