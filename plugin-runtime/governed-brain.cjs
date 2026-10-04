@@ -45368,57 +45368,81 @@ function teamConfigPath(env = process.env) {
 }
 function loadTeamConfig(env = process.env) {
   const path = teamConfigPath(env);
-  let mode;
+  const openFlags = typeof import_node_fs.constants.O_NOFOLLOW === "number" ? import_node_fs.constants.O_RDONLY | import_node_fs.constants.O_NOFOLLOW : import_node_fs.constants.O_RDONLY;
+  let fd;
   try {
-    mode = (0, import_node_fs.statSync)(path).mode;
+    fd = (0, import_node_fs.openSync)(path, openFlags);
   } catch (e) {
-    if (e.code === "ENOENT") return { present: false, path };
-    throw new TeamConfigError(`cannot stat ${path}: ${e.message}`);
-  }
-  if ((mode & 63) !== 0) {
-    const octal = (mode & 511).toString(8).padStart(3, "0");
-    throw new TeamConfigError(
-      `${path} is group/world-readable (mode ${octal}) \u2014 it holds a bearer token and must be 0600. Run: chmod 600 ${path}`
-    );
-  }
-  let text;
-  try {
-    text = (0, import_node_fs.readFileSync)(path, "utf8");
-  } catch (e) {
-    throw new TeamConfigError(`cannot read ${path}: ${e.message}`);
-  }
-  let parsed;
-  try {
-    parsed = JSON.parse(text);
-  } catch {
-    throw new TeamConfigError(
-      `${path} is not valid JSON \u2014 could not parse it. Check for a trailing comma or an unquoted value.`
-    );
-  }
-  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-    throw new TeamConfigError(
-      `${path} must be a JSON object like { "apiUrl": "...", "apiToken": "..." }`
-    );
-  }
-  const obj = parsed;
-  const config2 = {};
-  for (const key of Object.keys(KEY_TO_ENV)) {
-    if (!(key in obj)) continue;
-    const v = obj[key];
-    if (typeof v !== "string" || v.trim() === "") {
+    const err2 = e;
+    if (err2.code === "ENOENT") return { present: false, path };
+    if (err2.code === "ELOOP") {
       throw new TeamConfigError(
-        `${path}: "${key}" must be a non-empty string. Fix the value, or remove the key.`
+        `${path} is a symlink \u2014 it must be a regular file holding a bearer token, not a symlink. Remove it and write a real file.`
       );
     }
-    config2[key] = v.trim();
+    throw new TeamConfigError(`cannot stat ${path}: ${err2.message}`);
   }
-  if (config2.apiUrl === void 0) {
-    const found = Object.keys(obj);
-    throw new TeamConfigError(
-      `${path} has no usable "apiUrl" \u2014 a team config must set at least { "apiUrl": "http://..." } (camelCase). Found keys: ${found.length ? found.join(", ") : "(none)"}. Fix the spelling, or remove the file to run the local brain.`
-    );
+  try {
+    let mode;
+    try {
+      const stat = (0, import_node_fs.fstatSync)(fd);
+      if (!stat.isFile()) {
+        throw new TeamConfigError(
+          `${path} is not a regular file \u2014 it holds a bearer token and must be a plain file.`
+        );
+      }
+      mode = stat.mode;
+    } catch (e) {
+      if (e instanceof TeamConfigError) throw e;
+      throw new TeamConfigError(`cannot stat ${path}: ${e.message}`);
+    }
+    if ((mode & 63) !== 0) {
+      const octal = (mode & 511).toString(8).padStart(3, "0");
+      throw new TeamConfigError(
+        `${path} is group/world-readable (mode ${octal}) \u2014 it holds a bearer token and must be 0600. Run: chmod 600 ${path}`
+      );
+    }
+    let text;
+    try {
+      text = (0, import_node_fs.readFileSync)(fd, "utf8");
+    } catch (e) {
+      throw new TeamConfigError(`cannot read ${path}: ${e.message}`);
+    }
+    let parsed;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      throw new TeamConfigError(
+        `${path} is not valid JSON \u2014 could not parse it. Check for a trailing comma or an unquoted value.`
+      );
+    }
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+      throw new TeamConfigError(
+        `${path} must be a JSON object like { "apiUrl": "...", "apiToken": "..." }`
+      );
+    }
+    const obj = parsed;
+    const config2 = {};
+    for (const key of Object.keys(KEY_TO_ENV)) {
+      if (!(key in obj)) continue;
+      const v = obj[key];
+      if (typeof v !== "string" || v.trim() === "") {
+        throw new TeamConfigError(
+          `${path}: "${key}" must be a non-empty string. Fix the value, or remove the key.`
+        );
+      }
+      config2[key] = v.trim();
+    }
+    if (config2.apiUrl === void 0) {
+      const found = Object.keys(obj);
+      throw new TeamConfigError(
+        `${path} has no usable "apiUrl" \u2014 a team config must set at least { "apiUrl": "http://..." } (camelCase). Found keys: ${found.length ? found.join(", ") : "(none)"}. Fix the spelling, or remove the file to run the local brain.`
+      );
+    }
+    return { present: true, config: config2, path };
+  } finally {
+    (0, import_node_fs.closeSync)(fd);
   }
-  return { present: true, config: config2, path };
 }
 function applyTeamConfig(env, result) {
   if (!result.present || result.config === void 0) return [];

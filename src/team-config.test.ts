@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { chmodSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { platform, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   applyTeamConfig,
@@ -146,6 +146,36 @@ describe('loadTeamConfig — presence + fail-closed', () => {
   it('trims string field values', () => {
     writeTeamJson(JSON.stringify({ apiUrl: '  http://brain:3847  ' }), 0o600);
     expect(loadTeamConfig(env()).config).toEqual({ apiUrl: 'http://brain:3847' });
+  });
+
+  // CWE-367 (TOCTOU) regression coverage: the check (perm/type) and the read must
+  // happen against the SAME open file descriptor, not a path re-resolved after the
+  // check. These two cases are exactly the race's attack surface.
+  it('REFUSES a symlink in place of the file — closes the symlink-swap TOCTOU variant', () => {
+    // On POSIX this is enforced via O_NOFOLLOW at open() time (ELOOP), which is the
+    // same mechanism that makes the check-then-read atomic against inode swaps.
+    if (platform() === 'win32') return;
+    const real = join(base, 'real-team.json');
+    writeFileSync(real, JSON.stringify({ apiUrl: 'http://brain:3847' }));
+    chmodSync(real, 0o600);
+    const link = join(base, 'team.json');
+    symlinkSync(real, link);
+    expect(() => loadTeamConfig(env())).toThrow(TeamConfigError);
+    expect(() => loadTeamConfig(env())).toThrow(/symlink/);
+  });
+
+  it('REFUSES a non-regular file (a directory) at the team.json path', () => {
+    const dirPath = join(base, 'team.json');
+    rmSync(dirPath, { force: true });
+    mkdirSync(dirPath);
+    expect(() => loadTeamConfig(env())).toThrow(TeamConfigError);
+  });
+
+  it('a 0600 file still loads correctly after the fd-based rewrite (no regression)', () => {
+    writeTeamJson(JSON.stringify({ apiUrl: 'http://brain:3847', apiToken: 'tok' }), 0o600);
+    const r = loadTeamConfig(env());
+    expect(r.present).toBe(true);
+    expect(r.config).toEqual({ apiUrl: 'http://brain:3847', apiToken: 'tok' });
   });
 });
 

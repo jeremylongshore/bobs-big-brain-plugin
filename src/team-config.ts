@@ -30,7 +30,7 @@
  * TEAMKB_HOME → ~/.teamkb) — the same "copy the small contract, don't import the big
  * dep" pattern remote-server.ts uses for its category enum.
  */
-import { readFileSync, statSync } from 'node:fs';
+import { closeSync, constants as fsConstants, fstatSync, openSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { isConfigured } from './mode.js';
@@ -91,75 +91,119 @@ export function teamConfigPath(env: NodeJS.ProcessEnv = process.env): string {
  */
 export function loadTeamConfig(env: NodeJS.ProcessEnv = process.env): TeamConfigResult {
   const path = teamConfigPath(env);
-  let mode: number;
+
+  // Open ONCE and operate on the descriptor from here on. Resolving the path to a
+  // name on disk, checking its mode, then reopening it by that same name (the old
+  // statSync()-then-readFileSync(path) shape) is a classic TOCTOU / CWE-367 race: an
+  // attacker can swap the file (or replace it with a symlink to a root-owned secret)
+  // in the window between the permission check and the read. A file descriptor, once
+  // open, always refers to the same inode regardless of what happens to the path
+  // afterward, so fstat + read against `fd` are checking and reading the SAME file.
+  //
+  // O_NOFOLLOW additionally refuses to open the path at all if the final component is
+  // a symlink (ELOOP), closing the symlink-swap variant of the race outright. It is a
+  // POSIX-only flag — `fs.constants.O_NOFOLLOW` is `undefined` on Windows — so fall
+  // back to a plain read there; this preserves the prior (pre-fix) code's behavior of
+  // not special-casing win32 at the flag level.
+  const openFlags =
+    typeof fsConstants.O_NOFOLLOW === 'number'
+      ? fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW
+      : fsConstants.O_RDONLY;
+
+  let fd: number;
   try {
-    mode = statSync(path).mode;
+    fd = openSync(path, openFlags);
   } catch (e) {
-    if ((e as NodeJS.ErrnoException).code === 'ENOENT') return { present: false, path };
-    throw new TeamConfigError(`cannot stat ${path}: ${(e as Error).message}`);
-  }
-  // Fail-closed on loose perms: the file holds a bearer token and must be owner-only.
-  // Any group/other rwx bit set (0o077) → refuse. (0o777 mask gives the octal string.)
-  if ((mode & 0o077) !== 0) {
-    const octal = (mode & 0o777).toString(8).padStart(3, '0');
-    throw new TeamConfigError(
-      `${path} is group/world-readable (mode ${octal}) — it holds a bearer token and must be 0600. ` +
-        `Run: chmod 600 ${path}`,
-    );
-  }
-  let text: string;
-  try {
-    text = readFileSync(path, 'utf8');
-  } catch (e) {
-    throw new TeamConfigError(`cannot read ${path}: ${(e as Error).message}`);
-  }
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(text);
-  } catch {
-    // Deliberately DO NOT echo the parser's message: on Node 20+ a syntax error can
-    // embed a snippet of the file contents (which may include a token fragment) and
-    // index.ts writes this to stderr → the MCP debug log. Keep it content-free.
-    throw new TeamConfigError(
-      `${path} is not valid JSON — could not parse it. Check for a trailing comma or an unquoted value.`,
-    );
-  }
-  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-    throw new TeamConfigError(
-      `${path} must be a JSON object like { "apiUrl": "...", "apiToken": "..." }`,
-    );
-  }
-  const obj = parsed as Record<string, unknown>;
-  const config: TeamConfig = {};
-  for (const key of Object.keys(KEY_TO_ENV) as TeamConfigKey[]) {
-    if (!(key in obj)) continue; // absent is fine — the value may come from env, or be optional
-    // Present-but-invalid (wrong type, empty, or whitespace-only) is a MISTAKE, not an
-    // absent value: fail closed with a precise message instead of silently coercing it
-    // to "unset" and risking a wrong-mode boot.
-    const v = obj[key];
-    if (typeof v !== 'string' || v.trim() === '') {
+    const err = e as NodeJS.ErrnoException;
+    if (err.code === 'ENOENT') return { present: false, path };
+    if (err.code === 'ELOOP') {
       throw new TeamConfigError(
-        `${path}: "${key}" must be a non-empty string. Fix the value, or remove the key.`,
+        `${path} is a symlink — it must be a regular file holding a bearer token, not a symlink. ` +
+          `Remove it and write a real file.`,
       );
     }
-    config[key] = v.trim();
+    throw new TeamConfigError(`cannot stat ${path}: ${err.message}`);
   }
-  // A present team.json exists to enter TEAM mode, which is keyed on apiUrl. A file
-  // with no usable apiUrl — an empty object, snake_case `api_url`, a typo, or only
-  // tenantId/apiToken — is an INCOMPLETE team config, NOT a silent-absent file. Refuse
-  // it loudly rather than (a) fall silently through to unlocked local mode [the
-  // snake_case trap], or (b) bleed a stray tenantId into local-mode tenant scope. The
-  // recognized keys are camelCase: apiUrl / apiToken / tenantId. Listing the file's
-  // actual keys makes a snake_case/typo mistake self-diagnosing.
-  if (config.apiUrl === undefined) {
-    const found = Object.keys(obj);
-    throw new TeamConfigError(
-      `${path} has no usable "apiUrl" — a team config must set at least ` +
-        `{ "apiUrl": "http://..." } (camelCase). Found keys: ${found.length ? found.join(', ') : '(none)'}. ` +
-        `Fix the spelling, or remove the file to run the local brain.`,
-    );
+
+  try {
+    let mode: number;
+    try {
+      const stat = fstatSync(fd);
+      if (!stat.isFile()) {
+        throw new TeamConfigError(
+          `${path} is not a regular file — it holds a bearer token and must be a plain file.`,
+        );
+      }
+      mode = stat.mode;
+    } catch (e) {
+      if (e instanceof TeamConfigError) throw e;
+      throw new TeamConfigError(`cannot stat ${path}: ${(e as Error).message}`);
+    }
+    // Fail-closed on loose perms: the file holds a bearer token and must be owner-only.
+    // Any group/other rwx bit set (0o077) → refuse. (0o777 mask gives the octal string.)
+    if ((mode & 0o077) !== 0) {
+      const octal = (mode & 0o777).toString(8).padStart(3, '0');
+      throw new TeamConfigError(
+        `${path} is group/world-readable (mode ${octal}) — it holds a bearer token and must be 0600. ` +
+          `Run: chmod 600 ${path}`,
+      );
+    }
+    let text: string;
+    try {
+      text = readFileSync(fd, 'utf8');
+    } catch (e) {
+      throw new TeamConfigError(`cannot read ${path}: ${(e as Error).message}`);
+    }
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      // Deliberately DO NOT echo the parser's message: on Node 20+ a syntax error can
+      // embed a snippet of the file contents (which may include a token fragment) and
+      // index.ts writes this to stderr → the MCP debug log. Keep it content-free.
+      throw new TeamConfigError(
+        `${path} is not valid JSON — could not parse it. Check for a trailing comma or an unquoted value.`,
+      );
+    }
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+      throw new TeamConfigError(
+        `${path} must be a JSON object like { "apiUrl": "...", "apiToken": "..." }`,
+      );
+    }
+    const obj = parsed as Record<string, unknown>;
+    const config: TeamConfig = {};
+    for (const key of Object.keys(KEY_TO_ENV) as TeamConfigKey[]) {
+      if (!(key in obj)) continue; // absent is fine — the value may come from env, or be optional
+      // Present-but-invalid (wrong type, empty, or whitespace-only) is a MISTAKE, not an
+      // absent value: fail closed with a precise message instead of silently coercing it
+      // to "unset" and risking a wrong-mode boot.
+      const v = obj[key];
+      if (typeof v !== 'string' || v.trim() === '') {
+        throw new TeamConfigError(
+          `${path}: "${key}" must be a non-empty string. Fix the value, or remove the key.`,
+        );
+      }
+      config[key] = v.trim();
+    }
+    // A present team.json exists to enter TEAM mode, which is keyed on apiUrl. A file
+    // with no usable apiUrl — an empty object, snake_case `api_url`, a typo, or only
+    // tenantId/apiToken — is an INCOMPLETE team config, NOT a silent-absent file. Refuse
+    // it loudly rather than (a) fall silently through to unlocked local mode [the
+    // snake_case trap], or (b) bleed a stray tenantId into local-mode tenant scope. The
+    // recognized keys are camelCase: apiUrl / apiToken / tenantId. Listing the file's
+    // actual keys makes a snake_case/typo mistake self-diagnosing.
+    if (config.apiUrl === undefined) {
+      const found = Object.keys(obj);
+      throw new TeamConfigError(
+        `${path} has no usable "apiUrl" — a team config must set at least ` +
+          `{ "apiUrl": "http://..." } (camelCase). Found keys: ${found.length ? found.join(', ') : '(none)'}. ` +
+          `Fix the spelling, or remove the file to run the local brain.`,
+      );
+    }
+    return { present: true, config, path };
+  } finally {
+    closeSync(fd);
   }
-  return { present: true, config, path };
 }
 
 /**
