@@ -60,7 +60,8 @@ describe('local search rerank wiring: metadata mapping (always runs)', () => {
 });
 
 describe.skipIf(common === null)('local search rerank wiring: real registrar rerank', () => {
-  const rerankCitedHits = common!.rerankCitedHits;
+  // Lazy: describe.skipIf still runs this callback at collection time, so never touch `common` here.
+  const rerankCitedHits: CommonModule['rerankCitedHits'] = (...args) => common!.rerankCitedHits(...args);
 
   it('puts the current decision first when the query is not asking for history', () => {
     const ranked = rerankCitedHits(hits, resolve, NOW, undefined, { query: 'gcp exodus' });
