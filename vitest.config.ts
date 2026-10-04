@@ -21,7 +21,13 @@ export default defineConfig({
     environment: 'node',
     coverage: {
       provider: 'v8',
-      include: ['src/mode.ts', 'src/remote-server.ts', 'src/team-config.ts', 'src/govern-message.ts'],
+      include: [
+        'src/mode.ts',
+        'src/remote-server.ts',
+        'src/team-config.ts',
+        'src/govern-message.ts',
+        'src/subjects.ts',
+      ],
       reporter: ['text', 'lcov'],
       // Honest floor just under the current measured numbers, now including
       // team-config.ts (measured: lines 72.6 / stmts 71.3 / funcs 63.6 / branch 63.6).

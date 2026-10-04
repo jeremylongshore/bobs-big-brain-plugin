@@ -13,7 +13,13 @@ import {
   AuditRepository,
   ExportStateRepository,
 } from '@qmd-team-intent-kb/store';
-import { getDefaultDenseConfig, QmdAdapter } from '@qmd-team-intent-kb/qmd-adapter';
+import {
+  getDefaultDenseConfig,
+  QmdAdapter,
+  resolveQmdBinary,
+  type ResolvedQmdBinary,
+} from '@qmd-team-intent-kb/qmd-adapter';
+import type { QmdError } from '@qmd-team-intent-kb/qmd-adapter';
 import type { BrainConfig } from './config.js';
 import { seedDefaultPolicy } from './seed-policy.js';
 import { anchorChainHead } from './anchor.js';
@@ -27,6 +33,27 @@ import { acquireWriteLock } from './write-lock.js';
  * synthetic (never-a-real-memory) but structurally-valid UUID.
  */
 const SWEEP_RECEIPT_MEMORY_ID = '00000000-0000-4000-8000-000000000b10';
+
+/** Real counts from one export reconcile pass. */
+export interface ExportSummary {
+  written: number;
+  archived: number;
+  removed: number;
+  /** Files already correct and left untouched. */
+  unchanged: number;
+  /** Memories set aside (unmappable category / write failure), never silently dropped. */
+  quarantined: number;
+  /** Orphan removals refused by the mass-delete guard (empty/wrong DB protection). */
+  removalBlocked?: { orphans: number; limit: number };
+}
+
+/** Compose a qmd failure into one line: the message, plus the stderr tail if any. */
+function describeQmdError(error: QmdError): string {
+  const tail = error.stderr?.trim().split('\n').slice(-3).join(' | ');
+  return tail !== undefined && tail !== '' && error.code !== 'not_available'
+    ? `${error.message}: ${tail}`
+    : error.message;
+}
 
 /** One candidate's outcome in a sweep receipt — id + terminal outcome, NO content. */
 interface SweepOutcome {
@@ -51,9 +78,20 @@ export interface GovernSummary {
   quarantined: number;
   /** Candidates skipped by per-candidate error containment (never aborts the sweep). */
   skipped: number;
+  /**
+   * Files the export reconcile CHANGED this run (written + archived + removed).
+   * Not "newly promoted": a lifecycle-only change (batch-transition) counts here.
+   */
   exported: number;
+  /** Per-operation breakdown of the export reconcile (absent only if it threw). */
+  export?: ExportSummary;
+  /** Why the export reconcile threw, if it did. */
+  exportError?: string;
   indexUpdated: boolean;
+  /** Actionable reason the index was not refreshed (missing qmd names the fix). */
   indexError?: string;
+  /** The qmd binary that was used and how it was found. Absent if none resolved. */
+  qmdBinary?: ResolvedQmdBinary;
   /** External anchor of the audit chain head (append-only log, git-committed). */
   anchored?: { chainHead: string; chainedRows: number; committed: boolean };
 }
@@ -129,27 +167,56 @@ async function runGovernLocked(config: BrainConfig): Promise<GovernSummary> {
     //    in the inbox with nothing else draining them) are governed in one pass.
     const curation = sweepInbox(config, { candidateRepo, memoryRepo, policyRepo, auditRepo });
 
-    // 3. Export promoted memories to the markdown tree (file generation only).
+    // 3. RECONCILE the markdown tree with the DB (file generation only). Not an
+    //    incremental "export what was just promoted": lifecycle changes made
+    //    outside a promotion (curator batch-transition, brain_transition) never
+    //    produce a promotion, so an incremental pass reported `exported: 0` and
+    //    left archived/superseded memories sitting in their active directories.
+    //    Reconcile converges the whole tree on the DB (write, archive-move, remove
+    //    stale) and is content-compared, so it is idempotent and crash-repairing.
     let exported = 0;
+    let exportSummary: ExportSummary | undefined;
+    let exportError: string | undefined;
     try {
       const ex = await runExport(
         memoryRepo,
         exportStateRepo,
-        { outputDir: config.exportDir, targetId: 'kb-export-default', tenantId: config.tenantId },
+        {
+          outputDir: config.exportDir,
+          targetId: 'kb-export-default',
+          tenantId: config.tenantId,
+          reconcile: true,
+        },
         () => new Date().toISOString(),
       );
-      exported = ex.written.length;
+      exportSummary = {
+        written: ex.written.length,
+        archived: ex.archived.length,
+        removed: ex.removed.length,
+        unchanged: ex.unchanged,
+        quarantined: ex.quarantined.length,
+        ...(ex.removalBlocked !== undefined ? { removalBlocked: ex.removalBlocked } : {}),
+      };
+      exported = exportSummary.written + exportSummary.archived + exportSummary.removed;
     } catch (e) {
-      process.stderr.write(`[govern] export failed: ${e instanceof Error ? e.message : String(e)}\n`);
+      exportError = e instanceof Error ? e.message : String(e);
+      process.stderr.write(`[govern] export failed: ${exportError}\n`);
     }
 
-    // 4. Refresh the qmd index (graceful degrade if qmd is absent).
+    // 4. Refresh the qmd index. The binary is resolved explicitly (TEAMKB_QMD_BIN,
+    //    PATH, ~/.bun/bin/qmd) because an MCP server's environment routinely lacks
+    //    qmd on PATH; when it truly is absent the result carries the actionable
+    //    reason instead of an opaque failure. Graceful degrade: everything above
+    //    (govern, export, audit chain) has already completed.
     let indexUpdated = false;
     let indexError: string | undefined;
+    let qmdBinary: ResolvedQmdBinary | undefined;
     try {
+      qmdBinary = resolveQmdBinary();
       const adapter = new QmdAdapter({
         tenantId: config.tenantId,
         exportDir: config.exportDir,
+        qmdBinary: qmdBinary.path,
         // Dense arm ON by default via the registrar's shared production seam
         // (#328); TEAMKB_DENSE_ENABLED=false is the emergency kill switch. This
         // site was the vps.1 drift class — the plugin bypasses the API, so
@@ -157,9 +224,9 @@ async function runGovernLocked(config: BrainConfig): Promise<GovernSummary> {
         dense: getDefaultDenseConfig(),
       });
       const ensure = await adapter.ensureCollections();
-      if (!ensure.ok) throw new Error(ensure.error.message);
+      if (!ensure.ok) throw new Error(describeQmdError(ensure.error));
       const upd = await adapter.update();
-      if (!upd.ok) throw new Error(upd.error.message);
+      if (!upd.ok) throw new Error(describeQmdError(upd.error));
       indexUpdated = true;
     } catch (e) {
       indexError = e instanceof Error ? e.message : String(e);
@@ -183,8 +250,11 @@ async function runGovernLocked(config: BrainConfig): Promise<GovernSummary> {
       quarantined: curation.quarantined,
       skipped: curation.skipped,
       exported,
+      ...(exportSummary !== undefined ? { export: exportSummary } : {}),
+      ...(exportError !== undefined ? { exportError } : {}),
       indexUpdated,
       indexError,
+      ...(qmdBinary !== undefined ? { qmdBinary } : {}),
       anchored,
     };
   } finally {

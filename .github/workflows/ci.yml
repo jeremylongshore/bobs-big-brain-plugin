@@ -128,6 +128,13 @@ jobs:
         working-directory: bobs-big-brain-plugin
         run: node --test scripts/anchor-on-transition.test.mjs
 
+      # brain_capture `subjects`: team mode cannot import the registrar schema, so it
+      # carries a mirrored validator. Compare it with the real SubjectKey /
+      # ContentMetadata on a corpus so the mirror cannot silently drift.
+      - name: Subject-key validator conformance (plugin mirror <-> registrar schema)
+        working-directory: bobs-big-brain-plugin
+        run: node --test scripts/subjects-conformance.test.mjs
+
       # R8: the 3-state brain_audit_verify honesty banner — a benign same-timestamp
       # CHAIN_FORK must NOT surface a false "TAMPER" klaxon. Lives here (not in the
       # zero-egress smoke job) because the test imports @qmd-team-intent-kb/store

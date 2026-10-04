@@ -100,7 +100,21 @@ Build hard-facts:
   **bundled** (the SDK validates every tool call with ajv — externalizing them makes the runtime inert).
 - **Single zod**: `build.mjs` aliases `zod` to one copy (cross-instance `instanceof` otherwise breaks
   tool registration).
-- **qmd 2.x on PATH** for local retrieval; govern degrades gracefully if absent.
+- **qmd 2.x** for local retrieval. Resolved by the registrar's `resolveQmdBinary`: `TEAMKB_QMD_BIN`,
+  then `PATH`, then `~/.bun/bin/qmd` (an MCP server's PATH usually lacks it). Govern degrades
+  gracefully if absent: everything but the index refresh completes and `indexError` names what was
+  searched and the fix. A `TEAMKB_QMD_BIN` that is set but not executable is an error, never a
+  silent fallback.
+- **Govern reconciles the export tree** (`runExport({ reconcile: true })`), not just new
+  promotions: lifecycle changes made by `curator batch-transition` / `brain_transition` land in
+  `archive/`, torn files are rewritten, stale copies removed. `brain_govern` reports `exported`
+  (files changed) plus an `export` breakdown (written/archived/removed/unchanged/quarantined).
+  Orphan removals are capped at 50 per run (empty/wrong-DB guard) and only touch files whose
+  frontmatter tenant matches.
+- **`brain_capture` `subjects`** (both modes): optional, at most 8 `SubjectKey` slugs, validated by
+  `src/subjects.ts` (a dependency-free mirror of the registrar schema, re-checked against the real
+  `ContentMetadata` in local mode) and sent as `metadata.subjects`. Invalid input is a clear
+  `{ ok: false, error }` and nothing is spooled/sent/queued.
 - **Tenant defaults**: do **not** hardcode `TEAMKB_TENANT_ID` in `plugin.json` / `.mcp.json` (a hardcoded
   `local` silently misroutes team writes into a tenant the team brain never reads). Local → `local`
   (config.ts); team → `intent-solutions` (remote-server.ts); a user env override applies in either mode.

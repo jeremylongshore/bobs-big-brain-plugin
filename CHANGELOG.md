@@ -8,6 +8,25 @@ installable Claude Code + Cowork plugin (a local stdio MCP server); the engines 
 
 ## [Unreleased]
 
+### Added
+
+- **`brain_capture` accepts `subjects` (local and team mode).** Up to 8 lowercase dot/hyphen
+  subject keys (e.g. `hosting.vps`) flow into `metadata.subjects` so a captured decision can
+  supersede older memories about the same subject (registrar subject-keyed supersession). Invalid
+  keys or more than 8 return a clear `{ ok: false, error }` and capture nothing; omitting the field
+  leaves the wire shape unchanged. Team mode stays dependency-free via a mirrored validator.
+
+### Fixed
+
+- **`brain_govern` reconciles the export tree instead of exporting only new promotions.** After
+  `curator batch-transition` (lifecycle changes) it used to report `exported: 0` and leave
+  archived memories in their active directories. It now converges the tree on the DB (idempotent,
+  crash-repairing) and reports real `written` / `archived` / `removed` / `unchanged` counts; a
+  lifecycle-only run is no longer reported as idle.
+- **`brain_govern` finds qmd without it being on PATH.** Resolution is `TEAMKB_QMD_BIN`, then
+  `PATH`, then `~/.bun/bin/qmd`. When none exists, `indexError` names every place searched and the
+  fix instead of the opaque `Failed to update index`; the result also reports which binary ran.
+
 ### Changed
 
 - **Onboarding is one universal path.** `onboarding/README.md` (and the live page at

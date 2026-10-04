@@ -37,6 +37,7 @@ import { join } from 'node:path';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
+import { SUBJECTS_PARAM, validateSubjects } from './subjects.js';
 
 const VERSION = '1.1.0';
 const API_URL = process.env['TEAMKB_API_URL'];
@@ -423,10 +424,16 @@ export async function capture(
   filePaths: string[] | undefined,
   sessionId?: string,
   learningIndex?: number,
+  subjects?: string[],
 ): Promise<ReturnType<typeof jsonResult>> {
   if (API_URL === undefined || API_URL === '') {
     return jsonResult({ ok: false, error: 'unconfigured — set TEAMKB_API_URL to your team brain' });
   }
+  // Subject keys are validated BEFORE anything is built, sent, or queued: a bad
+  // key must never reach the durable outbox (it would be replayed and rejected
+  // forever) and a typo'd key silently supersedes nothing server-side.
+  const subjectCheck = validateSubjects(subjects);
+  if (!subjectCheck.ok) return jsonResult({ ok: false, error: subjectCheck.error });
   // Build the FULL MemoryCandidate client-side once. This object (serialized) is
   // what gets POSTed and, on failure, FROZEN in the outbox — drain never rebuilds it.
   // The H1 origin token binds (id, tenantId, capturedAt); freezing the body means
@@ -451,6 +458,9 @@ export async function capture(
       ...(typeof learningIndex === 'number' && Number.isInteger(learningIndex)
         ? { learningIndex }
         : {}),
+      // Omitted entirely when none were declared: the body stays byte-identical
+      // to a pre-subjects capture, so older servers and outbox replays are unaffected.
+      ...(subjectCheck.subjects !== undefined ? { subjects: subjectCheck.subjects } : {}),
     },
     prePolicyFlags: { potentialSecret: false, lowConfidence: false, duplicateSuspect: false },
     capturedAt,
@@ -551,6 +561,7 @@ server.tool(
     content: z.string().min(1).describe('The fact to remember, in full'),
     category: z.enum(CATEGORIES).optional().describe('Memory category (default: reference)'),
     filePaths: z.array(z.string()).optional().describe('Related file paths, if any'),
+    subjects: SUBJECTS_PARAM,
     sessionId: z
       .string()
       .optional()
@@ -575,6 +586,7 @@ server.tool(
       params.filePaths,
       params.sessionId,
       params.learningIndex,
+      params.subjects,
     ),
 );
 
