@@ -617,3 +617,227 @@ describe('origin tokens — byte-equality with the Registrar helper (frozen vect
     ).toBe(EXPECTED);
   });
 });
+
+describe('brain_holds / brain_hold_recommend — the human-escalation hold surface (K6)', () => {
+  const ENV = { TEAMKB_API_URL: 'http://brain:3847', TEAMKB_API_TOKEN: 'admin-tok' };
+
+  it('brain_holds lists open holds, compacted + limited, id-less rows dropped', async () => {
+    const { listHolds } = await load(ENV);
+    const capturedUrl: string[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        capturedUrl.push(url);
+        return new Response(
+          JSON.stringify({
+            maxActive: 100,
+            hiddenAboveStanding: 2,
+            holds: [
+              {
+                candidateId: 'c1',
+                title: 'T1',
+                category: 'reference',
+                declaredAudience: 'tenant',
+                recommendedAudience: 'admins',
+                triggers: ['audience_narrowing_flag', 7],
+                matchedPatterns: ['email-address'],
+                heldAt: '2026-10-04T00:00:00.000Z',
+                expiresAt: '2026-10-18T00:00:00.000Z',
+                expired: false,
+                recommendations: [{ verdict: 'release' }],
+                content: 'must never be forwarded',
+              },
+              { title: 'no id — must be dropped' },
+              { candidateId: 'c2' },
+            ],
+          }),
+          { status: 200 },
+        );
+      }),
+    );
+    const out = payload(await listHolds(undefined, 1));
+    expect(capturedUrl[0]).toBe('http://brain:3847/api/holds?tenantId=intent-solutions');
+    expect(out).toMatchObject({ ok: true, count: 1, maxActive: 100, hiddenAboveStanding: 2 });
+    expect(out['holds']).toEqual([
+      {
+        candidateId: 'c1',
+        title: 'T1',
+        category: 'reference',
+        declaredAudience: 'tenant',
+        recommendedAudience: 'admins',
+        triggers: ['audience_narrowing_flag'],
+        matchedPatterns: ['email-address'],
+        heldAt: '2026-10-04T00:00:00.000Z',
+        expiresAt: '2026-10-18T00:00:00.000Z',
+        expired: false,
+        recommendations: 1,
+      },
+    ]);
+    // Only the compact view is forwarded — a stray content field never is.
+    expect(JSON.stringify(out)).not.toContain('must never be forwarded');
+    expect(String(out['note'])).toMatch(/person resolves a hold/);
+  });
+
+  it('brain_holds fills defaults for a sparse row and tolerates a body with no holds', async () => {
+    const { listHolds } = await load(ENV);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(JSON.stringify({ holds: [{ candidateId: 'c2' }] }), { status: 200 })),
+    );
+    const out = payload(await listHolds('team-alpha', 50));
+    expect(out).toMatchObject({ tenantId: 'team-alpha', count: 1, hiddenAboveStanding: 0 });
+    expect((out['holds'] as Array<Record<string, unknown>>)[0]).toEqual({
+      candidateId: 'c2',
+      title: '',
+      category: '',
+      declaredAudience: '',
+      recommendedAudience: '',
+      triggers: [],
+      matchedPatterns: [],
+      heldAt: '',
+      expiresAt: '',
+      expired: false,
+      recommendations: 0,
+    });
+
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('null', { status: 200 })));
+    expect(payload(await listHolds(undefined, 50))).toMatchObject({ ok: true, count: 0 });
+  });
+
+  it('brain_holds surfaces a 403 for a member token, an unreadable body, and an unreachable brain', async () => {
+    const { listHolds } = await load(ENV);
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 403 })));
+    const denied = payload(await listHolds(undefined, 50));
+    expect(denied).toMatchObject({ ok: false, status: 403 });
+    expect(denied['holds']).toBeUndefined();
+
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('<html>', { status: 200 })));
+    expect(String(payload(await listHolds(undefined, 50))['error'])).toMatch(/unreadable/);
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new Error('ECONNREFUSED');
+      }),
+    );
+    expect(String(payload(await listHolds(undefined, 50))['error'])).toMatch(/could not reach/);
+  });
+
+  it('brain_holds and brain_hold_recommend report unconfigured when TEAMKB_API_URL is unset', async () => {
+    const { listHolds, recommendOnHold } = await load({ TEAMKB_API_URL: '' });
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+    expect(String(payload(await listHolds(undefined, 50))['error'])).toMatch(/unconfigured/);
+    expect(
+      String(payload(await recommendOnHold('c1', undefined, 'reject', undefined, 'x'))['error']),
+    ).toMatch(/unconfigured/);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('brain_hold_recommend POSTs advice as actorType:ai and says nothing changed', async () => {
+    const { recommendOnHold } = await load(ENV);
+    let sentUrl = '';
+    let sentBody: Record<string, unknown> = {};
+    let sentMethod = '';
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init: { method: string; body: string }) => {
+        sentUrl = url;
+        sentMethod = init.method;
+        sentBody = JSON.parse(init.body);
+        return new Response(JSON.stringify({ ok: true, auditEventId: 'evt-1', duplicate: false }), {
+          status: 200,
+        });
+      }),
+    );
+    const out = payload(
+      await recommendOnHold('cand-1', 'team-alpha', 'release', 'admins', 'a customer contact'),
+    );
+    expect(sentMethod).toBe('POST');
+    // The recommend route — never the resolve route.
+    expect(sentUrl).toBe('http://brain:3847/api/holds/cand-1/recommend?tenantId=team-alpha');
+    expect(sentBody).toEqual({
+      verdict: 'release',
+      audience: 'admins',
+      reasoning: 'a customer contact',
+      actorType: 'ai',
+    });
+    expect(out).toMatchObject({
+      ok: true,
+      candidateId: 'cand-1',
+      verdict: 'release',
+      audience: 'admins',
+      auditEventId: 'evt-1',
+      duplicate: false,
+    });
+    expect(String(out['message'])).toMatch(/Nothing changed/);
+  });
+
+  it('brain_hold_recommend omits the audience for a reject and survives an unreadable 2xx body', async () => {
+    const { recommendOnHold } = await load(ENV);
+    let sentBody: Record<string, unknown> = {};
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_url: string, init: { body: string }) => {
+        sentBody = JSON.parse(init.body);
+        return new Response('not json', { status: 200 });
+      }),
+    );
+    const out = payload(await recommendOnHold('cand-1', undefined, 'reject', undefined, 'noise'));
+    expect(sentBody).toEqual({ verdict: 'reject', reasoning: 'noise', actorType: 'ai' });
+    expect(out).toMatchObject({ ok: true, verdict: 'reject', duplicate: false });
+    expect(out['audience']).toBeUndefined();
+    expect(out['auditEventId']).toBeUndefined();
+  });
+
+  it('brain_hold_recommend surfaces the brain’s refusal and an unreachable brain', async () => {
+    const { recommendOnHold } = await load(ENV);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ error: 'The hold has expired', code: 'hold_expired' }), {
+            status: 422,
+          }),
+      ),
+    );
+    const refused = payload(await recommendOnHold('c1', undefined, 'reject', undefined, 'x'));
+    expect(refused).toMatchObject({ ok: false, status: 422 });
+    expect(refused['error']).toBe('the brain declined it: The hold has expired');
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new Error('ECONNREFUSED');
+      }),
+    );
+    expect(
+      String(payload(await recommendOnHold('c1', undefined, 'reject', undefined, 'x'))['error']),
+    ).toMatch(/could not reach/);
+  });
+
+  it('brain_approve and brain_reject on a held candidate surface the server refusal: an approval cannot release a hold', async () => {
+    const { approveCandidate, rejectCandidate } = await load(ENV);
+    const refusal = (error: string, code: string) =>
+      vi.fn(async () => new Response(JSON.stringify({ error, code }), { status: 422 }));
+
+    vi.stubGlobal(
+      'fetch',
+      refusal('Candidate is on hold for human review until 2026-10-18T00:00:00.000Z', 'held_for_review'),
+    );
+    const approved = payload(await approveCandidate('cand-1', undefined, 'looks useful'));
+    expect(approved).toMatchObject({ ok: false, status: 422 });
+    expect(String(approved['error'])).toMatch(/the brain declined it: Candidate is on hold for human review/);
+    expect(approved['memoryId']).toBeUndefined();
+
+    vi.stubGlobal('fetch', refusal('Candidate is on hold for human review.', 'on_hold'));
+    const rejected = payload(await rejectCandidate('cand-1', undefined, 'noise'));
+    expect(rejected).toMatchObject({ ok: false, status: 422 });
+    expect(String(rejected['error'])).toMatch(/on hold for human review/);
+  });
+
+  it('exposes no tool that resolves a hold', async () => {
+    const mod = (await load(ENV)) as Record<string, unknown>;
+    expect(Object.keys(mod).filter((name) => /resolve|release/i.test(name))).toEqual([]);
+  });
+});

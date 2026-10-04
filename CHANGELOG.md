@@ -10,6 +10,16 @@ installable Claude Code + Cowork plugin (a local stdio MCP server); the engines 
 
 ### Added
 
+- **Human-escalation holds (registrar Epic K bead K6).** The deterministic pipeline now puts a
+  candidate on a bounded hold when an audience or secret question can be detected but not decided;
+  it is neither promoted nor dropped, and it closes unpromoted at its expiry. Team mode gains two
+  admin-only tools: `brain_holds` (list open holds: ids, titles, audience tiers, trigger names and
+  the expiry, never content) and `brain_hold_recommend` (attach `release` or `reject` advice, which
+  writes one receipt and changes no state). There is no tool that resolves a hold: a person does
+  that with `curator-cli holds resolve` or the API under their own token. Local-mode `brain_govern`
+  closes overdue holds at the start of each run and reports `held`, `holdCapBlocked` and
+  `holdsExpired`. `brain_approve` / `brain_reject` on a held candidate are refused by the server.
+
 - **`brain_capture` accepts `subjects` (local and team mode).** Up to 8 lowercase dot/hyphen
   subject keys (e.g. `hosting.vps`) flow into `metadata.subjects` so a captured decision can
   supersede older memories about the same subject (registrar subject-keyed supersession). Invalid

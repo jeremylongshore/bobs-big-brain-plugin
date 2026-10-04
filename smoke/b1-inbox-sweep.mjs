@@ -181,6 +181,58 @@ try {
   ok(auditCount(db) === auditAfter, `no new audit events on re-run (${auditAfter} → ${auditCount(db)})`);
   ok(statusOf(db, rejectId) === 'inbox', 'rejected candidate STILL in the inbox after re-run');
   db.close();
+
+  // ── Phase 4: human-escalation hold (K6). A candidate whose audience question the
+  //    rules can detect but not decide is HELD: not promoted, not dropped, receipted,
+  //    with an expiry. Enable the two audience rules on this throwaway brain's policy
+  //    (the local default seeds neither), then sweep a PII-shaped admin capture.
+  db = new Database(DB);
+  const policyRow = db.prepare('SELECT id, rules_json FROM governance_policies WHERE tenant_id = ?').get(TENANT);
+  const audienceRules = ['sensitivity_gate', 'audience_narrowing'].map((type, i) => ({
+    id: `smoke-${type}`,
+    type,
+    action: 'flag',
+    enabled: true,
+    priority: 20 + i,
+    parameters: {},
+  }));
+  db.prepare('UPDATE governance_policies SET rules_json = ? WHERE id = ?').run(
+    JSON.stringify([...JSON.parse(policyRow.rules_json), ...audienceRules]),
+    policyRow.id,
+  );
+  const HOLD_CONTENT = `Escalate billing questions to dana.whitfield@customer-example.com before Friday.`;
+  const holdId = seedCandidate(db, { content: HOLD_CONTENT, title: 'Billing contact', role: 'admin', author: 'jeremy' });
+  const memBeforeHold = memoryCount(db);
+  db.close();
+
+  const gov4 = parse(await client.callTool({ name: 'brain_govern', arguments: {} }));
+  ok(gov4.ok === true && gov4.held === 1, `sweep HELD the ambiguous candidate (held=${gov4.held})`);
+  ok(/on hold for a person to resolve/.test(gov4.message ?? ''), 'the govern message says a person resolves it');
+
+  db = new Database(DB, { readonly: true });
+  ok(statusOf(db, holdId) === 'quarantined', "held candidate marked 'quarantined' (awaiting a human)");
+  ok(memoryCount(db) === memBeforeHold, 'held candidate did NOT become a curated memory');
+  const heldRow = db
+    .prepare("SELECT details_json FROM audit_events WHERE action = 'held' AND memory_id = ?")
+    .get(holdId);
+  const heldDetails = heldRow ? JSON.parse(heldRow.details_json) : {};
+  ok(heldRow !== undefined, "a 'held' receipt was written for the candidate");
+  ok(
+    typeof heldDetails.expiresAt === 'string' && Date.parse(heldDetails.expiresAt) > Date.now(),
+    `the hold is bounded (expiresAt=${heldDetails.expiresAt})`,
+  );
+  ok(heldDetails.recommendedAudience === 'admins', `the receipt recommends the narrower tier (${heldDetails.recommendedAudience})`);
+  ok(!JSON.stringify(heldDetails).includes('dana.whitfield'), 'the receipt carries no candidate content');
+  const auditAfterHold = auditCount(db);
+  db.close();
+
+  // Idempotent: a held candidate has left the inbox; a re-run holds nothing new.
+  const gov5 = parse(await client.callTool({ name: 'brain_govern', arguments: {} }));
+  db = new Database(DB, { readonly: true });
+  ok(gov5.held === 0 && gov5.holdsExpired === 0, `re-run held nothing new (held=${gov5.held})`);
+  ok(auditCount(db) === auditAfterHold, 'no new audit events on re-run after the hold');
+  ok(statusOf(db, holdId) === 'quarantined', 'the candidate is STILL on hold after the re-run');
+  db.close();
 } finally {
   await client.close().catch(() => {});
   rmSync(BASE, { recursive: true, force: true });
