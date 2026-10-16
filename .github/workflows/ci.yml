@@ -44,8 +44,12 @@ jobs:
         run: |
           node -e "const p=require('./package.json'); for (const k of Object.keys(p.devDependencies||{})) if (k.startsWith('@qmd-team-intent-kb/')) delete p.devDependencies[k]; require('fs').writeFileSync('package.json', JSON.stringify(p,null,2))"
 
+      # --legacy-peer-deps: since 2026-10-16 npm 10 (Node 20) crashes building the
+      # ideal tree ("Cannot read properties of null (reading 'edgesOut')"): vite's
+      # optional peer @vitejs/devtools-vitest wants vitest@*, which now resolves to
+      # vitest 5 and its own peer set. Nothing here needs npm to auto-install peers.
       - name: Install (no frozen lockfile — package.json was just trimmed)
-        run: npm install --no-audit --no-fund
+        run: npm install --no-audit --no-fund --legacy-peer-deps
 
       # audit-harness v1.4 pins package.json itself. Restore the reviewed file
       # after the CI-only dependency trim so verification compares canonical
