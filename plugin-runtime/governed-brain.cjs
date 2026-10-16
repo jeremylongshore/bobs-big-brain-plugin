@@ -473,15 +473,15 @@ var require_parseUtil = __commonJS({
           message: issueData.message
         };
       }
-      let errorMessage = "";
+      let errorMessage2 = "";
       const maps = errorMaps.filter((m) => !!m).slice().reverse();
       for (const map of maps) {
-        errorMessage = map(fullIssue, { data, defaultError: errorMessage }).message;
+        errorMessage2 = map(fullIssue, { data, defaultError: errorMessage2 }).message;
       }
       return {
         ...issueData,
         path: fullPath,
-        message: errorMessage
+        message: errorMessage2
       };
     };
     exports2.makeIssue = makeIssue;
@@ -24353,19 +24353,19 @@ var init_Refs = __esm({
 });
 
 // node_modules/.pnpm/zod-to-json-schema@3.25.2_zod@4.4.3/node_modules/zod-to-json-schema/dist/esm/errorMessages.js
-function addErrorMessage(res, key, errorMessage, refs) {
+function addErrorMessage(res, key, errorMessage2, refs) {
   if (!refs?.errorMessages)
     return;
-  if (errorMessage) {
+  if (errorMessage2) {
     res.errorMessage = {
       ...res.errorMessage,
-      [key]: errorMessage
+      [key]: errorMessage2
     };
   }
 }
-function setResponseValueAndErrors(res, key, value, errorMessage, refs) {
+function setResponseValueAndErrors(res, key, value, errorMessage2, refs) {
   res[key] = value;
-  addErrorMessage(res, key, errorMessage, refs);
+  addErrorMessage(res, key, errorMessage2, refs);
 }
 var init_errorMessages = __esm({
   "node_modules/.pnpm/zod-to-json-schema@3.25.2_zod@4.4.3/node_modules/zod-to-json-schema/dist/esm/errorMessages.js"() {
@@ -25990,8 +25990,8 @@ var init_protocol = __esm({
                       if (queuedMessage.type === "response") {
                         resolver(message);
                       } else {
-                        const errorMessage = message;
-                        const error = new McpError(errorMessage.error.code, errorMessage.error.message, errorMessage.error.data);
+                        const errorMessage2 = message;
+                        const error = new McpError(errorMessage2.error.code, errorMessage2.error.message, errorMessage2.error.data);
                         resolver(error);
                       }
                     } else {
@@ -34154,23 +34154,23 @@ var init_server2 = __esm({
           const wrappedHandler = async (request, extra) => {
             const validatedRequest = safeParse2(CallToolRequestSchema, request);
             if (!validatedRequest.success) {
-              const errorMessage = validatedRequest.error instanceof Error ? validatedRequest.error.message : String(validatedRequest.error);
-              throw new McpError(ErrorCode.InvalidParams, `Invalid tools/call request: ${errorMessage}`);
+              const errorMessage2 = validatedRequest.error instanceof Error ? validatedRequest.error.message : String(validatedRequest.error);
+              throw new McpError(ErrorCode.InvalidParams, `Invalid tools/call request: ${errorMessage2}`);
             }
             const { params } = validatedRequest.data;
             const result = await Promise.resolve(handler(request, extra));
             if (params.task) {
               const taskValidationResult = safeParse2(CreateTaskResultSchema, result);
               if (!taskValidationResult.success) {
-                const errorMessage = taskValidationResult.error instanceof Error ? taskValidationResult.error.message : String(taskValidationResult.error);
-                throw new McpError(ErrorCode.InvalidParams, `Invalid task creation result: ${errorMessage}`);
+                const errorMessage2 = taskValidationResult.error instanceof Error ? taskValidationResult.error.message : String(taskValidationResult.error);
+                throw new McpError(ErrorCode.InvalidParams, `Invalid task creation result: ${errorMessage2}`);
               }
               return taskValidationResult.data;
             }
             const validationResult = safeParse2(CallToolResultSchema, result);
             if (!validationResult.success) {
-              const errorMessage = validationResult.error instanceof Error ? validationResult.error.message : String(validationResult.error);
-              throw new McpError(ErrorCode.InvalidParams, `Invalid tools/call result: ${errorMessage}`);
+              const errorMessage2 = validationResult.error instanceof Error ? validationResult.error.message : String(validationResult.error);
+              throw new McpError(ErrorCode.InvalidParams, `Invalid tools/call result: ${errorMessage2}`);
             }
             return validationResult.data;
           };
@@ -34806,12 +34806,12 @@ var init_mcp = __esm({
        * @param errorMessage - The error message.
        * @returns The tool error result.
        */
-      createToolError(errorMessage) {
+      createToolError(errorMessage2) {
         return {
           content: [
             {
               type: "text",
-              text: errorMessage
+              text: errorMessage2
             }
           ],
           isError: true
@@ -34829,8 +34829,8 @@ var init_mcp = __esm({
         const parseResult = await safeParseAsync2(schemaToParse, args);
         if (!parseResult.success) {
           const error = "error" in parseResult ? parseResult.error : "Unknown error";
-          const errorMessage = getParseErrorMessage(error);
-          throw new McpError(ErrorCode.InvalidParams, `Input validation error: Invalid arguments for tool ${toolName}: ${errorMessage}`);
+          const errorMessage2 = getParseErrorMessage(error);
+          throw new McpError(ErrorCode.InvalidParams, `Input validation error: Invalid arguments for tool ${toolName}: ${errorMessage2}`);
         }
         return parseResult.data;
       }
@@ -34854,8 +34854,8 @@ var init_mcp = __esm({
         const parseResult = await safeParseAsync2(outputObj, result.structuredContent);
         if (!parseResult.success) {
           const error = "error" in parseResult ? parseResult.error : "Unknown error";
-          const errorMessage = getParseErrorMessage(error);
-          throw new McpError(ErrorCode.InvalidParams, `Output validation error: Invalid structured content for tool ${toolName}: ${errorMessage}`);
+          const errorMessage2 = getParseErrorMessage(error);
+          throw new McpError(ErrorCode.InvalidParams, `Output validation error: Invalid structured content for tool ${toolName}: ${errorMessage2}`);
         }
       }
       /**
@@ -35067,8 +35067,8 @@ var init_mcp = __esm({
             const parseResult = await safeParseAsync2(argsObj, request.params.arguments);
             if (!parseResult.success) {
               const error = "error" in parseResult ? parseResult.error : "Unknown error";
-              const errorMessage = getParseErrorMessage(error);
-              throw new McpError(ErrorCode.InvalidParams, `Invalid arguments for prompt ${request.params.name}: ${errorMessage}`);
+              const errorMessage2 = getParseErrorMessage(error);
+              throw new McpError(ErrorCode.InvalidParams, `Invalid arguments for prompt ${request.params.name}: ${errorMessage2}`);
             }
             const args = parseResult.data;
             const cb = prompt.callback;
@@ -37480,9 +37480,13 @@ function computeFreshnessScore(updatedAt, nowIso, halfLifeDays = 90) {
   const lambda = Math.LN2 / halfLifeDays;
   return Math.exp(-lambda * ageDays);
 }
+function freshnessRerankFactor(updatedAt, nowIso, halfLifeDays = 90) {
+  const decay = computeFreshnessScore(updatedAt, nowIso, halfLifeDays);
+  return FRESHNESS_FLOOR + (1 - FRESHNESS_FLOOR) * decay;
+}
 function rerankSearchHits(hits, nowIso, halfLifeDays = 90, options = {}) {
   return hits.map((hit) => {
-    const freshness = computeFreshnessScore(hit.updatedAt, nowIso, halfLifeDays);
+    const freshness = freshnessRerankFactor(hit.updatedAt, nowIso, halfLifeDays);
     const categoryBoost = CATEGORY_BOOST[hit.category] ?? 1;
     const policy = computeRerankPolicyFactors(hit, options.query).product;
     const finalScore = Math.round(hit.score * freshness * categoryBoost * policy * 1e3) / 1e3;
@@ -37519,12 +37523,13 @@ function rerankCitedHits(hits, resolveMetadata, nowIso, halfLifeDays = 90, optio
   });
   return rerankSearchHits(enriched, nowIso, halfLifeDays, options);
 }
-var CATEGORY_BOOST;
+var FRESHNESS_FLOOR, CATEGORY_BOOST;
 var init_freshness = __esm({
   "../bobs-big-brain-registrar/packages/common/dist/freshness.js"() {
     "use strict";
     init_rerank_policy();
     init_audience();
+    FRESHNESS_FLOOR = 0.8;
     CATEGORY_BOOST = {
       decision: 1.2,
       architecture: 1.15,
@@ -39739,7 +39744,17 @@ function getDefaultDenseConfig(env = process.env) {
   const enabled = rawEnabled === void 0 || !["0", "false", "off", "no"].includes(rawEnabled);
   return { enabled, url: DEFAULT_DENSE_URL };
 }
-var import_node_path6, QMD_INDEX_DIR, DEFAULT_DENSE_URL, DEFAULT_TIMEOUT;
+function parseTimeoutMs(raw) {
+  const v = raw?.trim();
+  if (v === void 0 || !/^\d+$/.test(v))
+    return null;
+  const n = Number(v);
+  return Number.isSafeInteger(n) && n > 0 ? n : null;
+}
+function resolveMaintenanceTimeoutMs(env = process.env) {
+  return parseTimeoutMs(env[QMD_TIMEOUT_ENV]) ?? DEFAULT_MAINTENANCE_TIMEOUT;
+}
+var import_node_path6, QMD_INDEX_DIR, DEFAULT_DENSE_URL, DEFAULT_TIMEOUT, DEFAULT_MAINTENANCE_TIMEOUT, QMD_TIMEOUT_ENV;
 var init_config = __esm({
   "../bobs-big-brain-registrar/packages/qmd-adapter/dist/config.js"() {
     "use strict";
@@ -39748,6 +39763,8 @@ var init_config = __esm({
     QMD_INDEX_DIR = "qmd-index";
     DEFAULT_DENSE_URL = "http://127.0.0.1:8098";
     DEFAULT_TIMEOUT = 3e4;
+    DEFAULT_MAINTENANCE_TIMEOUT = 6e5;
+    QMD_TIMEOUT_ENV = "TEAMKB_QMD_TIMEOUT_MS";
   }
 });
 
@@ -39827,21 +39844,133 @@ var init_resolve_binary = __esm({
   }
 });
 
+// ../bobs-big-brain-registrar/packages/qmd-adapter/dist/executor/process-groups.js
+function killAll(signal) {
+  for (const pgid of live) {
+    try {
+      process.kill(-pgid, signal);
+    } catch {
+    }
+  }
+}
+function anyAlive() {
+  for (const pgid of live) {
+    try {
+      process.kill(-pgid, 0);
+      return true;
+    } catch (e) {
+      if (e.code === "EPERM")
+        return true;
+    }
+  }
+  return false;
+}
+function shutdownGroups() {
+  if (live.size === 0)
+    return;
+  killAll("SIGTERM");
+  const pause = new Int32Array(new SharedArrayBuffer(4));
+  const deadline = Date.now() + SHUTDOWN_GRACE_MS;
+  while (anyAlive() && Date.now() < deadline)
+    Atomics.wait(pause, 0, 0, SHUTDOWN_POLL_MS);
+  if (anyAlive())
+    killAll("SIGKILL");
+}
+function install() {
+  process.on("exit", onExit);
+  for (const s of FORWARDED)
+    process.on(s, onSignal);
+}
+function uninstall() {
+  process.off("exit", onExit);
+  for (const s of FORWARDED)
+    process.off(s, onSignal);
+}
+function trackGroup(pgid) {
+  if (live.size === 0)
+    install();
+  live.add(pgid);
+}
+function untrackGroup(pgid) {
+  if (!live.delete(pgid))
+    return;
+  if (live.size === 0)
+    uninstall();
+}
+var live, FORWARDED, SHUTDOWN_GRACE_MS, SHUTDOWN_POLL_MS, onExit, onSignal;
+var init_process_groups = __esm({
+  "../bobs-big-brain-registrar/packages/qmd-adapter/dist/executor/process-groups.js"() {
+    "use strict";
+    live = /* @__PURE__ */ new Set();
+    FORWARDED = ["SIGINT", "SIGTERM", "SIGHUP"];
+    SHUTDOWN_GRACE_MS = 2e3;
+    SHUTDOWN_POLL_MS = 50;
+    onExit = () => shutdownGroups();
+    onSignal = (signal) => {
+      shutdownGroups();
+      uninstall();
+      if (process.listenerCount(signal) === 0)
+        process.kill(process.pid, signal);
+    };
+  }
+});
+
 // ../bobs-big-brain-registrar/packages/qmd-adapter/dist/executor/real-executor.js
-var import_node_child_process, import_node_util, import_node_path8, execFileAsync, RealQmdExecutor;
+function isMaintenanceCommand(args) {
+  const [cmd, sub] = args;
+  if (cmd === "update" || cmd === "embed" || cmd === "cleanup")
+    return true;
+  return cmd === "collection" && sub === "add";
+}
+function groupAlive(pgid) {
+  try {
+    process.kill(-pgid, 0);
+    return true;
+  } catch (e) {
+    return e.code === "EPERM";
+  }
+}
+function signalGroup(pid, signal) {
+  try {
+    if (USE_PROCESS_GROUP)
+      process.kill(-pid, signal);
+    else
+      process.kill(pid, signal);
+  } catch {
+  }
+}
+async function waitGroupGone(pid, ms) {
+  const deadline = Date.now() + ms;
+  while (groupAlive(pid)) {
+    if (Date.now() >= deadline)
+      return false;
+    await sleep(GROUP_POLL_MS);
+  }
+  return true;
+}
+var import_node_child_process, import_node_path8, QMD_TIMEOUT_EXIT_CODE, DEFAULT_KILL_GRACE_MS, MAX_OUTPUT_BYTES, GROUP_POLL_MS, POST_KILL_WAIT_MS, USE_PROCESS_GROUP, SIGNAL_NUMBERS, sleep, RealQmdExecutor;
 var init_real_executor = __esm({
   "../bobs-big-brain-registrar/packages/qmd-adapter/dist/executor/real-executor.js"() {
     "use strict";
     import_node_child_process = require("node:child_process");
-    import_node_util = require("node:util");
     import_node_path8 = require("node:path");
     init_config();
     init_resolve_binary();
-    execFileAsync = (0, import_node_util.promisify)(import_node_child_process.execFile);
+    init_process_groups();
+    QMD_TIMEOUT_EXIT_CODE = 124;
+    DEFAULT_KILL_GRACE_MS = 5e3;
+    MAX_OUTPUT_BYTES = 10 * 1024 * 1024;
+    GROUP_POLL_MS = 50;
+    POST_KILL_WAIT_MS = 2e3;
+    USE_PROCESS_GROUP = process.platform !== "win32";
+    SIGNAL_NUMBERS = { SIGHUP: 1, SIGINT: 2, SIGKILL: 9, SIGTERM: 15 };
+    sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     RealQmdExecutor = class {
       explicitBinary;
       resolved = null;
       timeout;
+      maintenanceTimeout;
+      killGraceMs;
       env;
       /**
        * @param options.env Environment overrides merged over `process.env` for every
@@ -39850,11 +39979,21 @@ var init_real_executor = __esm({
        *   (collection registry) and `XDG_CACHE_HOME` (BM25 index) at tenant-scoped
        *   dirs. See `getQmdTenantEnv` in `config.ts` and ADR
        *   `000-docs/037-AT-DSGN-qmd-adapter-source-index-separation.md`.
+       * @param options.timeout Limit for interactive commands (default 30 s).
+       * @param options.maintenanceTimeout Limit for update/embed/cleanup/collection
+       *   add (default `TEAMKB_QMD_TIMEOUT_MS`, else 600 s).
+       * @param options.killGraceMs SIGTERM→SIGKILL grace when a run is terminated.
        */
       constructor(options) {
         this.explicitBinary = options?.binary;
         this.timeout = options?.timeout ?? DEFAULT_TIMEOUT;
+        this.maintenanceTimeout = options?.maintenanceTimeout ?? resolveMaintenanceTimeoutMs();
+        this.killGraceMs = options?.killGraceMs ?? DEFAULT_KILL_GRACE_MS;
         this.env = options?.env ?? null;
+      }
+      /** The limit that applies to `args` (maintenance vs interactive). */
+      timeoutFor(args) {
+        return isMaintenanceCommand(args) ? this.maintenanceTimeout : this.timeout;
       }
       /**
        * The binary to run, or the actionable reason there is none. Discovery order
@@ -39879,37 +40018,157 @@ var init_real_executor = __esm({
         if (target.message !== void 0) {
           return { stdout: "", stderr: target.message, exitCode: QMD_NOT_FOUND_EXIT_CODE };
         }
-        const binary = target.binary;
-        try {
-          const env = { ...process.env, ...this.env ?? {} };
-          if ((0, import_node_path8.isAbsolute)(binary)) {
-            env["PATH"] = [(0, import_node_path8.dirname)(binary), env["PATH"]].filter((p) => p).join(import_node_path8.delimiter);
-          }
-          const { stdout, stderr } = await execFileAsync(binary, args, {
-            timeout: this.timeout,
-            maxBuffer: 10 * 1024 * 1024,
-            env
-          });
-          return { stdout, stderr, exitCode: 0 };
-        } catch (e) {
-          const spawnCode = e && typeof e === "object" && "code" in e ? e.code : void 0;
-          if (spawnCode === "ENOENT" || spawnCode === "EACCES") {
-            return {
-              stdout: "",
-              stderr: `qmd binary "${binary}" cannot be executed (${spawnCode}). Fix the qmdBinary option or TEAMKB_QMD_BIN, or omit it to search PATH and ~/.bun/bin/qmd.`,
-              exitCode: QMD_NOT_FOUND_EXIT_CODE
-            };
-          }
-          if (e && typeof e === "object" && "stdout" in e && "stderr" in e && "code" in e) {
-            const err2 = e;
-            return {
-              stdout: err2.stdout ?? "",
-              stderr: err2.stderr ?? "",
-              exitCode: typeof err2.code === "number" ? err2.code : 1
-            };
-          }
-          return { stdout: "", stderr: String(e), exitCode: 1 };
+        const env = { ...process.env, ...this.env ?? {} };
+        if ((0, import_node_path8.isAbsolute)(target.binary)) {
+          env["PATH"] = [(0, import_node_path8.dirname)(target.binary), env["PATH"]].filter((p) => p).join(import_node_path8.delimiter);
         }
+        return this.run(target.binary, args, env, this.timeoutFor(args));
+      }
+      /**
+       * Spawn qmd in its OWN process group and own its whole lifetime.
+       *
+       * Why not `execFile({ timeout })` (bead compile-then-govern-39z.20): the qmd
+       * binary is a launcher that spawns `node dist/cli/qmd.js` and does not
+       * forward SIGTERM. execFile's timeout signals only the launcher, so the
+       * launcher died, the real `qmd update` was reparented to PID 1 and kept
+       * writing the index after the wrapper had already reported "Failed to update
+       * index". Here a timeout signals the whole group (SIGTERM, then SIGKILL after
+       * the grace), and the promise does not settle until the group is gone — when
+       * this returns, nothing qmd started is still writing.
+       */
+      run(binary, args, env, timeoutMs) {
+        const startedAt = Date.now();
+        return new Promise((resolve3) => {
+          let child;
+          try {
+            child = (0, import_node_child_process.spawn)(binary, args, {
+              env,
+              detached: USE_PROCESS_GROUP,
+              stdio: ["ignore", "pipe", "pipe"]
+            });
+          } catch (e) {
+            resolve3(this.spawnFailure(binary, e));
+            return;
+          }
+          const out = [];
+          const err2 = [];
+          let bytes = 0;
+          let failure;
+          let terminating = null;
+          const pid = child.pid;
+          if (pid !== void 0 && USE_PROCESS_GROUP)
+            trackGroup(pid);
+          const terminate = (hard = false) => {
+            if (terminating !== null)
+              return terminating;
+            if (pid === void 0)
+              return terminating = Promise.resolve(true);
+            terminating = (async () => {
+              if (!USE_PROCESS_GROUP) {
+                signalGroup(pid, "SIGKILL");
+                return false;
+              }
+              if (!hard) {
+                signalGroup(pid, "SIGTERM");
+                if (await waitGroupGone(pid, this.killGraceMs))
+                  return true;
+              }
+              signalGroup(pid, "SIGKILL");
+              const gone = await waitGroupGone(pid, POST_KILL_WAIT_MS);
+              child.stdout?.destroy();
+              child.stderr?.destroy();
+              return gone;
+            })();
+            return terminating;
+          };
+          const collect = (sink) => (chunk) => {
+            bytes += chunk.length;
+            if (bytes > MAX_OUTPUT_BYTES) {
+              if (failure === void 0) {
+                failure = {
+                  kind: "output_overflow",
+                  limitBytes: MAX_OUTPUT_BYTES,
+                  elapsedMs: Date.now() - startedAt
+                };
+                void terminate(true);
+              }
+              return;
+            }
+            sink.push(chunk);
+          };
+          child.stdout?.on("data", collect(out));
+          child.stderr?.on("data", collect(err2));
+          const timer = setTimeout(() => {
+            if (failure !== void 0)
+              return;
+            failure = {
+              kind: "timeout",
+              elapsedMs: Date.now() - startedAt,
+              timeoutMs,
+              groupTerminated: false
+            };
+            void terminate();
+          }, timeoutMs);
+          child.on("error", (e) => {
+            if (pid === void 0) {
+              clearTimeout(timer);
+              resolve3(this.spawnFailure(binary, e));
+            }
+          });
+          child.on("close", (code, signal) => {
+            clearTimeout(timer);
+            void (async () => {
+              if (failure !== void 0 && pid !== void 0) {
+                const gone = await terminate();
+                if (failure.kind === "timeout")
+                  failure.groupTerminated = gone;
+              }
+              if (pid === void 0)
+                return;
+              if (USE_PROCESS_GROUP)
+                untrackGroup(pid);
+              const stdout = Buffer.concat(out).toString("utf8");
+              const stderr = Buffer.concat(err2).toString("utf8");
+              if (failure?.kind === "timeout") {
+                resolve3({ stdout, stderr, exitCode: QMD_TIMEOUT_EXIT_CODE, failure });
+              } else if (failure !== void 0) {
+                resolve3({ stdout, stderr, exitCode: 1, failure });
+              } else if (signal !== null) {
+                resolve3({
+                  stdout,
+                  stderr,
+                  exitCode: 128 + (SIGNAL_NUMBERS[signal] ?? 0),
+                  failure: { kind: "signal", signal, elapsedMs: Date.now() - startedAt }
+                });
+              } else {
+                resolve3({ stdout, stderr, exitCode: code ?? 1 });
+              }
+            })();
+          });
+        });
+      }
+      /**
+       * A pinned `binary` option skips discovery, so a bad path only shows up as a
+       * spawn error. ENOENT/EACCES get the same actionable 127 shape as a failed
+       * discovery; anything else is reported as a spawn failure with its code.
+       */
+      spawnFailure(binary, e) {
+        const code = e?.code ?? "UNKNOWN";
+        const message = e instanceof Error ? e.message : String(e);
+        if (code === "ENOENT" || code === "EACCES") {
+          return {
+            stdout: "",
+            stderr: `qmd binary "${binary}" cannot be executed (${code}). Fix the qmdBinary option or TEAMKB_QMD_BIN, or omit it to search PATH and ~/.bun/bin/qmd.`,
+            exitCode: QMD_NOT_FOUND_EXIT_CODE,
+            failure: { kind: "spawn", code, message }
+          };
+        }
+        return {
+          stdout: "",
+          stderr: `qmd binary "${binary}" failed to start (${code}): ${message}`,
+          exitCode: QMD_NOT_FOUND_EXIT_CODE,
+          failure: { kind: "spawn", code, message }
+        };
       }
       async isAvailable() {
         try {
@@ -39920,6 +40179,63 @@ var init_real_executor = __esm({
         }
       }
     };
+  }
+});
+
+// ../bobs-big-brain-registrar/packages/qmd-adapter/dist/executor/describe-failure.js
+function stderrTail(stderr) {
+  const lines = stderr.replace(/\r\n?/g, "\n").split("\n").map((l) => l.trimEnd()).filter((l) => l !== "");
+  const tail = lines.slice(-STDERR_TAIL_LINES).join("\n");
+  return tail.length > STDERR_TAIL_CHARS ? `\u2026${tail.slice(-STDERR_TAIL_CHARS)}` : tail;
+}
+function describeQmdFailure(args, result) {
+  const command = `qmd ${args.join(" ")}`;
+  const tail = stderrTail(result.stderr);
+  const withTail = (msg) => tail === "" ? msg : `${msg}; stderr: ${tail}`;
+  const base = { command, stderr: result.stderr };
+  const failure = result.failure;
+  if (failure?.kind === "timeout") {
+    const cleanup = failure.groupTerminated ? "its process group was terminated, so no qmd process is still writing the index" : "WARNING: its process group could not be confirmed gone \u2014 check for a stray qmd process before re-running";
+    const raise = isMaintenanceCommand(args) ? `Raise the limit with ${QMD_TIMEOUT_ENV}=<ms> or \`qmd-index reindex --timeout-ms <ms>\`` : "Interactive qmd commands keep the 30 s limit; investigate why qmd is slow (load, a locked index)";
+    return {
+      ...base,
+      code: "timeout",
+      message: `${command} timed out after ${seconds(failure.elapsedMs)} (limit ${failure.timeoutMs} ms); ${cleanup}. ${raise}.`
+    };
+  }
+  if (failure?.kind === "spawn" || result.exitCode === QMD_NOT_FOUND_EXIT_CODE) {
+    return { ...base, code: "not_available", message: result.stderr };
+  }
+  if (failure?.kind === "signal") {
+    return {
+      ...base,
+      code: "command_failed",
+      message: withTail(`${command} was killed by ${failure.signal} after ${seconds(failure.elapsedMs)}`)
+    };
+  }
+  if (failure?.kind === "output_overflow") {
+    return {
+      ...base,
+      code: "command_failed",
+      message: `${command} produced more than ${failure.limitBytes} bytes of output after ${seconds(failure.elapsedMs)}; its process group was terminated`
+    };
+  }
+  return {
+    ...base,
+    code: "command_failed",
+    message: withTail(`${command} exited with code ${result.exitCode}`) + (tail === "" ? " (no stderr output)" : "")
+  };
+}
+var STDERR_TAIL_CHARS, STDERR_TAIL_LINES, seconds;
+var init_describe_failure = __esm({
+  "../bobs-big-brain-registrar/packages/qmd-adapter/dist/executor/describe-failure.js"() {
+    "use strict";
+    init_config();
+    init_resolve_binary();
+    init_real_executor();
+    STDERR_TAIL_CHARS = 2e3;
+    STDERR_TAIL_LINES = 20;
+    seconds = (ms) => `${(ms / 1e3).toFixed(1)}s`;
   }
 });
 
@@ -39995,7 +40311,7 @@ var init_collection_manager = __esm({
   "../bobs-big-brain-registrar/packages/qmd-adapter/dist/collections/collection-manager.js"() {
     "use strict";
     import_node_path9 = require("node:path");
-    init_resolve_binary();
+    init_describe_failure();
     init_collection_registry();
     CollectionManager = class {
       executor;
@@ -40004,59 +40320,28 @@ var init_collection_manager = __esm({
       }
       /** Add a collection pointing to a directory */
       async addCollection(name, path) {
-        const result = await this.executor.execute(["collection", "add", path, "--name", name]);
+        const args = ["collection", "add", path, "--name", name];
+        const result = await this.executor.execute(args);
         if (result.exitCode !== 0) {
-          return {
-            ok: false,
-            error: {
-              code: "command_failed",
-              message: `Failed to add collection "${name}"`,
-              command: `qmd collection add ${path} --name ${name}`,
-              stderr: result.stderr
-            }
-          };
+          return { ok: false, error: describeQmdFailure(args, result) };
         }
         return { ok: true, value: void 0 };
       }
       /** Remove a collection */
       async removeCollection(name) {
-        const result = await this.executor.execute(["collection", "remove", name]);
+        const args = ["collection", "remove", name];
+        const result = await this.executor.execute(args);
         if (result.exitCode !== 0) {
-          return {
-            ok: false,
-            error: {
-              code: "command_failed",
-              message: `Failed to remove collection "${name}"`,
-              command: `qmd collection remove ${name}`,
-              stderr: result.stderr
-            }
-          };
+          return { ok: false, error: describeQmdFailure(args, result) };
         }
         return { ok: true, value: void 0 };
       }
       /** List existing collections */
       async listCollections() {
-        const result = await this.executor.execute(["collection", "list"]);
-        if (result.exitCode === QMD_NOT_FOUND_EXIT_CODE) {
-          return {
-            ok: false,
-            error: {
-              code: "not_available",
-              message: result.stderr,
-              command: "qmd collection list"
-            }
-          };
-        }
+        const args = ["collection", "list"];
+        const result = await this.executor.execute(args);
         if (result.exitCode !== 0) {
-          return {
-            ok: false,
-            error: {
-              code: "command_failed",
-              message: "Failed to list collections",
-              command: "qmd collection list",
-              stderr: result.stderr
-            }
-          };
+          return { ok: false, error: describeQmdFailure(args, result) };
         }
         const collections = result.stdout.trim().split("\n").filter(Boolean).map((line) => line.trim());
         return { ok: true, value: collections };
@@ -40106,7 +40391,7 @@ var IndexLifecycleManager;
 var init_index_lifecycle = __esm({
   "../bobs-big-brain-registrar/packages/qmd-adapter/dist/index-manager/index-lifecycle.js"() {
     "use strict";
-    init_resolve_binary();
+    init_describe_failure();
     IndexLifecycleManager = class {
       executor;
       constructor(executor) {
@@ -40114,23 +40399,10 @@ var init_index_lifecycle = __esm({
       }
       /** Update the qmd index (re-index all collections) */
       async update() {
-        const result = await this.executor.execute(["update"]);
-        if (result.exitCode === QMD_NOT_FOUND_EXIT_CODE) {
-          return {
-            ok: false,
-            error: { code: "not_available", message: result.stderr, command: "qmd update" }
-          };
-        }
+        const args = ["update"];
+        const result = await this.executor.execute(args);
         if (result.exitCode !== 0) {
-          return {
-            ok: false,
-            error: {
-              code: "command_failed",
-              message: "Failed to update index",
-              command: "qmd update",
-              stderr: result.stderr
-            }
-          };
+          return { ok: false, error: describeQmdFailure(args, result) };
         }
         return { ok: true, value: void 0 };
       }
@@ -40139,47 +40411,25 @@ var init_index_lifecycle = __esm({
         const args = force ? ["embed", "-f"] : ["embed"];
         const result = await this.executor.execute(args);
         if (result.exitCode !== 0) {
-          return {
-            ok: false,
-            error: {
-              code: "command_failed",
-              message: "Failed to generate embeddings",
-              command: `qmd embed${force ? " -f" : ""}`,
-              stderr: result.stderr
-            }
-          };
+          return { ok: false, error: describeQmdFailure(args, result) };
         }
         return { ok: true, value: void 0 };
       }
       /** Clean up caches and vacuum the database */
       async cleanup() {
-        const result = await this.executor.execute(["cleanup"]);
+        const args = ["cleanup"];
+        const result = await this.executor.execute(args);
         if (result.exitCode !== 0) {
-          return {
-            ok: false,
-            error: {
-              code: "command_failed",
-              message: "Failed to cleanup index",
-              command: "qmd cleanup",
-              stderr: result.stderr
-            }
-          };
+          return { ok: false, error: describeQmdFailure(args, result) };
         }
         return { ok: true, value: void 0 };
       }
       /** Get index status */
       async status() {
-        const result = await this.executor.execute(["status"]);
+        const args = ["status"];
+        const result = await this.executor.execute(args);
         if (result.exitCode !== 0) {
-          return {
-            ok: false,
-            error: {
-              code: "command_failed",
-              message: "Failed to get index status",
-              command: "qmd status",
-              stderr: result.stderr
-            }
-          };
+          return { ok: false, error: describeQmdFailure(args, result) };
         }
         return { ok: true, value: result.stdout };
       }
@@ -40262,6 +40512,7 @@ var init_search_client = __esm({
     "use strict";
     init_collection_registry();
     init_result_parser();
+    init_describe_failure();
     SearchClient = class {
       executor;
       constructor(executor) {
@@ -40273,13 +40524,14 @@ var init_search_client = __esm({
         const args = ["search", "--json", "--", query];
         const result = await this.executor.execute(args);
         if (result.exitCode !== 0) {
+          const detail = describeQmdFailure(args, result);
           return {
             ok: false,
             error: {
-              code: "command_failed",
-              message: `Search failed for query "${query}"`,
-              command: `qmd search ${query}`,
-              stderr: result.stderr
+              ...detail,
+              code: detail.code === "timeout" ? "timeout" : "command_failed",
+              message: `Search failed for query "${query}": ${detail.message}`,
+              command: `qmd search ${query}`
             }
           };
         }
@@ -41381,6 +41633,7 @@ var init_adapter = __esm({
         this.executor = executor ?? new RealQmdExecutor({
           binary: config2.qmdBinary,
           timeout: config2.timeout,
+          maintenanceTimeout: config2.maintenanceTimeout,
           // Per-tenant isolation via XDG_* env, not the nonexistent --data-dir.
           env: getQmdTenantEnv(config2.tenantId)
         });
@@ -41612,6 +41865,13 @@ var init_governed_brain_v1 = __esm({
   }
 });
 
+// ../bobs-big-brain-registrar/packages/qmd-adapter/dist/eval/datasets/estate-onboarding-v1.js
+var init_estate_onboarding_v1 = __esm({
+  "../bobs-big-brain-registrar/packages/qmd-adapter/dist/eval/datasets/estate-onboarding-v1.js"() {
+    "use strict";
+  }
+});
+
 // ../bobs-big-brain-registrar/packages/qmd-adapter/dist/eval/datasets/synthetic-v1.js
 var SYNTHETIC_V1_BASELINE;
 var init_synthetic_v1 = __esm({
@@ -41643,6 +41903,7 @@ var init_eval = __esm({
     init_stratified_report();
     init_qmd_retrieval();
     init_governed_brain_v1();
+    init_estate_onboarding_v1();
     init_synthetic_v1();
   }
 });
@@ -41691,12 +41952,87 @@ var init_search_canary = __esm({
   }
 });
 
+// ../bobs-big-brain-registrar/packages/qmd-adapter/dist/scrub/export-truth.js
+var init_export_truth = __esm({
+  "../bobs-big-brain-registrar/packages/qmd-adapter/dist/scrub/export-truth.js"() {
+    "use strict";
+    init_dist2();
+    init_collection_registry();
+    init_dense_indexer();
+  }
+});
+
+// ../bobs-big-brain-registrar/packages/qmd-adapter/dist/scrub/sqlite-open.js
+var import_better_sqlite36, sqliteVec2;
+var init_sqlite_open = __esm({
+  "../bobs-big-brain-registrar/packages/qmd-adapter/dist/scrub/sqlite-open.js"() {
+    "use strict";
+    import_better_sqlite36 = __toESM(require("better-sqlite3"), 1);
+    sqliteVec2 = __toESM(require("sqlite-vec"), 1);
+  }
+});
+
+// ../bobs-big-brain-registrar/packages/qmd-adapter/dist/scrub/schema-guard.js
+var init_schema_guard = __esm({
+  "../bobs-big-brain-registrar/packages/qmd-adapter/dist/scrub/schema-guard.js"() {
+    "use strict";
+  }
+});
+
+// ../bobs-big-brain-registrar/packages/qmd-adapter/dist/scrub/index-files.js
+var init_index_files = __esm({
+  "../bobs-big-brain-registrar/packages/qmd-adapter/dist/scrub/index-files.js"() {
+    "use strict";
+    init_export_truth();
+    init_sqlite_open();
+    init_schema_guard();
+  }
+});
+
+// ../bobs-big-brain-registrar/packages/qmd-adapter/dist/scrub/index-scrub.js
+var init_index_scrub = __esm({
+  "../bobs-big-brain-registrar/packages/qmd-adapter/dist/scrub/index-scrub.js"() {
+    "use strict";
+    init_dist3();
+    init_export_truth();
+    init_index_files();
+    init_schema_guard();
+    init_sqlite_open();
+  }
+});
+
+// ../bobs-big-brain-registrar/packages/qmd-adapter/dist/scrub/format.js
+var init_format = __esm({
+  "../bobs-big-brain-registrar/packages/qmd-adapter/dist/scrub/format.js"() {
+    "use strict";
+  }
+});
+
+// ../bobs-big-brain-registrar/packages/qmd-adapter/dist/scrub/fragments-file.js
+var init_fragments_file = __esm({
+  "../bobs-big-brain-registrar/packages/qmd-adapter/dist/scrub/fragments-file.js"() {
+    "use strict";
+  }
+});
+
+// ../bobs-big-brain-registrar/packages/qmd-adapter/dist/scrub/index.js
+var init_scrub = __esm({
+  "../bobs-big-brain-registrar/packages/qmd-adapter/dist/scrub/index.js"() {
+    "use strict";
+    init_index_scrub();
+    init_schema_guard();
+    init_format();
+    init_fragments_file();
+  }
+});
+
 // ../bobs-big-brain-registrar/packages/qmd-adapter/dist/index.js
 var init_dist4 = __esm({
   "../bobs-big-brain-registrar/packages/qmd-adapter/dist/index.js"() {
     "use strict";
     init_config();
     init_real_executor();
+    init_describe_failure();
     init_mock_executor();
     init_resolve_binary();
     init_collection_registry();
@@ -41716,6 +42052,7 @@ var init_dist4 = __esm({
     init_dense();
     init_reindex();
     init_search_canary();
+    init_scrub();
   }
 });
 
@@ -42446,13 +42783,13 @@ var init_dist5 = __esm({
 });
 
 // ../bobs-big-brain-registrar/packages/claude-runtime/dist/capture/git-context.js
-var import_node_child_process2, import_node_util2, execFileAsync2;
+var import_node_child_process2, import_node_util, execFileAsync;
 var init_git_context = __esm({
   "../bobs-big-brain-registrar/packages/claude-runtime/dist/capture/git-context.js"() {
     "use strict";
     import_node_child_process2 = require("node:child_process");
-    import_node_util2 = require("node:util");
-    execFileAsync2 = (0, import_node_util2.promisify)(import_node_child_process2.execFile);
+    import_node_util = require("node:util");
+    execFileAsync = (0, import_node_util.promisify)(import_node_child_process2.execFile);
   }
 });
 
@@ -45632,10 +45969,10 @@ async function acquireWriteLock(basePath, timeoutMs = DEFAULT_TIMEOUT_MS) {
       }
       throw new WriteLockBusyError();
     }
-    await sleep(RETRY_INTERVAL_MS);
+    await sleep2(RETRY_INTERVAL_MS);
   }
 }
-var import_node_fs17, import_node_path24, import_fs_ext, LOCK_FILENAME, DEFAULT_TIMEOUT_MS, RETRY_INTERVAL_MS, WriteLockBusyError, sleep;
+var import_node_fs17, import_node_path24, import_fs_ext, LOCK_FILENAME, DEFAULT_TIMEOUT_MS, RETRY_INTERVAL_MS, WriteLockBusyError, sleep2;
 var init_write_lock = __esm({
   "src/write-lock.ts"() {
     "use strict";
@@ -45651,7 +45988,7 @@ var init_write_lock = __esm({
         this.name = "WriteLockBusyError";
       }
     };
-    sleep = (ms) => new Promise((resolve3) => setTimeout(resolve3, ms));
+    sleep2 = (ms) => new Promise((resolve3) => setTimeout(resolve3, ms));
   }
 });
 
