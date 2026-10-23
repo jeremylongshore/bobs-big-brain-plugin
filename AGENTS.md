@@ -174,15 +174,30 @@ mitigations for content poisoning are the deterministic govern policy, human rev
 inbox/quarantine queues, and supersession — not the token. Receipts carry only the channel + a
 truncated SHA-256 of the token (never the token; no verify-arbitrary-token oracle exists).
 
-## Retrieval roadmap
-`brain_search` runs **lexical fusion** today — the `qmd search` BM25 results fused with a native
-in-process FTS5 (BM25) backend via deterministic reciprocal-rank fusion (RRF, k=60), then a
-freshness/category rerank — zero ML, cited hits. (The fusion kills the keyword-AND miss class where
-`qmd` alone dropped hyphen/dot-joined terms like `governed-brain` / `CLAUDE.md`.) A *lean* native
-sqlite-vec **semantic** backend (EmbeddingGemma-300M, eval-gated, SHA-256-pinned weights) is
-**roadmapped, not shipped** — it builds only if the retrieval eval falls below the 0.85 Recall@10
-gate; qmd's 2.2 GB hybrid is skipped (heavier *and* unwired). Canonical record:
-`bobs-big-brain-registrar/000-docs/038-AT-DECR`; epic `qmd-team-intent-kb-0t9` (bead ID, unchanged by the repo rename).
+## Configured retrieval
+
+At the Registrar revision in `gsb.lock.json`, the source entrypoints configure
+`brain_search` with qmd BM25, native FTS5 and a
+sqlite-vec dense arm (EmbeddingGemma-300M), fused with deterministic reciprocal-rank
+fusion (RRF, k=60), then freshness/category reranking. `src/local-server.ts` passes
+`getDefaultDenseConfig()`; the Registrar API/edge entrypoints also select their
+configuration. Team mode proxies to that deployed server, so its actual version,
+configuration, index and embedder availability determine the arms served.
+
+Dense is default-on in those entrypoints, can be disabled with
+`TEAMKB_DENSE_ENABLED=0`, and needs a built index plus the configured loopback
+embedding service. If unavailable it fails open to lexical results. The bare
+`QmdAdapter` library remains lexical-only when its `dense` config is omitted.
+The retrieval path uses an embedding model but makes no query-time generative
+LLM call. Do not describe that configuration as BM25-only, zero ML, or an unshipped dense roadmap.
+The existing SHA-256 model/runtime pins remain applicable; see the Registrar
+[embedder runbook](https://github.com/jeremylongshore/bobs-big-brain-registrar/blob/a6aeb9ca4a80687ae840168e1273dfd6c1ac555e/000-docs/051-AT-RNBK-embedder-service-and-dense-index-runbook.md)
+for provisioning and evaluation history. This documentation change does not relax
+those controls or establish which version a remote endpoint deploys.
+Historical baseline: `bobs-big-brain-registrar/000-docs/038-AT-DECR`; owning
+code: `packages/qmd-adapter/src/config.ts`, `adapter.ts` and the production
+entrypoint configuration. The package scope and bead prefix remain unchanged by
+the repository rename.
 
 ## Tracking
 Program-level beads + the GitHub tracking issue live on the **umbrella** repo

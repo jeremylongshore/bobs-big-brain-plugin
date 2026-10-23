@@ -28,6 +28,8 @@ installable Claude Code + Cowork plugin (a local stdio MCP server); the engines 
 
 ### Fixed
 
+- Correct `/brain` and contributor guidance to describe configured BM25/FTS5/dense fusion with lexical fallback; distinguish team API intake deduplication from local spool capture in `/brain-save`. Search-before-save remains required. No runtime or bundle change (umbrella `compile-then-govern-39z.33.1`).
+
 - **`brain_govern` reconciles the export tree instead of exporting only new promotions.** After
   `curator batch-transition` (lifecycle changes) it used to report `exported: 0` and leave
   archived memories in their active directories. It now converges the tree on the DB (idempotent,

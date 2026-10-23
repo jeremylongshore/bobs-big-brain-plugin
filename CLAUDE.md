@@ -2,7 +2,7 @@
 
 **Agent + developer guidance for this repo lives in [`AGENTS.md`](AGENTS.md)** — the single source of
 truth (what it is, the local|team dual-mode dispatch, `govern.ts` / `seed-policy.ts`, the team-mode
-server contract, build + smokes, the tenant-default gotcha, retrieval roadmap, tracking). Read it first.
+server contract, build + smokes, the tenant-default gotcha, configured retrieval, tracking). Read it first.
 
 Two rules load-bearing enough to repeat here:
 

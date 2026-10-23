@@ -27,7 +27,7 @@ verifiable after the fact.
 
 This is the read surface of Bob's Big Brain: your files are **compiled** into
 governed memories, **governed** by deterministic code, and **retrieved** with citations
-by **Tobi's qmd** (OSS). The `brain_search` MCP tool fronts that retrieval. Your product
+through qmd BM25, native FTS5 and configured dense retrieval. The `brain_search` MCP tool fronts that retrieval. Your product
 surround is INTKB govern + ICO compile + this plugin — not a fork of qmd.
 
 The job here is to turn a natural-language question into a cited answer — and to refuse
@@ -37,7 +37,7 @@ to answer beyond what the citations support.
 
 - The **bobs-big-brain** / governed-brain plugin is installed (MCP `governed-brain`).
 - **Mode is automatic.** In **local mode** (default) search runs **in-process**
-  against your local `~/.teamkb` index — no network, no API key; a compatible **qmd**
+  against your local `~/.teamkb` index — no remote brain service or API key; a compatible **qmd**
   binary must be available (prefer monorepo pin `@tobilu/qmd` via the Registrar / installer).
   Operators can use `scripts/bbb-qmd` from bobs-big-brain-registrar so XDG points at the team
   index, not personal `~/.cache/qmd`. In **team mode** (`TEAMKB_API_URL` set) search
@@ -49,8 +49,17 @@ to answer beyond what the citations support.
 
 ### Step 1: Search the governed corpus
 
-Retrieval is **Tobi's qmd** (BM25 keyword via the MCP). Prefer **short keyword queries**
-over full sentences.
+The source entrypoints at the Registrar revision in `gsb.lock.json` configure
+**Tobi's qmd BM25**, native **FTS5** and a
+**sqlite-vec dense arm**, joined with reciprocal-rank fusion and a freshness/category rerank.
+Dense is enabled by default in those entrypoints, but requires a built index and
+the configured loopback query embedder; disabling it or an unavailable arm leaves
+the lexical results. Team mode uses the deployed server's configuration.
+Retrieval makes no query-time generative LLM call.
+
+Short keyword queries are useful for the lexical arms and empty-result retry;
+the configured dense arm also accepts natural-language phrasing. A zero-hit query
+is not proof that the brain lacks the fact.
 
 1. Derive **1–4 distinctive nouns/verbs** from the user question (drop what/why/how, articles,
    auxiliaries, prepositions).
