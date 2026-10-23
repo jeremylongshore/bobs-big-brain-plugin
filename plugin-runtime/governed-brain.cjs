@@ -20613,14 +20613,14 @@ var require_schemas3 = __commonJS({
     var _installedGroups = /* @__PURE__ */ new WeakMap();
     function _installLazyMethods(inst, group, methods) {
       const proto = Object.getPrototypeOf(inst);
-      let installed = _installedGroups.get(proto);
-      if (!installed) {
-        installed = /* @__PURE__ */ new Set();
-        _installedGroups.set(proto, installed);
+      let installed2 = _installedGroups.get(proto);
+      if (!installed2) {
+        installed2 = /* @__PURE__ */ new Set();
+        _installedGroups.set(proto, installed2);
       }
-      if (installed.has(group))
+      if (installed2.has(group))
         return;
-      installed.add(group);
+      installed2.add(group);
       for (const key in methods) {
         const fn = methods[key];
         Object.defineProperty(proto, key, {
@@ -39877,31 +39877,51 @@ function shutdownGroups() {
     killAll("SIGKILL");
 }
 function install() {
+  if (installed)
+    return;
+  installed = true;
   process.on("exit", onExit);
   for (const s of FORWARDED)
     process.on(s, onSignal);
 }
 function uninstall() {
+  if (!installed)
+    return;
+  installed = false;
   process.off("exit", onExit);
   for (const s of FORWARDED)
     process.off(s, onSignal);
 }
+function beginGroupSpawn() {
+  install();
+  pendingSpawns++;
+  let released = false;
+  return () => {
+    if (released)
+      return;
+    released = true;
+    pendingSpawns--;
+    if (live.size === 0 && pendingSpawns === 0)
+      uninstall();
+  };
+}
 function trackGroup(pgid) {
-  if (live.size === 0)
-    install();
+  install();
   live.add(pgid);
 }
 function untrackGroup(pgid) {
   if (!live.delete(pgid))
     return;
-  if (live.size === 0)
+  if (live.size === 0 && pendingSpawns === 0)
     uninstall();
 }
-var live, FORWARDED, SHUTDOWN_GRACE_MS, SHUTDOWN_POLL_MS, onExit, onSignal;
+var live, pendingSpawns, installed, FORWARDED, SHUTDOWN_GRACE_MS, SHUTDOWN_POLL_MS, onExit, onSignal;
 var init_process_groups = __esm({
   "../bobs-big-brain-registrar/packages/qmd-adapter/dist/executor/process-groups.js"() {
     "use strict";
     live = /* @__PURE__ */ new Set();
+    pendingSpawns = 0;
+    installed = false;
     FORWARDED = ["SIGINT", "SIGTERM", "SIGHUP"];
     SHUTDOWN_GRACE_MS = 2e3;
     SHUTDOWN_POLL_MS = 50;
@@ -40033,13 +40053,15 @@ var init_real_executor = __esm({
        * launcher died, the real `qmd update` was reparented to PID 1 and kept
        * writing the index after the wrapper had already reported "Failed to update
        * index". Here a timeout signals the whole group (SIGTERM, then SIGKILL after
-       * the grace), and the promise does not settle until the group is gone — when
-       * this returns, nothing qmd started is still writing.
+       * the grace), then bounded disappearance checks report whether that tracked
+       * group is gone. A descendant that leaves the process group is outside this
+       * ownership boundary; a failed disappearance check is not a cleanup guarantee.
        */
       run(binary, args, env, timeoutMs) {
         const startedAt = Date.now();
         return new Promise((resolve3) => {
           let child;
+          const releaseSpawn = USE_PROCESS_GROUP ? beginGroupSpawn() : void 0;
           try {
             child = (0, import_node_child_process.spawn)(binary, args, {
               env,
@@ -40047,17 +40069,19 @@ var init_real_executor = __esm({
               stdio: ["ignore", "pipe", "pipe"]
             });
           } catch (e) {
+            releaseSpawn?.();
             resolve3(this.spawnFailure(binary, e));
             return;
           }
+          const pid = child.pid;
+          if (pid !== void 0 && USE_PROCESS_GROUP)
+            trackGroup(pid);
+          releaseSpawn?.();
           const out = [];
           const err2 = [];
           let bytes = 0;
           let failure;
           let terminating = null;
-          const pid = child.pid;
-          if (pid !== void 0 && USE_PROCESS_GROUP)
-            trackGroup(pid);
           const terminate = (hard = false) => {
             if (terminating !== null)
               return terminating;
@@ -41229,6 +41253,10 @@ var init_dense_index = __esm({
         const storedDims = this.getMeta("dims");
         this.dims = storedDims === null ? null : Number(storedDims);
       }
+      /** Dimension of the built index, null when no vectors have been indexed. */
+      get dimensions() {
+        return this.dims;
+      }
       getMeta(key) {
         const row = this.db.prepare("SELECT value FROM dense_meta WHERE key = ?").get(key);
         return row?.value ?? null;
@@ -41344,7 +41372,7 @@ var init_dense_indexer = __esm({
     init_collection_registry();
     init_dense_index();
     DEFAULT_DENSE_MAX_DOC_CHARS = 2e3;
-    DEFAULT_DENSE_BATCH_SIZE = 16;
+    DEFAULT_DENSE_BATCH_SIZE = 1;
     DenseIndexer = class {
       index;
       client;
@@ -41617,6 +41645,7 @@ var init_adapter = __esm({
       native;
       rerankStage;
       dense;
+      denseObserver;
       exportDir;
       /** The single tenant this adapter's qmd registry + index are bound to. */
       tenantId;
@@ -41653,6 +41682,7 @@ var init_adapter = __esm({
           }
         }
         this.rerankStage = config2.rerank?.enabled === true ? buildRerankStage(config2) : null;
+        this.denseObserver = config2.dense?.enabled === true ? config2.dense.onQueryDegraded : void 0;
         this.dense = config2.dense?.enabled === true ? buildDenseArm(config2) : null;
       }
       /**
@@ -41725,13 +41755,25 @@ var init_adapter = __esm({
        * the lexical fusion is always the floor the serving path stands on.
        */
       async denseSearch(queryText, scope) {
-        if (this.dense === null)
+        if (this.dense === null) {
+          if (this.denseObserver !== void 0) {
+            this.notifyDenseDegraded(new Error("dense arm unavailable after construction"));
+          }
           return [];
+        }
         try {
+          if (this.denseObserver !== void 0 && (this.dense.index.dimensions === null || this.dense.index.count() === 0)) {
+            this.notifyDenseDegraded(new Error("dense index is empty or unbuilt"));
+            return [];
+          }
           const vectors = await this.dense.queryClient.embed([queryText], "query");
           const queryVec = vectors?.[0];
           if (queryVec === void 0) {
             this.notifyDenseDegraded(new Error("embedder returned no vector for the query"));
+            return [];
+          }
+          if (queryVec.length !== this.dense.index.dimensions) {
+            this.notifyDenseDegraded(new Error("query vector dimension does not match dense index"));
             return [];
           }
           return this.dense.index.search(queryVec, this.dense.searchK, resolveScopeCollections(scope));
@@ -41754,7 +41796,7 @@ var init_adapter = __esm({
        */
       notifyDenseDegraded(reason) {
         try {
-          this.dense?.onQueryDegraded?.(reason);
+          this.denseObserver?.(reason);
         } catch {
         }
       }
@@ -45444,7 +45486,7 @@ var init_markdown_formatter = __esm({
 
 // ../bobs-big-brain-registrar/apps/git-exporter/dist/formatter/directory-mapper.js
 function getDirectory(memory) {
-  if (memory.lifecycle === "archived" || memory.lifecycle === "superseded") {
+  if (memory.lifecycle !== "active") {
     return "archive";
   }
   return getActiveDirectory(memory);
@@ -45624,7 +45666,7 @@ function detectChanges(memoryRepo, exportStateRepo, config2) {
   }));
   for (const memory of memories) {
     try {
-      if (memory.lifecycle === "archived" || memory.lifecycle === "superseded") {
+      if (getDirectory(memory) === "archive") {
         const activeDir = getActiveDirectory(memory);
         const fromPath = (0, import_node_path21.join)(config2.outputDir, activeDir, `${memory.id}.md`);
         const toPath = (0, import_node_path21.join)(config2.outputDir, getRelativePath2(memory));
