@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "name": "gsb.lock",
-  "description": "Known-good version tuple for the Governed Second Brain stack \u2014 Compile (ICO) x Govern (INTKB) x Retrieve (qmd) x the plugin. The installer pins to these; CI (.github/workflows/smoke.yml) drives the full chain against them before release. Bump deliberately: never drift one component without re-running the smoke over the whole chain.",
+  "description": "Reviewed compatibility tuple for the Governed Second Brain stack. The build records the registrar source revision and runtime bundle SHA-256; CI verifies the shipped bundle and exercises capture, govern and audit. The optional compiler version is a compatibility baseline, not an enforced installer pin; qmd is an external prerequisite. Bump deliberately and re-run the full-chain smoke.",
   "generatedFor": "governed-second-brain@1.2.0",
   "stack": {
     "plugin": {
@@ -21,9 +21,10 @@
     "govern": {
       "name": "bobs-big-brain-registrar",
       "version": "0.8.0",
-      "commit": "1af2ef4",
+      "commit": "a6aeb9ca4a80687ae840168e1273dfd6c1ac555e",
       "registry": "bundled",
-      "role": "INTKB \u2014 deterministic dedupe -> policy -> promote + the SHA-256 hash-chained audit + external anchor; dense retrieval default-on (#328/#334). Private monorepo; compiled into plugin-runtime/governed-brain.cjs, never published to a registry."
+      "role": "INTKB \u2014 deterministic dedupe -> policy -> promote + the SHA-256 hash-chained audit + external anchor; dense retrieval default-on (#328/#334). Private monorepo; compiled into plugin-runtime/governed-brain.cjs, never published to a registry.",
+      "bundleSha256": "c28753df2947bc0a0730dcdab9a97dc52c934534923b5bb8cd53b33fa255641e"
     },
     "retrieve": {
       "name": "qmd",

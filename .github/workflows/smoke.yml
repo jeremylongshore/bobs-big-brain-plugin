@@ -29,7 +29,9 @@ jobs:
           node-version: 20
 
       - name: Lockfile drift guard (gsb.lock.json vs the manifests)
-        run: node smoke/check-lock.mjs
+        run: |
+          node --test smoke/check-lock.test.mjs
+          node smoke/check-lock.mjs
 
       # The committed bundle inlines INTKB, so CI never builds — and the build-only
       # devDeps are `link:../bobs-big-brain-registrar/*`, which don't exist here. Strip

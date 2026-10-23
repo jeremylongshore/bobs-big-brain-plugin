@@ -16,6 +16,12 @@ itself (the MCP server, its tools, the install/packaging path, docs) are welcome
 The engines are bundled at pinned versions via `gsb.lock.json` — bumping an engine is a lockfile
 change here plus the actual fix in the engine repo.
 
+`pnpm build` requires a clean registrar checkout, builds its compiled packages, and records its
+full source revision/version plus the runtime bundle's SHA-256 in `gsb.lock.json`. Commit that
+lockfile with the bundle. `node smoke/check-lock.mjs` verifies the shipped bytes against the hash;
+it does not independently prove source-to-binary equivalence or authenticate the build author.
+The optional compiler version is a separate compatibility pin and is not advanced by this build.
+
 ## One runnable contribution surface
 
 The repository includes one intentionally narrow, stranger-PR-able surface:
