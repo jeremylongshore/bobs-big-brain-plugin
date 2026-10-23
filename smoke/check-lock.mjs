@@ -6,6 +6,7 @@
  * tuple; here we assert it stays consistent with the package it ships in.
  */
 import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
 const at = (rel) => JSON.parse(readFileSync(fileURLToPath(new URL(rel, import.meta.url))));
@@ -27,6 +28,20 @@ eq(lock.stack.plugin.version, pkg.version, 'gsb.lock plugin version == package.j
 eq(plugin.version, pkg.version, 'plugin.json version == package.json version');
 eq(market.plugins[0].version, pkg.version, 'marketplace.json plugin version == package.json version');
 eq(mcp.mcpServers['governed-brain'].version, pkg.version, '.mcp.json server version == package.json version');
+eq(
+  typeof lock.stack.govern.commit === 'string' && /^[a-f0-9]{40}$/.test(lock.stack.govern.commit),
+  true,
+  'gsb.lock records a full registrar source revision',
+);
+try {
+  const bundleHash = createHash('sha256')
+    .update(readFileSync(new URL('../plugin-runtime/governed-brain.cjs', import.meta.url)))
+    .digest('hex');
+  eq(lock.stack.govern.bundleSha256, bundleHash, 'runtime bundle SHA-256 == gsb.lock');
+} catch (error) {
+  console.error(`✗ Cannot read runtime bundle: ${error.message}`);
+  bad += 1;
+}
 
 console.log(bad === 0 ? '\nLOCK OK' : `\nLOCK DRIFT (${bad} mismatch(es))`);
 process.exit(bad === 0 ? 0 : 1);

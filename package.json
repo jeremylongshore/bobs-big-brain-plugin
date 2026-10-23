@@ -28,6 +28,7 @@
     "bin",
     "onboarding",
     "plugin-runtime",
+    "gsb.lock.json",
     ".claude-plugin",
     "skills",
     ".mcp.json",

@@ -62,9 +62,11 @@ Two skills front these: **`/brain`** (cited answers) and **`/brain-save`** (gove
 
 Honesty is the point of a receipt. The chain gives you **tamper-*detection*** — integrity + ordering,
 so an edited or reordered record is caught by `verify`. It is **not** tamper-proof: on your own machine
-a writer with access can edit an event *and* re-hash the chain forward. Within a single trust boundary
-(your machine) that's exactly the integrity guarantee you want; cross-actor non-repudiation needs an
-external chain-head anchor (on the roadmap). It is **not** a blockchain and **not** immutable storage.
+a writer with access can edit an event *and* re-hash the chain forward. `brain_govern` checkpoints
+the chain head in git-backed anchors, which `brain_audit_verify` cross-checks. Push the anchor
+repository to a separate remote for an external witness; a coordinated rewrite of the chain,
+anchors, and local git history still exceeds a single machine's trust boundary.
+It is **not** a blockchain and **not** immutable storage.
 
 ## Independently verify the anchor log
 
@@ -95,7 +97,7 @@ npm run verify-anchors        # same, via the package script
 node scripts/verify-anchors.mjs --json   # machine-readable output
 ```
 
-It checks four things against the external anchor log (`anchors.jsonl`, an append-only hash chain):
+It checks four things against the external anchor log (`anchors.jsonl`, a hash chain appended by protocol):
 
 1. **Per-record integrity** — recomputes each `anchorHash` from the canonical body; any edit is an
    `ANCHOR_HASH_MISMATCH`.
@@ -237,8 +239,11 @@ node bin/init.mjs init <your-folder> --index-only
 </details>
 
 **Supply chain (shipped in 0.1.4):** npm **provenance** (via the CI release workflow) and the
-`gsb.lock.json` reproducible pin — the exact Compiler × Registrar × qmd × plugin tuple, verified by a
-hermetic full-chain CI smoke against the pinned set.
+`gsb.lock.json` compatibility record, shipped with the npm package. Builds record the registrar's
+source revision and the runtime bundle's SHA-256; CI checks those bundle bytes and runs the
+capture → govern → audit smoke. The optional compiler can resolve from a local checkout, PATH,
+or the installer's `^1.14.0` fallback; qmd is an external prerequisite. These are compatibility
+baselines, not proof of the exact compiler or qmd version installed on a user's machine.
 
 **Coming:** automatic Cowork MCP registration.
 

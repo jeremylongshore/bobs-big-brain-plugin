@@ -16,10 +16,28 @@
 // fail and break tool registration/validation).
 import esbuild from 'esbuild';
 import { createRequire } from 'node:module';
-import { dirname } from 'node:path';
-import { execSync } from 'node:child_process';
+import { dirname, join } from 'node:path';
+import { execFileSync, execSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 const require = createRequire(import.meta.url);
+const registrarRoot = fileURLToPath(new URL('../bobs-big-brain-registrar/', import.meta.url));
+const registrarGit = (...args) =>
+  execFileSync('git', ['-C', registrarRoot, ...args], { encoding: 'utf8' }).trim();
+const assertCleanRegistrar = () => {
+  if (registrarGit('status', '--porcelain', '--untracked-files=normal') !== '') {
+    throw new Error('Registrar has uncommitted changes; use a clean checkout before recording bundle provenance.');
+  }
+};
+
+assertCleanRegistrar();
+const registrarCommit = registrarGit('rev-parse', 'HEAD');
+const registrarVersion = JSON.parse(readFileSync(join(registrarRoot, 'package.json'), 'utf8')).version;
+// The bundle consumes compiled JS. Refresh it from the recorded source revision,
+// rather than stamping a new revision onto a stale dist/ tree.
+execFileSync('pnpm', ['build', '--force'], { cwd: registrarRoot, stdio: 'inherit' });
 
 let zodAlias;
 try {
@@ -66,3 +84,20 @@ try {
   process.exit(1);
 }
 console.error('✓ plugin-runtime is self-contained (better-sqlite3, bindings, fs-ext, sqlite-vec)');
+
+assertCleanRegistrar();
+if (registrarGit('rev-parse', 'HEAD') !== registrarCommit) {
+  throw new Error('Registrar revision changed during the build; rebuild before recording provenance.');
+}
+const lockPath = new URL('./gsb.lock.json', import.meta.url);
+const lock = JSON.parse(readFileSync(lockPath, 'utf8'));
+lock.stack.govern.version = registrarVersion;
+lock.stack.govern.commit = registrarCommit;
+lock.stack.govern.bundleSha256 = createHash('sha256')
+  .update(readFileSync(new URL('./plugin-runtime/governed-brain.cjs', import.meta.url)))
+  .digest('hex');
+// Preserve the lockfile's existing ASCII JSON representation.
+const lockJson = JSON.stringify(lock, null, 2)
+  .replace(/[\u007f-\uffff]/g, (char) => `\\u${char.charCodeAt(0).toString(16).padStart(4, '0')}`);
+writeFileSync(lockPath, `${lockJson}\n`);
+console.error(`✓ recorded registrar ${registrarCommit} and bundle SHA-256 in gsb.lock.json`);
