@@ -61,9 +61,11 @@ enforces your role (a member proposes; an admin governs and retires).
 **First, search the brain (search-before-save).** Call **`brain_search`** with
 `{ query: "TITLE_AND_KEY_TERMS", scope: "all" }` and summarize what the brain already knows
 from the `qmd://` hits. If the fact is **already covered, stop and say so** — don't duplicate it (the
-team API deduplicates candidate identity and identical content within the tenant, while local
-capture appends a spool proposal and deduplicates during governance; neither detects every semantic
-restatement, so pre-save search still reduces noise). An empty `results` list (e.g. `qmd` isn't on `PATH`, or the brain is empty)
+Registrar intake at the revision in `gsb.lock.json` deduplicates candidate identity and identical
+content within the tenant, while local capture appends a spool proposal and deduplicates during
+governance; neither detects every semantic restatement, so pre-save search still reduces noise).
+A remote server can run a different version; use the capture response as evidence of intake,
+never as proof of promotion. An empty `results` list (e.g. `qmd` isn't on `PATH`, or the brain is empty)
 means _no known coverage_ — proceed to capture; it is **not** a block. Then capture only the
 genuinely-new delta:
 
@@ -76,8 +78,8 @@ genuinely-new delta:
    the new source of truth for those subjects, so it can supersede older memories about them.
    In **team mode**,
    SessionEnd/autocapture must also pass `sessionId` + `learningIndex` (0..4) so each learning has its
-   own idempotency slot; manual captures omit both. The team inbox deduplicates at intake, but the
-   pre-save search still reduces noise.
+   own idempotency slot; manual captures omit both. Pre-save search still reduces noise even on servers
+   implementing intake deduplication.
 4. In **local mode only**, call **`brain_govern`** to drain the spool through deterministic dedupe,
    policy, secret detection, and promotion. Report the returned promoted, quarantined, rejected,
    duplicate, flagged, and skipped counts.
