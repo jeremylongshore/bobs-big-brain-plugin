@@ -49,8 +49,9 @@ to answer beyond what the citations support.
 
 ### Step 1: Search the governed corpus
 
-Production entrypoints fuse **Tobi's qmd BM25**, native **FTS5** and a
-**sqlite-vec dense arm** with reciprocal-rank fusion and a freshness/category rerank.
+The source entrypoints at the Registrar revision in `gsb.lock.json` configure
+**Tobi's qmd BM25**, native **FTS5** and a
+**sqlite-vec dense arm**, joined with reciprocal-rank fusion and a freshness/category rerank.
 Dense is enabled by default in those entrypoints, but requires a built index and
 the configured loopback query embedder; disabling it or an unavailable arm leaves
 the lexical results. Team mode uses the deployed server's configuration.

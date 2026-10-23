@@ -174,9 +174,10 @@ mitigations for content poisoning are the deterministic govern policy, human rev
 inbox/quarantine queues, and supersession — not the token. Receipts carry only the channel + a
 truncated SHA-256 of the token (never the token; no verify-arbitrary-token oracle exists).
 
-## Current retrieval
+## Configured retrieval
 
-Production entrypoints configure `brain_search` with qmd BM25, native FTS5 and a
+At the Registrar revision in `gsb.lock.json`, the source entrypoints configure
+`brain_search` with qmd BM25, native FTS5 and a
 sqlite-vec dense arm (EmbeddingGemma-300M), fused with deterministic reciprocal-rank
 fusion (RRF, k=60), then freshness/category reranking. `src/local-server.ts` passes
 `getDefaultDenseConfig()`; the Registrar API/edge entrypoints also select their
@@ -188,8 +189,12 @@ Dense is default-on in those entrypoints, can be disabled with
 embedding service. If unavailable it fails open to lexical results. The bare
 `QmdAdapter` library remains lexical-only when its `dense` config is omitted.
 The retrieval path uses an embedding model but makes no query-time generative
-LLM call. Do not describe it as BM25-only, zero ML, or an unshipped dense roadmap.
-Historical baseline: `bobs-big-brain-registrar/000-docs/038-AT-DECR`; current owning
+LLM call. Do not describe that configuration as BM25-only, zero ML, or an unshipped dense roadmap.
+The existing SHA-256 model/runtime pins remain applicable; see the Registrar
+[embedder runbook](https://github.com/jeremylongshore/bobs-big-brain-registrar/blob/a6aeb9ca4a80687ae840168e1273dfd6c1ac555e/000-docs/051-AT-RNBK-embedder-service-and-dense-index-runbook.md)
+for provisioning and evaluation history. This documentation change does not relax
+those controls or establish which version a remote endpoint deploys.
+Historical baseline: `bobs-big-brain-registrar/000-docs/038-AT-DECR`; owning
 code: `packages/qmd-adapter/src/config.ts`, `adapter.ts` and the production
 entrypoint configuration. The package scope and bead prefix remain unchanged by
 the repository rename.
