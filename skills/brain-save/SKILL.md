@@ -61,8 +61,9 @@ enforces your role (a member proposes; an admin governs and retires).
 **First, search the brain (search-before-save).** Call **`brain_search`** with
 `{ query: "TITLE_AND_KEY_TERMS", scope: "all" }` and summarize what the brain already knows
 from the `qmd://` hits. If the fact is **already covered, stop and say so** — don't duplicate it (the
-inbox does _not_ dedupe at intake; only promotion dedupes, so this pre-save search is what keeps the
-inbox from piling up). An empty `results` list (e.g. `qmd` isn't on `PATH`, or the brain is empty)
+team API deduplicates candidate identity and identical content within the tenant, while local
+capture appends a spool proposal and deduplicates during governance; neither detects every semantic
+restatement, so pre-save search still reduces noise). An empty `results` list (e.g. `qmd` isn't on `PATH`, or the brain is empty)
 means _no known coverage_ — proceed to capture; it is **not** a block. Then capture only the
 genuinely-new delta:
 
