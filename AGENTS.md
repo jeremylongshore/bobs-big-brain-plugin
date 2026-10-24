@@ -132,8 +132,9 @@ Build hard-facts:
   availability uses the shared command route within its original 5 s budget,
   before cleanup or provisioning. Failed explicit selections refuse capture;
   undeclared legacy absence may proceed with degraded qmd-backed retrieval;
-  native FTS can still provide hits. Synchronous import/metadata work cannot be preempted.
-- **Owned prefix**: persist a verified selected runtime outside
+  native FTS may still provide partial results. Synchronous import/metadata work
+  cannot be preempted.
+- **Owned prefix**: persist a Registrar-selected runtime declaration outside
   `plugin-runtime/node_modules`, which the existing lockfile `npm ci` native
   provisioner replaces. The installer does not download, copy or activate an
   owned artifact; archive/platform delivery remains separate work. Only a
