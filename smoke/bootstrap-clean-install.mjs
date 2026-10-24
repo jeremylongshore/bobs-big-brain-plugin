@@ -18,7 +18,7 @@ const RUNTIME = join(SCRATCH, 'plugin-runtime');
 const BRAIN = join(SCRATCH, 'brain');
 const BOOTSTRAP = join(RUNTIME, 'bootstrap.cjs');
 const SOURCE_RUNTIME = join(ROOT, 'plugin-runtime');
-const REQUIRED_FILES = ['bootstrap.cjs', 'governed-brain.cjs', 'package.json', 'package-lock.json'];
+const REQUIRED_FILES = ['bootstrap.cjs', 'governed-brain.cjs', 'qmd-command.cjs', 'package.json', 'package-lock.json'];
 
 mkdirSync(RUNTIME, { recursive: true });
 for (const file of REQUIRED_FILES) {

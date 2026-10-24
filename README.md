@@ -112,6 +112,45 @@ It checks four things against the external anchor log (`anchors.jsonl`, a hash c
 Exit `0` on pass (witness-only warnings still exit `0`); non-zero on any integrity, linkage, or
 history-rewrite failure. Run the verifier's own tests with `npm run verify-anchors:test`.
 
+## Preparing a private owned-runtime directory
+
+This development-workspace tool prepares a directory containing the normal thin
+plugin package and a separately verified `owned-qmd` sibling:
+
+```bash
+node scripts/prepare-owned-distribution.mjs \
+  --candidate /path/to/reviewed-owned-runtime \
+  --expected-manifest-sha256 <independently-reviewed-manifest-digest> \
+  --output /existing/private-parent/fresh-distribution
+```
+
+Use a Linux development checkout with Node 22+, npm, GNU tar, Git, and the trusted
+sibling `bobs-big-brain-registrar` checkout. The tool uses that checkout's existing
+runtime verifier; it does not bundle a second verifier. The output must be new,
+outside both inputs, with an existing parent and no ancestor `node_modules`.
+
+Preparation runs `npm pack --offline --ignore-scripts` with private npm settings,
+checks its exact file inventory and bytes, copies regular plugin files, and
+preserves the verified candidate's relative links. No archive is extracted into
+the filesystem. Both source and copied runtime must pass the Registrar's graph,
+file, mode and host/ABI checks before a `distribution-receipt.json` is published.
+The receipt distinguishes plugin source, packed bytes, verifier source and the
+candidate's historical source bindings. Failed output is retained for inspection;
+there is no cleanup, install, download, activation or publication step.
+
+The directory is a preparation artifact, not an installation or portability
+certificate. The current local proof targets Linux x64 glibc, Node 22.23.1/ABI127.
+Local bootstrap still needs its independently locked native dependencies and a
+prepared host cache/toolchain. Its `npm ci` replaces `plugin/plugin-runtime/node_modules`;
+keep `owned-qmd` beside the plugin. After relocation, supply the new absolute owned
+root and independently expected digest through `TEAMKB_QMD_RUNTIME`; the receipt's
+selection path describes its original preparation location. Team mode remains a
+separate dependency-free path.
+
+Allow capacity for the complete owned runtime, plugin and preparation files.
+The 2 GiB payload policy and child-process limits do not enforce a total disk/time
+quota on synchronous copying or confine concurrent writers running as your user.
+
 ## Rebuilding an existing local brain
 
 `init <folder> --clean` retains the old brain at a sibling
