@@ -28,6 +28,10 @@ installable Claude Code + Cowork plugin (a local stdio MCP server); the engines 
 
 ### Fixed
 
+- Limit npm archives to the four tracked runtime entry files. Provisioned native
+  dependencies under `plugin-runtime/node_modules` are installed for the target
+  host and no longer leak from the build machine into the package.
+
 - Refresh the committed runtime and provenance lock from Registrar
   `775c8c10aa44afa98d559c390f88300f3ff5a552`, with project SDK `1.32.2` and Zod
   `4.6.7` aligned for the build. Update compatible SDK HTTP/validation and

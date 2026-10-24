@@ -27,7 +27,10 @@
   "files": [
     "bin",
     "onboarding",
-    "plugin-runtime",
+    "plugin-runtime/bootstrap.cjs",
+    "plugin-runtime/governed-brain.cjs",
+    "plugin-runtime/package.json",
+    "plugin-runtime/package-lock.json",
     "gsb.lock.json",
     ".claude-plugin",
     "skills",
