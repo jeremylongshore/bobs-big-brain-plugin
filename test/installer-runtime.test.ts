@@ -138,6 +138,7 @@ describe('selected qmd persistence and outcomes', () => {
     const f = fixture();
     const tools = join(f.root, 'tools');
     mkdirSync(tools);
+    symlinkSync(process.execPath, join(tools, 'node'));
     const selected = join(tools, 'qmd');
     writeFileSync(
       selected,
@@ -157,7 +158,7 @@ console.log(JSON.stringify(selectedQmdEnvironment({source:'env',executable:'tool
       ],
       {
         cwd: f.root,
-        env: { HOME: f.home, PATH: '/usr/bin:/bin' },
+        env: { HOME: f.home, PATH: tools },
         encoding: 'utf8',
         timeout: 5_000,
       },
@@ -169,7 +170,7 @@ console.log(JSON.stringify(selectedQmdEnvironment({source:'env',executable:'tool
     mkdirSync(elsewhere);
     const run = spawnSync(env.TEAMKB_QMD_BIN, [], {
       cwd: elsewhere,
-      env: { HOME: f.home, PATH: '/usr/bin:/bin' },
+      env: { HOME: f.home, PATH: tools },
       encoding: 'utf8',
       timeout: 5_000,
     });

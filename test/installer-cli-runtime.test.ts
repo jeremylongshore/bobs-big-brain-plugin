@@ -9,6 +9,7 @@ import {
   rmSync,
   chmodSync,
   existsSync,
+  symlinkSync,
 } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -64,6 +65,8 @@ function fixture() {
   const base = join(home, "brain's space");
   for (const dir of [home, bin, runtime, input, base, join(root, 'tools')])
     mkdirSync(dir, { recursive: true });
+  // Use the active runtime even when setup-node installs it outside /usr/bin.
+  symlinkSync(process.execPath, join(root, 'tools/node'));
   writeFileSync(join(input, 'source.md'), 'synthetic input owned by installer test');
   writeFileSync(join(base, 'keep.txt'), 'existing brain sentinel');
   const pin = join(root, 'tools/qmd');
@@ -177,7 +180,7 @@ async function run(
       cwd: f.root,
       env: {
         HOME: f.home,
-        PATH: '/usr/bin:/bin',
+        PATH: join(f.root, 'tools'),
         TMPDIR: f.root,
         NODE_OPTIONS: `--require=${f.guard}`,
         COREPACK_ENABLE_NETWORK: '0',
