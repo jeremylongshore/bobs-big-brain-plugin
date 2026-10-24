@@ -2,13 +2,22 @@ import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync, existsSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+  existsSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const execute = promisify(execFile);
 const source = fileURLToPath(new URL('..', import.meta.url));
+const cleanupFiles = ['bin/installer-cleanup.mjs', 'bin/installer-cleanup.py'];
 const runtimeFiles = [
   'plugin-runtime/bootstrap.cjs',
   'plugin-runtime/governed-brain.cjs',
@@ -46,7 +55,7 @@ test('npm pack includes the runtime entry files without provisioned dependencies
         write(join(fixture, path), 'public fixture\n');
       }
     }
-    for (const path of runtimeFiles) {
+    for (const path of [...runtimeFiles, ...cleanupFiles]) {
       write(join(fixture, path), path.endsWith('.json') ? '{}\n' : '// synthetic runtime\n');
     }
     write(
@@ -96,6 +105,7 @@ test('npm pack includes the runtime entry files without provisioned dependencies
       paths.filter((path) => path.startsWith('plugin-runtime/')).sort(),
       [...runtimeFiles].sort(),
     );
+    for (const path of cleanupFiles) assert.ok(paths.includes(path));
     assert.ok(paths.includes('package.json'));
     assert.ok(paths.includes('gsb.lock.json'));
     assert.ok(paths.includes('README.md'));

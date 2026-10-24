@@ -31,6 +31,8 @@ interface Event {
   remaining?: number;
   pid?: number;
   startTicks?: string;
+  backupPath?: string;
+  status?: string;
 }
 function owned(root: string): QmdCommandProvenance {
   return {
@@ -82,7 +84,12 @@ function fixture() {
     init = init.replace(literal, `from '${pathToFileURL(require.resolve(spec)).href}'`);
   }
   writeFileSync(join(bin, 'init.mjs'), init);
-  for (const file of ['installer-paths.mjs', 'installer-runtime.mjs'])
+  for (const file of [
+    'installer-paths.mjs',
+    'installer-runtime.mjs',
+    'installer-cleanup.mjs',
+    'installer-cleanup.py',
+  ])
     copyFileSync(join(source, 'bin', file), join(bin, file));
   writeFileSync(
     join(runtime, 'governed-brain.cjs'),
@@ -137,16 +144,19 @@ cp.execFileSync=function(command,args){
  if(command==='claude'){log({event:'claude',args});return Buffer.from(args[0]==='--version'?'fixture Claude':'');}
  if(command==='node'&&args[0]===${JSON.stringify(join(root, 'fake-ico.cjs'))}){
   log({event:'fake-compile',args});
-  if(args.includes('emit')){fs.mkdirSync(${JSON.stringify(join(base, 'ico-workspace/spool'))},{recursive:true});fs.writeFileSync(${JSON.stringify(join(base, 'ico-workspace/spool/spool-fixture.jsonl'))},'{}\\n');}
+  if(args.includes('emit')){const ws=args[args.indexOf('--workspace')+1];fs.mkdirSync(require('node:path').join(ws,'spool'),{recursive:true});fs.writeFileSync(require('node:path').join(ws,'spool/spool-fixture.jsonl'),'{}\\n');}
   return Buffer.alloc(0);
  }
  return fail('execFileSync');
 };
-for(const name of ['execSync','spawnSync','execFile','exec'])cp[name]=()=>fail(name);
-const realRm=fs.rmSync;fs.rmSync=function(path,options){
- if(path===${JSON.stringify(join(base, 'ico-workspace'))})return realRm(path,options);
- return fail('clean');
+const realSpawnSync=cp.spawnSync;
+cp.spawnSync=function(command,args,options){
+ if(command!=='/usr/bin/python3'||JSON.stringify(args)!==JSON.stringify(['-I','-S','-B',${JSON.stringify(join(bin, 'installer-cleanup.py'))}]))return fail('spawnSync');
+ const plan=JSON.parse(options.input);if(plan.request.home!==${JSON.stringify(home)}||plan.basePath!==${JSON.stringify(base)})return fail('cleanup-plan');
+ const result=realSpawnSync.call(this,command,args,options);let output={};try{output=JSON.parse(result.stdout);}catch{}log({event:'cleanup',status:output.status,backupPath:output.backupPath});return result;
 };
+for(const name of ['execSync','execFile','exec'])cp[name]=()=>fail(name);
+fs.rmSync=()=>fail('recursive-clean');
 const load=Module._load;Module._load=function(name,...args){if(name.endsWith('.node')||/^(better-sqlite3|fs-ext|sqlite-vec)(\\/|$)/.test(name))return fail('native');return load.call(this,name,...args);};
 globalThis.fetch=()=>fail('fetch');require('node:net').Socket.prototype.connect=()=>fail('socket');Module.syncBuiltinESMExports();
 `,
@@ -334,6 +344,9 @@ describe('actual installer selection/bootstrap boundaries with synthetic MCP', (
 
   it('routes the full-compile transport and paired owned persistence through bootstrap', async () => {
     const f = fixture();
+    const oldWorkspace = join(f.base, 'ico-workspace');
+    mkdirSync(oldWorkspace);
+    writeFileSync(join(oldWorkspace, 'keep.txt'), 'prior compile');
     const root = join(f.root, 'separate-owned');
     mkdirSync(root);
     const { result, events } = await run(
@@ -348,7 +361,15 @@ describe('actual installer selection/bootstrap boundaries with synthetic MCP', (
     );
     expect(result.status, result.stderr).toBe(0);
     expect(events.filter((e) => e.event === 'refused')).toEqual([]);
-    expect(events.filter((e) => e.event === 'fake-compile')).toHaveLength(5);
+    const calls = events.filter((e) => e.event === 'fake-compile');
+    expect(calls).toHaveLength(5);
+    expect(readFileSync(join(oldWorkspace, 'keep.txt'), 'utf8')).toBe('prior compile');
+    const initArgs = calls[0].args!;
+    const workspace = join(initArgs[initArgs.indexOf('--path') + 1], initArgs[2]);
+    expect(workspace.startsWith(join(f.base, 'ico-workspace-'))).toBe(true);
+    for (const call of calls.slice(1)) {
+      expect(call.args?.[call.args.indexOf('--workspace') + 1]).toBe(workspace);
+    }
     expect(events.find((e) => e.event === 'child')?.args).toEqual([
       join(f.runtime, 'bootstrap.cjs'),
     ]);
@@ -362,6 +383,31 @@ describe('actual installer selection/bootstrap boundaries with synthetic MCP', (
     expect(
       events.filter((e) => ['govern', 'status'].includes(e.event)).map((e) => e.event),
     ).toEqual(['govern', 'status']);
+  });
+
+  it('retains an existing brain before provisioning through the real cleanup helper', async () => {
+    const f = fixture();
+    const { result, events } = await run(
+      f,
+      { source: 'env', executable: f.pin, prefix: [] },
+      { TEAMKB_QMD_BIN: f.pin },
+      false,
+      true,
+    );
+    expect(result.status, result.stderr).toBe(0);
+    expect(events.filter((e) => e.event === 'refused')).toEqual([]);
+    const cleanup = events.find((e) => e.event === 'cleanup');
+    expect(cleanup?.status).toBe('retained');
+    expect(readFileSync(join(cleanup!.backupPath!, 'keep.txt'), 'utf8')).toBe(
+      'existing brain sentinel',
+    );
+    expect(existsSync(join(f.base, 'keep.txt'))).toBe(false);
+    expect(readFileSync(join(f.input, 'source.md'), 'utf8')).toBe(
+      'synthetic input owned by installer test',
+    );
+    expect(events.indexOf(cleanup!)).toBeLessThan(events.findIndex((e) => e.event === 'provision'));
+    expect(result.stdout).toMatch(/retained|Retained/);
+    expect(result.stdout).toMatch(/reclaim|disk/);
   });
 
   it.each(['', 'not-a-version'])(

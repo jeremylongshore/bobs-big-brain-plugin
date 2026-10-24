@@ -134,6 +134,18 @@ Build hard-facts:
   undeclared legacy absence may proceed with degraded qmd-backed retrieval;
   native FTS may still provide partial results. Synchronous import/metadata work
   cannot be preempted.
+- **Recoverable cleanup**: existing-root `--clean` uses `bin/installer-cleanup.mjs`
+  and the isolated stdlib Python helper on Linux. Directory handles and
+  `renameat2(RENAME_NOREPLACE)` retain the prior root in a sibling
+  `.bbb-clean-<random>/original`; no recursive deletion or disk reclamation occurs.
+  The pre-move `recovery.json` and any refused backup must remain recoverable;
+  rollback never overwrites an occupied original name. Unsupported helpers or
+  filesystems refuse before moving old data (an empty recovery holder can remain).
+  Full compilation reserves a new `ico-workspace-<random>` rather than deleting
+  prior compiler state. Fixture tests must use private HOME/input/outside sentinels.
+  These checks do not freeze backup contents, confine same-user processes, or make
+  subsequent pathname-based provisioning/capture transactional. Do not broaden
+  those guarantees or add automatic backup deletion.
 - **Owned prefix**: persist a Registrar-selected runtime declaration outside
   `plugin-runtime/node_modules`, which the existing lockfile `npm ci` native
   provisioner replaces. The installer does not download, copy or activate an

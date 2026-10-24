@@ -13,7 +13,7 @@
  *                  (Full ICO-compile mode — which derives richer knowledge and
  *                  DOES egress to Anthropic — is on the way; see the notice.)
  *   --yes          Skip the consent prompt (non-interactive).
- *   --clean        Wipe the target brain dir first, then rebuild.
+ *   --clean        Retain the old brain in a sibling backup, then rebuild fresh.
  *   --base <dir>   Brain location (default ~/.teamkb). Must be under $HOME.
  *   --tenant <id>  Tenant/namespace (default "local").
  *
@@ -27,11 +27,12 @@ import { homedir } from 'node:os';
 import { join, resolve, relative, dirname, basename, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
-import { existsSync, rmSync, readFileSync, statSync, readdirSync, mkdirSync, copyFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, statSync, readdirSync, mkdirSync, copyFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { validateBrainTarget, revalidateBrainTarget } from './installer-paths.mjs';
+import { prepareCleanBrain } from './installer-cleanup.mjs';
 import { installerChildEnv, effectiveInstallerEnv, assertLocalInstallerMode, selectedQmdEnvironment, qmdAvailabilityOutcome, shellQuote, mcpRegistrationArgs } from './installer-runtime.mjs';
 
 const PLUGIN_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -106,6 +107,10 @@ async function preflight(folder, args, fileCount) {
   log(`    • ${C.bold('read')} every text file (.md/.txt/.mdx) under the source folder`);
   log(`    • ${C.bold('run local tools')} on your machine (the bundled govern kernel + qmd)`);
   log(`    • ${C.bold('write')} a governed brain (SQLite + JSONL audit + qmd index) under ${args.base}`);
+  if (args.clean) {
+    log(`    • ${C.bold('retain')} the existing brain in a recoverable sibling backup, then start fresh`);
+    log('      --clean does not reclaim disk space; existing-brain cleanup requires Linux and /usr/bin/python3.');
+  }
   if (args.indexOnly) {
     log(`    • ${C.green('send NOTHING over the network')} — index-only is fully local`);
   } else {
@@ -194,14 +199,16 @@ function resolveIco() {
 // emits the spool, and brain_govern (the same in-process runtime) governs it.
 async function fullCompile(folder, args) {
   const ico = resolveIco();
-  const ws = join(args.base, 'ico-workspace');
-  rmSync(ws, { recursive: true, force: true });
+  // Preserve prior compiler state; reserve a new empty workspace for this run.
+  mkdirSync(args.base, { recursive: true });
+  const ws = mkdtempSync(join(args.base, 'ico-workspace-'));
   const icoEnv = { ...process.env, ICO_PROVIDER: 'deepseek' }; // DEEPSEEK_API_KEY already in env
   const run = (a, opts = {}) =>
     execFileSync(ico.cmd, [...ico.base, ...a], { stdio: ['ignore', 'ignore', 'inherit'], env: icoEnv, ...opts });
 
   log('');
   log(C.dim(`  ICO via ${ico.label} — provider: deepseek`));
+  log(C.dim(`  Compiler workspace retained at ${ws}`));
   log(C.dim('  ico init…'));
   run(['init', basename(ws), '--path', dirname(ws)]);
   log(C.dim('  ico mount + ingest…'));
@@ -317,12 +324,16 @@ async function main() {
   // Local tool execution follows consent, before cleanup/provisioning/capture.
   const qmdOk = await checkQmd(args);
 
-  // Recheck the original paths and existing directory identities after consent.
-  // Use the validated canonical target, never the original alias spelling.
+  // Recheck after consent/availability. Existing-brain cleanup uses held
+  // directory handles and retains old data; never recurse through a pathname.
   const currentTarget = revalidateBrainTarget(target);
-  if (args.clean && existsSync(currentTarget.basePath)) {
-    log(C.dim(`  --clean: removing ${currentTarget.basePath}`));
-    rmSync(currentTarget.basePath, { recursive: true, force: true });
+  if (args.clean) {
+    const cleaned = prepareCleanBrain(currentTarget);
+    if (cleaned.backupPath) {
+      log(C.yellow(`  --clean: old brain retained at ${cleaned.backupPath}`));
+      log(C.dim('  Backup data still uses disk space. It is not automatically purged.'));
+    }
+    revalidateBrainTarget(cleaned.target);
   }
 
   ensureNativeDep();
