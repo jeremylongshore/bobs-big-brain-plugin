@@ -18,12 +18,8 @@ import {
   AuditRepository,
   ExportStateRepository,
 } from '@qmd-team-intent-kb/store';
-import {
-  getDefaultDenseConfig,
-  QmdAdapter,
-  resolveQmdBinary,
-  type ResolvedQmdBinary,
-} from '@qmd-team-intent-kb/qmd-adapter';
+import type { ResolvedQmdBinary, QmdCommandProvenance } from '@qmd-team-intent-kb/qmd-adapter';
+import { createLocalQmdBinding, legacyQmdBinary } from './qmd-command.js';
 import type { QmdError } from '@qmd-team-intent-kb/qmd-adapter';
 import type { BrainConfig } from './config.js';
 import { seedDefaultPolicy } from './seed-policy.js';
@@ -114,6 +110,8 @@ export interface GovernSummary {
   indexError?: string;
   /** The qmd binary that was used and how it was found. Absent if none resolved. */
   qmdBinary?: ResolvedQmdBinary;
+  /** Actual selected executable/prefix metadata, not proof of serving identity. */
+  qmdCommand?: QmdCommandProvenance;
   /** External anchor of the audit chain head (append-only log, git-committed). */
   anchored?: { chainHead: string; chainedRows: number; committed: boolean };
 }
@@ -225,31 +223,25 @@ async function runGovernLocked(config: BrainConfig): Promise<GovernSummary> {
       process.stderr.write(`[govern] export failed: ${exportError}\n`);
     }
 
-    // 4. Refresh the qmd index. The binary is resolved explicitly (TEAMKB_QMD_BIN,
-    //    PATH, ~/.bun/bin/qmd) because an MCP server's environment routinely lacks
-    //    qmd on PATH; when it truly is absent the result carries the actionable
-    //    reason instead of an opaque failure. Graceful degrade: everything above
-    //    (govern, export, audit chain) has already completed.
+    // 4. Refresh through the shared command route. A declared owned artifact
+    // stays selected; no legacy pre-resolution can pin over its Node prefix.
+    // Governance/export/audit still complete when the refresh fails.
     let indexUpdated = false;
     let indexError: string | undefined;
+    let qmdCommand: QmdCommandProvenance | undefined;
     let qmdBinary: ResolvedQmdBinary | undefined;
     try {
-      qmdBinary = resolveQmdBinary();
-      const adapter = new QmdAdapter({
-        tenantId: config.tenantId,
-        exportDir: config.exportDir,
-        qmdBinary: qmdBinary.path,
-        // Dense arm ON by default via the registrar's shared production seam
-        // (#328); TEAMKB_DENSE_ENABLED=false is the emergency kill switch. This
-        // site was the vps.1 drift class — the plugin bypasses the API, so
-        // wiring the API alone would leave local mode lexical-only.
-        dense: getDefaultDenseConfig(),
-      });
-      const ensure = await adapter.ensureCollections();
-      if (!ensure.ok) throw new Error(describeQmdError(ensure.error));
-      const upd = await adapter.update();
-      if (!upd.ok) throw new Error(describeQmdError(upd.error));
-      indexUpdated = true;
+      const binding = await createLocalQmdBinding(config);
+      try {
+        const ensure = await binding.adapter.ensureCollections();
+        if (!ensure.ok) throw new Error(describeQmdError(ensure.error));
+        const upd = await binding.adapter.update();
+        if (!upd.ok) throw new Error(describeQmdError(upd.error));
+        indexUpdated = true;
+      } finally {
+        qmdCommand = binding.provenance() ?? undefined;
+        qmdBinary = legacyQmdBinary(qmdCommand ?? null);
+      }
     } catch (e) {
       indexError = e instanceof Error ? e.message : String(e);
     }
@@ -280,6 +272,7 @@ async function runGovernLocked(config: BrainConfig): Promise<GovernSummary> {
       indexUpdated,
       indexError,
       ...(qmdBinary !== undefined ? { qmdBinary } : {}),
+      ...(qmdCommand !== undefined ? { qmdCommand } : {}),
       anchored,
     };
   } finally {

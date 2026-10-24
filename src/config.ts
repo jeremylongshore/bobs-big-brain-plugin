@@ -29,8 +29,9 @@ export interface BrainConfig {
 /**
  * Resolve the qmd index root used by the Registrar adapter.
  *
- * qmd's registry and BM25 cache are isolated below this path through XDG
- * overrides. Keeping the derivation here makes the local BYO-brain contract
+ * The adapter binds XDG, QMD_CONFIG_DIR and INDEX_PATH below this path and
+ * adds an explicit --index selector to disable ancestor config discovery.
+ * Keeping the derivation here makes the local BYO-brain contract
  * visible without introducing a second, plugin-only qmd path setting.
  */
 export function resolveQmdIndexPath(basePath: string, tenantId: string): string {

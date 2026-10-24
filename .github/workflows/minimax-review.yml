@@ -54,7 +54,7 @@ concurrency:
 # human-authored change only: the esbuild-vendored runtime bundle, dist output,
 # lockfiles, node_modules.
 env:
-  EXCLUDES: 'package-lock.json,pnpm-lock.yaml,*.lock,**/node_modules/**,plugin-runtime/governed-brain.cjs,**/dist/**'
+  EXCLUDES: 'package-lock.json,pnpm-lock.yaml,*.lock,**/node_modules/**,plugin-runtime/governed-brain.cjs,plugin-runtime/qmd-command.cjs,**/dist/**'
 
 jobs:
   review:

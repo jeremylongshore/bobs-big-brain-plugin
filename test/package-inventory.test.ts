@@ -2,7 +2,7 @@ import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -12,6 +12,7 @@ const source = fileURLToPath(new URL('..', import.meta.url));
 const runtimeFiles = [
   'plugin-runtime/bootstrap.cjs',
   'plugin-runtime/governed-brain.cjs',
+  'plugin-runtime/qmd-command.cjs',
   'plugin-runtime/package.json',
   'plugin-runtime/package-lock.json',
 ];
@@ -39,7 +40,7 @@ test('npm pack includes the runtime entry files without provisioned dependencies
       }),
     );
     for (const path of manifest.files) {
-      if (statSync(join(source, path)).isDirectory()) {
+      if (existsSync(join(source, path)) && statSync(join(source, path)).isDirectory()) {
         write(join(fixture, path, 'public-fixture.txt'), 'public fixture\n');
       } else {
         write(join(fixture, path), 'public fixture\n');

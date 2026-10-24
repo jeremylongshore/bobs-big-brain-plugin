@@ -9,6 +9,7 @@ import { spawnSync } from 'node:child_process';
 function checkFixture(change = () => {}) {
   const root = mkdtempSync(join(tmpdir(), 'gsb-artifact-lock-'));
   const bundle = '/* fixture runtime */\n';
+  const helper = '/* fixture headless helper */\n';
   const identity = { name: 'governed-second-brain', version: '1.2.0' };
   const lock = {
     stack: {
@@ -16,6 +17,7 @@ function checkFixture(change = () => {}) {
       govern: {
         commit: 'a'.repeat(40),
         bundleSha256: createHash('sha256').update(bundle).digest('hex'),
+        qmdCommandHelperSha256: createHash('sha256').update(helper).digest('hex'),
       },
     },
   };
@@ -26,6 +28,7 @@ function checkFixture(change = () => {}) {
     }
     copyFileSync(new URL('./check-lock.mjs', import.meta.url), join(root, 'smoke/check-lock.mjs'));
     writeFileSync(join(root, 'plugin-runtime/governed-brain.cjs'), bundle);
+    writeFileSync(join(root, 'plugin-runtime/qmd-command.cjs'), helper);
     json('package.json', identity);
     json('.claude-plugin/plugin.json', identity);
     json('.claude-plugin/marketplace.json', { plugins: [identity] });
@@ -51,6 +54,9 @@ for (const [name, change] of [
     writeFileSync(join(root, 'plugin-runtime/governed-brain.cjs'), 'changed');
   }],
   ['missing bundle', ({ root }) => rmSync(join(root, 'plugin-runtime/governed-brain.cjs'))],
+  ['changed helper bytes', ({ root }) => writeFileSync(join(root, 'plugin-runtime/qmd-command.cjs'), 'changed')],
+  ['missing helper', ({ root }) => rmSync(join(root, 'plugin-runtime/qmd-command.cjs'))],
+  ['missing helper hash', ({ lock }) => delete lock.stack.govern.qmdCommandHelperSha256],
   ['missing bundle hash', ({ lock }) => delete lock.stack.govern.bundleSha256],
   ['missing registrar revision', ({ lock }) => delete lock.stack.govern.commit],
   ['abbreviated registrar revision', ({ lock }) => {

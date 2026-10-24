@@ -67,6 +67,21 @@ await esbuild.build({
 
 console.error('✓ bundled → plugin-runtime/governed-brain.cjs');
 
+// A separate headless entry lets the installer use the same command selection
+// without importing the MCP dispatcher. It must remain inert until called.
+await esbuild.build({
+  entryPoints: ['src/qmd-command.ts'],
+  bundle: true,
+  platform: 'node',
+  format: 'cjs',
+  target: 'node20',
+  outfile: 'plugin-runtime/qmd-command.cjs',
+  external: ['better-sqlite3', 'bindings', 'fs-ext', 'sqlite-vec'],
+  alias: { zod: zodAlias },
+  logLevel: 'info',
+});
+console.error('✓ bundled → plugin-runtime/qmd-command.cjs');
+
 // Install the externalized native modules INTO plugin-runtime/node_modules so the
 // runtime is SELF-CONTAINED. The three externals (better-sqlite3 + its 'bindings'
 // loader, and fs-ext) ship compiled .node addons that esbuild cannot inline; if the
@@ -107,6 +122,9 @@ lock.stack.govern.version = registrarVersion;
 lock.stack.govern.commit = registrarCommit;
 lock.stack.govern.bundleSha256 = createHash('sha256')
   .update(readFileSync(new URL('./plugin-runtime/governed-brain.cjs', import.meta.url)))
+  .digest('hex');
+lock.stack.govern.qmdCommandHelperSha256 = createHash('sha256')
+  .update(readFileSync(new URL('./plugin-runtime/qmd-command.cjs', import.meta.url)))
   .digest('hex');
 // Preserve the lockfile's existing ASCII JSON representation.
 const lockJson = JSON.stringify(lock, null, 2)
