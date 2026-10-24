@@ -33,14 +33,19 @@ eq(
   true,
   'gsb.lock records a full registrar source revision',
 );
-try {
-  const bundleHash = createHash('sha256')
-    .update(readFileSync(new URL('../plugin-runtime/governed-brain.cjs', import.meta.url)))
-    .digest('hex');
-  eq(lock.stack.govern.bundleSha256, bundleHash, 'runtime bundle SHA-256 == gsb.lock');
-} catch (error) {
-  console.error(`✗ Cannot read runtime bundle: ${error.message}`);
-  bad += 1;
+for (const [file, digest, label] of [
+  ['governed-brain.cjs', lock.stack.govern.bundleSha256, 'runtime bundle'],
+  ['qmd-command.cjs', lock.stack.govern.qmdCommandHelperSha256, 'qmd command helper'],
+]) {
+  try {
+    const hash = createHash('sha256')
+      .update(readFileSync(new URL(`../plugin-runtime/${file}`, import.meta.url)))
+      .digest('hex');
+    eq(digest, hash, `${label} SHA-256 == gsb.lock`);
+  } catch (error) {
+    console.error(`✗ Cannot read ${label}: ${error.message}`);
+    bad += 1;
+  }
 }
 
 console.log(bad === 0 ? '\nLOCK OK' : `\nLOCK DRIFT (${bad} mismatch(es))`);

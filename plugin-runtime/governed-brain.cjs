@@ -37720,50 +37720,50 @@ var require_fast_uri = __commonJS({
       schemelessOptions.skipEscape = true;
       return serialize(resolved, schemelessOptions);
     }
-    function resolveComponent(base, relative2, options, skipNormalization) {
+    function resolveComponent(base, relative3, options, skipNormalization) {
       const target = {};
       if (!skipNormalization) {
         base = parse(serialize(base, options), options);
-        relative2 = parse(serialize(relative2, options), options);
+        relative3 = parse(serialize(relative3, options), options);
       }
       options = options || {};
-      if (!options.tolerant && relative2.scheme) {
-        target.scheme = relative2.scheme;
-        target.userinfo = relative2.userinfo;
-        target.host = relative2.host;
-        target.port = relative2.port;
-        target.path = removeDotSegments(relative2.path || "");
-        target.query = relative2.query;
+      if (!options.tolerant && relative3.scheme) {
+        target.scheme = relative3.scheme;
+        target.userinfo = relative3.userinfo;
+        target.host = relative3.host;
+        target.port = relative3.port;
+        target.path = removeDotSegments(relative3.path || "");
+        target.query = relative3.query;
       } else {
-        if (relative2.userinfo !== void 0 || relative2.host !== void 0 || relative2.port !== void 0) {
-          target.userinfo = relative2.userinfo;
-          target.host = relative2.host;
-          target.port = relative2.port;
-          target.path = removeDotSegments(relative2.path || "");
-          target.query = relative2.query;
+        if (relative3.userinfo !== void 0 || relative3.host !== void 0 || relative3.port !== void 0) {
+          target.userinfo = relative3.userinfo;
+          target.host = relative3.host;
+          target.port = relative3.port;
+          target.path = removeDotSegments(relative3.path || "");
+          target.query = relative3.query;
         } else {
-          if (!relative2.path) {
+          if (!relative3.path) {
             target.path = base.path;
-            if (relative2.query !== void 0) {
-              target.query = relative2.query;
+            if (relative3.query !== void 0) {
+              target.query = relative3.query;
             } else {
               target.query = base.query;
             }
           } else {
-            if (relative2.path[0] === "/") {
-              target.path = removeDotSegments(relative2.path);
+            if (relative3.path[0] === "/") {
+              target.path = removeDotSegments(relative3.path);
             } else {
               const baseHasAuthority = base.userinfo !== void 0 || base.host !== void 0 || base.port !== void 0;
               if (baseHasAuthority && !base.path) {
-                target.path = "/" + relative2.path;
+                target.path = "/" + relative3.path;
               } else if (!base.path) {
-                target.path = relative2.path;
+                target.path = relative3.path;
               } else {
-                target.path = base.path.slice(0, base.path.lastIndexOf("/") + 1) + relative2.path;
+                target.path = base.path.slice(0, base.path.lastIndexOf("/") + 1) + relative3.path;
               }
               target.path = base.scheme === void 0 && !baseHasAuthority && target.path[0] !== "/" ? removeDotSegmentsRelative(target.path) : removeDotSegments(target.path);
             }
-            target.query = relative2.query;
+            target.query = relative3.query;
           }
           target.userinfo = base.userinfo;
           target.host = base.host;
@@ -37771,7 +37771,7 @@ var require_fast_uri = __commonJS({
         }
         target.scheme = base.scheme;
       }
-      target.fragment = relative2.fragment;
+      target.fragment = relative3.fragment;
       return target;
     }
     function equal(uriA, uriB, options) {
@@ -44581,11 +44581,21 @@ var init_result = __esm({
 function computeContentHash(content) {
   return (0, import_node_crypto2.createHash)("sha256").update(content, "utf8").digest("hex");
 }
-var import_node_crypto2;
+function computeFileHash(filePath) {
+  return new Promise((resolve4, reject2) => {
+    const hash = (0, import_node_crypto2.createHash)("sha256");
+    const stream = (0, import_node_fs3.createReadStream)(filePath);
+    stream.on("error", reject2);
+    stream.on("data", (chunk) => hash.update(chunk));
+    stream.on("end", () => resolve4(hash.digest("hex")));
+  });
+}
+var import_node_crypto2, import_node_fs3;
 var init_hash = __esm({
   "../bobs-big-brain-registrar/packages/common/dist/hash.js"() {
     "use strict";
     import_node_crypto2 = require("node:crypto");
+    import_node_fs3 = require("node:fs");
   }
 });
 
@@ -44692,12 +44702,12 @@ function loadOriginSecret(basePath) {
     return env;
   const path = originSecretPath(basePath);
   try {
-    const secret = (0, import_node_fs3.readFileSync)(path, "utf8").trim();
+    const secret = (0, import_node_fs4.readFileSync)(path, "utf8").trim();
     if (secret.length === 0)
       return void 0;
     try {
-      if (((0, import_node_fs3.statSync)(path).mode & 511) !== 384)
-        (0, import_node_fs3.chmodSync)(path, 384);
+      if (((0, import_node_fs4.statSync)(path).mode & 511) !== 384)
+        (0, import_node_fs4.chmodSync)(path, 384);
     } catch {
     }
     return secret;
@@ -44711,9 +44721,9 @@ function loadOrCreateOriginSecret(basePath) {
     return env;
   const path = originSecretPath(basePath);
   const minted = (0, import_node_crypto4.randomBytes)(32).toString("hex");
-  (0, import_node_fs3.mkdirSync)((0, import_node_path5.dirname)(path), { recursive: true });
+  (0, import_node_fs4.mkdirSync)((0, import_node_path5.dirname)(path), { recursive: true });
   try {
-    (0, import_node_fs3.writeFileSync)(path, `${minted}
+    (0, import_node_fs4.writeFileSync)(path, `${minted}
 `, { encoding: "utf8", flag: "wx", mode: 384 });
     return minted;
   } catch (e) {
@@ -44729,12 +44739,12 @@ function loadOrCreateOriginSecret(basePath) {
 function originSecretPath(basePath) {
   return (0, import_node_path5.join)(basePath ?? getTeamKbBasePath(), ORIGIN_SECRET_FILENAME);
 }
-var import_node_crypto4, import_node_fs3, import_node_path5, ORIGIN_SECRET_FILENAME, ORIGIN_SECRET_ENV, UNATTESTED_CHANNEL, FIELD_SEPARATOR, ORIGIN_TOKEN_HASH_SURFACE_LEN;
+var import_node_crypto4, import_node_fs4, import_node_path5, ORIGIN_SECRET_FILENAME, ORIGIN_SECRET_ENV, UNATTESTED_CHANNEL, FIELD_SEPARATOR, ORIGIN_TOKEN_HASH_SURFACE_LEN;
 var init_origin_token = __esm({
   "../bobs-big-brain-registrar/packages/common/dist/origin-token.js"() {
     "use strict";
     import_node_crypto4 = require("node:crypto");
-    import_node_fs3 = require("node:fs");
+    import_node_fs4 = require("node:fs");
     import_node_path5 = require("node:path");
     init_paths();
     ORIGIN_SECRET_FILENAME = "origin-secret";
@@ -44754,8 +44764,8 @@ function isPathSafe(path, allowedRoots) {
   if (segments.includes("..")) {
     return { safe: false, reason: "Path contains directory traversal (..)" };
   }
-  const isAbsolute5 = path.startsWith("/") || /^[A-Za-z]:[\\/]/.test(path);
-  if (isAbsolute5) {
+  const isAbsolute6 = path.startsWith("/") || /^[A-Za-z]:[\\/]/.test(path);
+  if (isAbsolute6) {
     if (allowedRoots === void 0 || allowedRoots.length === 0) {
       return { safe: false, reason: "Absolute path not allowed (no allowed roots configured)" };
     }
@@ -46654,10 +46664,64 @@ var init_audit_repository = __esm({
 });
 
 // ../bobs-big-brain-registrar/packages/store/dist/redaction-scrub.js
-var SCAN_CHUNK_BYTES;
+function scanFile(path, needles, found) {
+  const overlap = Math.max(0, ...needles.map((n) => n.length)) - 1;
+  const size = (0, import_node_fs5.statSync)(path).size;
+  const buffer = Buffer.alloc(SCAN_CHUNK_BYTES + Math.max(overlap, 0));
+  const inFile = /* @__PURE__ */ new Set();
+  const fd = (0, import_node_fs5.openSync)(path, "r");
+  try {
+    let position = 0;
+    let carried = 0;
+    while (position < size) {
+      const read = (0, import_node_fs5.readSync)(fd, buffer, carried, SCAN_CHUNK_BYTES, position);
+      if (read <= 0)
+        break;
+      const window = buffer.subarray(0, carried + read);
+      needles.forEach((needle, index) => {
+        if (needle.length === 0 || inFile.has(index))
+          return;
+        if (window.indexOf(needle) !== -1)
+          inFile.add(index);
+      });
+      position += read;
+      carried = Math.min(Math.max(overlap, 0), window.length);
+      buffer.copyWithin(0, window.length - carried, window.length);
+    }
+  } finally {
+    (0, import_node_fs5.closeSync)(fd);
+  }
+  for (const index of inFile)
+    found.add(index);
+  return inFile.size;
+}
+function scanFilesForFragments(files, fragments) {
+  const needles = fragments.map((f) => Buffer.from(f, "utf8"));
+  const found = /* @__PURE__ */ new Set();
+  const filesScanned = [];
+  const hits = [];
+  for (const file of files) {
+    if (!(0, import_node_fs5.existsSync)(file))
+      continue;
+    filesScanned.push(file);
+    if (needles.length === 0)
+      continue;
+    const count = scanFile(file, needles, found);
+    if (count > 0)
+      hits.push({ file, fragments: count });
+  }
+  return {
+    filesScanned,
+    fragmentCount: fragments.length,
+    residualFragmentIndexes: [...found].sort((a, b) => a - b),
+    hits
+  };
+}
+var import_node_fs5, SCAN_CHUNK_BYTES;
 var init_redaction_scrub = __esm({
   "../bobs-big-brain-registrar/packages/store/dist/redaction-scrub.js"() {
     "use strict";
+    import_node_fs5 = require("node:fs");
     SCAN_CHUNK_BYTES = 4 * 1024 * 1024;
   }
 });
@@ -46757,9 +46821,9 @@ function chainedRowsOf(repo) {
   return repo.findAllChronological().filter((r) => r.entry_hash !== null);
 }
 function readAnchors(anchorPath) {
-  if (!(0, import_node_fs4.existsSync)(anchorPath))
+  if (!(0, import_node_fs6.existsSync)(anchorPath))
     return [];
-  return (0, import_node_fs4.readFileSync)(anchorPath, "utf8").split("\n").filter((l) => l.trim().length > 0).map((l) => JSON.parse(l));
+  return (0, import_node_fs6.readFileSync)(anchorPath, "utf8").split("\n").filter((l) => l.trim().length > 0).map((l) => JSON.parse(l));
 }
 function appendAnchor(repo, anchorPath, opts) {
   const now = opts.nowFn ?? (() => (/* @__PURE__ */ new Date()).toISOString());
@@ -46780,7 +46844,7 @@ function appendAnchor(repo, anchorPath, opts) {
     prevAnchorHash
   };
   const record3 = { ...body, anchorHash: computeAnchorHash(body) };
-  (0, import_node_fs4.appendFileSync)(anchorPath, JSON.stringify(record3) + "\n", { mode: 384 });
+  (0, import_node_fs6.appendFileSync)(anchorPath, JSON.stringify(record3) + "\n", { mode: 384 });
   return record3;
 }
 function verifyAnchors(repo, anchorPath) {
@@ -46842,12 +46906,12 @@ function verifyAnchors(repo, anchorPath) {
     ok: chain.breaks.length === 0 && anchorBreaks.length === 0
   };
 }
-var import_node_crypto6, import_node_fs4;
+var import_node_crypto6, import_node_fs6;
 var init_audit_anchor = __esm({
   "../bobs-big-brain-registrar/packages/store/dist/audit-anchor.js"() {
     "use strict";
     import_node_crypto6 = require("node:crypto");
-    import_node_fs4 = require("node:fs");
+    import_node_fs6 = require("node:fs");
     init_audit_verify();
   }
 });
@@ -46882,7 +46946,7 @@ function computeManifestHash(body) {
 function readManifest(path) {
   let raw;
   try {
-    raw = (0, import_node_fs5.readFileSync)(path, "utf8");
+    raw = (0, import_node_fs7.readFileSync)(path, "utf8");
   } catch (e) {
     throw new ExceptionManifestError(`cannot read manifest at ${path}: ${String(e)}`);
   }
@@ -46951,12 +47015,12 @@ function classifyChainBreaks(breaks, manifest, rowsById) {
     chainForks
   };
 }
-var import_node_crypto7, import_node_fs5, import_zod16, TAMPER_REASONS, TAMPER_REASON_SET, ExceptionManifestEntrySchema, ExceptionManifestSchema, ExceptionManifestError;
+var import_node_crypto7, import_node_fs7, import_zod16, TAMPER_REASONS, TAMPER_REASON_SET, ExceptionManifestEntrySchema, ExceptionManifestSchema, ExceptionManifestError;
 var init_exception_manifest = __esm({
   "../bobs-big-brain-registrar/packages/store/dist/exception-manifest.js"() {
     "use strict";
     import_node_crypto7 = require("node:crypto");
-    import_node_fs5 = require("node:fs");
+    import_node_fs7 = require("node:fs");
     import_zod16 = __toESM(require_zod(), 1);
     TAMPER_REASONS = [
       "ENTRY_HASH_MISMATCH",
@@ -47134,6 +47198,9 @@ var init_dist3 = __esm({
 });
 
 // ../bobs-big-brain-registrar/packages/qmd-adapter/dist/config.js
+function getQmdIndexBasePath() {
+  return resolveTeamKbPath(QMD_INDEX_DIR);
+}
 function getQmdTenantIndexPath(tenantId, basePath) {
   const root = (0, import_node_path6.resolve)(basePath ?? getTeamKbBasePath(), QMD_INDEX_DIR);
   const parts = tenantId.split(import_node_path6.sep);
@@ -47144,6 +47211,9 @@ function getQmdTenantIndexPath(tenantId, basePath) {
   if (!within || (0, import_node_path6.isAbsolute)(within) || within === ".." || within.startsWith(`..${import_node_path6.sep}`))
     throw new Error("Tenant index path escapes the configured TeamKB base");
   return path;
+}
+function getQmdCollectionIndexPath(tenantId, collection) {
+  return resolveTeamKbPath(`${QMD_INDEX_DIR}/${tenantId}/${collection}`);
 }
 function getQmdTenantEnv(tenantId, basePath) {
   const base = getQmdTenantIndexPath(tenantId, basePath);
@@ -47174,7 +47244,7 @@ function parseTimeoutMs(raw) {
 function resolveMaintenanceTimeoutMs(env = process.env) {
   return parseTimeoutMs(env[QMD_TIMEOUT_ENV]) ?? DEFAULT_MAINTENANCE_TIMEOUT;
 }
-var import_node_path6, QMD_INDEX_DIR, DEFAULT_DENSE_URL, DEFAULT_TIMEOUT, DEFAULT_MAINTENANCE_TIMEOUT, QMD_TIMEOUT_ENV;
+var import_node_path6, QMD_INDEX_DIR, DEFAULT_DENSE_URL, DEFAULT_QMD_BINARY, DEFAULT_TIMEOUT, DEFAULT_MAINTENANCE_TIMEOUT, QMD_TIMEOUT_ENV;
 var init_config = __esm({
   "../bobs-big-brain-registrar/packages/qmd-adapter/dist/config.js"() {
     "use strict";
@@ -47182,6 +47252,7 @@ var init_config = __esm({
     init_dist2();
     QMD_INDEX_DIR = "qmd-index";
     DEFAULT_DENSE_URL = "http://127.0.0.1:8098";
+    DEFAULT_QMD_BINARY = "qmd";
     DEFAULT_TIMEOUT = 3e4;
     DEFAULT_MAINTENANCE_TIMEOUT = 6e5;
     QMD_TIMEOUT_ENV = "TEAMKB_QMD_TIMEOUT_MS";
@@ -47191,9 +47262,9 @@ var init_config = __esm({
 // ../bobs-big-brain-registrar/packages/qmd-adapter/dist/executor/resolve-binary.js
 function defaultIsExecutable(p) {
   try {
-    if (!(0, import_node_fs6.statSync)(p).isFile())
+    if (!(0, import_node_fs8.statSync)(p).isFile())
       return false;
-    (0, import_node_fs6.accessSync)(p, import_node_fs6.constants.X_OK);
+    (0, import_node_fs8.accessSync)(p, import_node_fs8.constants.X_OK);
     return true;
   } catch {
     return false;
@@ -47244,11 +47315,11 @@ function findOnPath(name, env, isExecutable) {
   }
   return null;
 }
-var import_node_fs6, import_node_os4, import_node_path7, QMD_BIN_ENV, QMD_NOT_FOUND_EXIT_CODE, QmdBinaryNotFoundError;
+var import_node_fs8, import_node_os4, import_node_path7, QMD_BIN_ENV, QMD_NOT_FOUND_EXIT_CODE, QmdBinaryNotFoundError;
 var init_resolve_binary = __esm({
   "../bobs-big-brain-registrar/packages/qmd-adapter/dist/executor/resolve-binary.js"() {
     "use strict";
-    import_node_fs6 = require("node:fs");
+    import_node_fs8 = require("node:fs");
     import_node_os4 = require("node:os");
     import_node_path7 = require("node:path");
     QMD_BIN_ENV = "TEAMKB_QMD_BIN";
@@ -47284,45 +47355,45 @@ function digest(value, label) {
     throw new OwnedQmdRuntimeError(`invalid ${label}`);
   return result.toLowerCase();
 }
-function exactFile(root, relative2, limit) {
-  const path = (0, import_node_path8.join)(root, relative2);
-  const before = (0, import_node_fs7.lstatSync)(path);
-  if (!before.isFile() || (0, import_node_fs7.realpathSync)(path) !== path)
-    throw new OwnedQmdRuntimeError(`invalid or redirected ${relative2} under declared root`);
-  const fd = (0, import_node_fs7.openSync)(path, import_node_fs7.constants.O_RDONLY | import_node_fs7.constants.O_NOFOLLOW);
+function exactFile(root, relative3, limit) {
+  const path = (0, import_node_path8.join)(root, relative3);
+  const before = (0, import_node_fs9.lstatSync)(path);
+  if (!before.isFile() || (0, import_node_fs9.realpathSync)(path) !== path)
+    throw new OwnedQmdRuntimeError(`invalid or redirected ${relative3} under declared root`);
+  const fd = (0, import_node_fs9.openSync)(path, import_node_fs9.constants.O_RDONLY | import_node_fs9.constants.O_NOFOLLOW);
   try {
-    const opened = (0, import_node_fs7.fstatSync)(fd);
+    const opened = (0, import_node_fs9.fstatSync)(fd);
     if (!opened.isFile() || opened.dev !== before.dev || opened.ino !== before.ino || opened.size > limit)
-      throw new OwnedQmdRuntimeError(`invalid or oversized ${relative2} under declared root`);
+      throw new OwnedQmdRuntimeError(`invalid or oversized ${relative3} under declared root`);
     const bytes = Buffer.alloc(limit + 1);
     let length = 0;
     while (length < bytes.length) {
-      const read = (0, import_node_fs7.readSync)(fd, bytes, length, bytes.length - length, null);
+      const read = (0, import_node_fs9.readSync)(fd, bytes, length, bytes.length - length, null);
       if (read === 0)
         break;
       length += read;
     }
-    if (length > limit || (0, import_node_fs7.realpathSync)(path) !== path)
-      throw new OwnedQmdRuntimeError(`oversized or redirected ${relative2} under declared root`);
-    const after = (0, import_node_fs7.lstatSync)(path);
+    if (length > limit || (0, import_node_fs9.realpathSync)(path) !== path)
+      throw new OwnedQmdRuntimeError(`oversized or redirected ${relative3} under declared root`);
+    const after = (0, import_node_fs9.lstatSync)(path);
     if (after.dev !== opened.dev || after.ino !== opened.ino)
-      throw new OwnedQmdRuntimeError(`replaced ${relative2} under declared root`);
+      throw new OwnedQmdRuntimeError(`replaced ${relative3} under declared root`);
     return bytes.subarray(0, length);
   } finally {
-    (0, import_node_fs7.closeSync)(fd);
+    (0, import_node_fs9.closeSync)(fd);
   }
 }
-function exactDirectory(root, relative2) {
-  const path = (0, import_node_path8.join)(root, relative2);
-  if (!(0, import_node_fs7.lstatSync)(path).isDirectory() || (0, import_node_fs7.realpathSync)(path) !== path)
-    throw new OwnedQmdRuntimeError(`redirected ${relative2} directory under declared root`);
+function exactDirectory(root, relative3) {
+  const path = (0, import_node_path8.join)(root, relative3);
+  if (!(0, import_node_fs9.lstatSync)(path).isDirectory() || (0, import_node_fs9.realpathSync)(path) !== path)
+    throw new OwnedQmdRuntimeError(`redirected ${relative3} directory under declared root`);
 }
 function sourceIdentity(root, manifest) {
   const entries = record2(record2(manifest["inventory"], "inventory")["entries"], "inventory entries");
   for (const name of ["bin/owned-qmd.mjs", "lib/runtime-inventory.mjs"]) {
     const expected = record2(entries[name], `${name} identity`);
     const bytes = exactFile(root, name, SOURCE_LIMIT);
-    if (expected["kind"] !== "file" || bytes.length !== expected["bytes"] || ((0, import_node_fs7.lstatSync)((0, import_node_path8.join)(root, name)).mode & 511) !== expected["mode"] || sha256(bytes) !== digest(expected["sha256"], `${name} SHA256`)) {
+    if (expected["kind"] !== "file" || bytes.length !== expected["bytes"] || ((0, import_node_fs9.lstatSync)((0, import_node_path8.join)(root, name)).mode & 511) !== expected["mode"] || sha256(bytes) !== digest(expected["sha256"], `${name} SHA256`)) {
       throw new OwnedQmdRuntimeError(`${name} differs from the bound manifest`);
     }
   }
@@ -47379,8 +47450,8 @@ function inspectOwnedQmdRuntime(declaration) {
   try {
     if (!(0, import_node_path8.isAbsolute)(declaration.root))
       throw new OwnedQmdRuntimeError("root must be absolute");
-    const root = (0, import_node_fs7.realpathSync)(declaration.root);
-    if (!(0, import_node_fs7.lstatSync)(root).isDirectory())
+    const root = (0, import_node_fs9.realpathSync)(declaration.root);
+    if (!(0, import_node_fs9.lstatSync)(root).isDirectory())
       throw new OwnedQmdRuntimeError("root must be a directory");
     exactDirectory(root, "bin");
     exactDirectory(root, "lib");
@@ -47468,12 +47539,12 @@ function recheckQmdCommand(selected) {
   if (current.root !== previous.root)
     throw new OwnedQmdRuntimeError("declared canonical runtime root changed");
 }
-var import_node_crypto8, import_node_fs7, import_node_path8, QMD_RUNTIME_ENV, MANIFEST_LIMIT, SOURCE_LIMIT, OwnedQmdRuntimeError, sha256;
+var import_node_crypto8, import_node_fs9, import_node_path8, QMD_RUNTIME_ENV, MANIFEST_LIMIT, SOURCE_LIMIT, OwnedQmdRuntimeError, sha256;
 var init_resolve_command = __esm({
   "../bobs-big-brain-registrar/packages/qmd-adapter/dist/executor/resolve-command.js"() {
     "use strict";
     import_node_crypto8 = require("node:crypto");
-    import_node_fs7 = require("node:fs");
+    import_node_fs9 = require("node:fs");
     import_node_path8 = require("node:path");
     init_resolve_binary();
     QMD_RUNTIME_ENV = "TEAMKB_QMD_RUNTIME";
@@ -47618,15 +47689,15 @@ function prepareTenantDirectories(env) {
   const configDir = env["QMD_CONFIG_DIR"];
   if (!indexPath || !configDir || !(0, import_node_path9.isAbsolute)(indexPath) || !(0, import_node_path9.isAbsolute)(configDir))
     throw new Error("Derived tenant index and registry paths must be absolute");
-  (0, import_node_fs8.mkdirSync)((0, import_node_path9.dirname)(indexPath), { recursive: true, mode: 448 });
-  (0, import_node_fs8.mkdirSync)(configDir, { recursive: true, mode: 448 });
+  (0, import_node_fs10.mkdirSync)((0, import_node_path9.dirname)(indexPath), { recursive: true, mode: 448 });
+  (0, import_node_fs10.mkdirSync)(configDir, { recursive: true, mode: 448 });
 }
-var import_node_child_process, import_node_fs8, import_node_path9, QMD_TIMEOUT_EXIT_CODE, DEFAULT_KILL_GRACE_MS, MAX_OUTPUT_BYTES, GROUP_POLL_MS, POST_KILL_WAIT_MS, USE_PROCESS_GROUP, SIGNAL_NUMBERS, sleep, RealQmdExecutor;
+var import_node_child_process, import_node_fs10, import_node_path9, QMD_TIMEOUT_EXIT_CODE, DEFAULT_KILL_GRACE_MS, MAX_OUTPUT_BYTES, GROUP_POLL_MS, POST_KILL_WAIT_MS, USE_PROCESS_GROUP, SIGNAL_NUMBERS, sleep, RealQmdExecutor;
 var init_real_executor = __esm({
   "../bobs-big-brain-registrar/packages/qmd-adapter/dist/executor/real-executor.js"() {
     "use strict";
     import_node_child_process = require("node:child_process");
-    import_node_fs8 = require("node:fs");
+    import_node_fs10 = require("node:fs");
     import_node_path9 = require("node:path");
     init_config();
     init_resolve_binary();
@@ -47964,9 +48035,52 @@ var init_describe_failure = __esm({
 });
 
 // ../bobs-big-brain-registrar/packages/qmd-adapter/dist/executor/mock-executor.js
+var MockQmdExecutor;
 var init_mock_executor = __esm({
   "../bobs-big-brain-registrar/packages/qmd-adapter/dist/executor/mock-executor.js"() {
     "use strict";
+    MockQmdExecutor = class {
+      commands = [];
+      responses = [];
+      _available = true;
+      /** Queue a response for the next execute() call */
+      queueResponse(response) {
+        this.responses.push(response);
+      }
+      /** Queue a success response */
+      queueSuccess(stdout) {
+        this.responses.push({ stdout, stderr: "", exitCode: 0 });
+      }
+      /** Queue a failure response */
+      queueFailure(stderr, exitCode = 1) {
+        this.responses.push({ stdout: "", stderr, exitCode });
+      }
+      /** Set whether qmd appears available */
+      setAvailable(available) {
+        this._available = available;
+      }
+      async execute(args) {
+        this.commands.push(args);
+        const response = this.responses.shift();
+        if (!response) {
+          return { stdout: "", stderr: "No mock response queued", exitCode: 1 };
+        }
+        return response;
+      }
+      async isAvailable() {
+        return this._available;
+      }
+      /** Get the last command that was executed */
+      get lastCommand() {
+        return this.commands[this.commands.length - 1];
+      }
+      /** Reset all state */
+      reset() {
+        this.commands.length = 0;
+        this.responses.length = 0;
+        this._available = true;
+      }
+    };
   }
 });
 
@@ -47974,8 +48088,17 @@ var init_mock_executor = __esm({
 function getDefaultSearchCollections() {
   return KNOWN_COLLECTIONS.filter((c) => c.includeInDefaultSearch).map((c) => c.name);
 }
+function getAllCollectionNames() {
+  return KNOWN_COLLECTIONS.map((c) => c.name);
+}
 function getExportableCollections() {
   return KNOWN_COLLECTIONS.filter((c) => c.sourceSubdir !== null);
+}
+function isKnownCollection(name) {
+  return KNOWN_COLLECTIONS.some((c) => c.name === name);
+}
+function isDefaultSearchCollection(name) {
+  return KNOWN_COLLECTIONS.some((c) => c.name === name && c.includeInDefaultSearch);
 }
 var KNOWN_COLLECTIONS;
 var init_collection_registry = __esm({
@@ -48103,6 +48226,12 @@ var init_collection_manager = __esm({
 });
 
 // ../bobs-big-brain-registrar/packages/qmd-adapter/dist/index-manager/index-paths.js
+function getTenantDataDir(tenantId) {
+  return getQmdTenantIndexPath(tenantId);
+}
+function getCollectionDataDir(tenantId, collection) {
+  return getQmdCollectionIndexPath(tenantId, collection);
+}
 var init_index_paths = __esm({
   "../bobs-big-brain-registrar/packages/qmd-adapter/dist/index-manager/index-paths.js"() {
     "use strict";
@@ -48377,6 +48506,9 @@ function questionTerms(query) {
   ];
   return terms.length <= 12 ? terms : [];
 }
+function fts5RetrievalFn(backend) {
+  return (query, k) => Promise.resolve(backend.search(query, k).map((h) => h.id));
+}
 var import_better_sqlite32, QUESTION_STARTERS, QUESTION_MAX_DOCS, QUESTION_MAX_TERM_POSTINGS, QUESTION_MAX_TOTAL_POSTINGS, QUESTION_FUNCTION_WORDS, Fts5Backend;
 var init_fts5_backend = __esm({
   "../bobs-big-brain-registrar/packages/qmd-adapter/dist/native/fts5-backend.js"() {
@@ -48521,11 +48653,11 @@ function getNativeIndexManager(opts) {
   managerCache.set(opts.indexPath, manager);
   return manager;
 }
-var import_node_fs9, import_node_path11, import_better_sqlite33, NativeIndexManager, managerCache;
+var import_node_fs11, import_node_path11, import_better_sqlite33, NativeIndexManager, managerCache;
 var init_native_index_manager = __esm({
   "../bobs-big-brain-registrar/packages/qmd-adapter/dist/native/native-index-manager.js"() {
     "use strict";
-    import_node_fs9 = require("node:fs");
+    import_node_fs11 = require("node:fs");
     import_node_path11 = require("node:path");
     import_better_sqlite33 = __toESM(require("better-sqlite3"), 1);
     init_collection_registry();
@@ -48543,7 +48675,7 @@ var init_native_index_manager = __esm({
         this.exportDir = opts.exportDir;
         this.refreshTtlMs = opts.refreshTtlMs ?? 15e3;
         if (opts.indexPath !== ":memory:") {
-          (0, import_node_fs9.mkdirSync)((0, import_node_path11.dirname)(opts.indexPath), { recursive: true });
+          (0, import_node_fs11.mkdirSync)((0, import_node_path11.dirname)(opts.indexPath), { recursive: true });
         }
         this.db = new import_better_sqlite33.default(opts.indexPath);
         this.backend = new Fts5Backend({ db: this.db });
@@ -48563,15 +48695,15 @@ var init_native_index_manager = __esm({
         const onDisk = /* @__PURE__ */ new Map();
         for (const def of getExportableCollections()) {
           const dir = (0, import_node_path11.join)(this.exportDir, def.sourceSubdir);
-          if (!(0, import_node_fs9.existsSync)(dir))
+          if (!(0, import_node_fs11.existsSync)(dir))
             continue;
-          for (const name of (0, import_node_fs9.readdirSync)(dir)) {
+          for (const name of (0, import_node_fs11.readdirSync)(dir)) {
             if (!name.endsWith(".md"))
               continue;
             const path = (0, import_node_path11.join)(dir, name);
             let mtimeMs;
             try {
-              mtimeMs = (0, import_node_fs9.statSync)(path).mtimeMs;
+              mtimeMs = (0, import_node_fs11.statSync)(path).mtimeMs;
             } catch {
               continue;
             }
@@ -48591,7 +48723,7 @@ var init_native_index_manager = __esm({
             continue;
           let content;
           try {
-            content = (0, import_node_fs9.readFileSync)(path, "utf8");
+            content = (0, import_node_fs11.readFileSync)(path, "utf8");
           } catch {
             continue;
           }
@@ -48722,11 +48854,11 @@ var init_rerank_client = __esm({
 });
 
 // ../bobs-big-brain-registrar/packages/qmd-adapter/dist/rerank/rerank-cache.js
-var import_node_fs10, import_node_path12, import_better_sqlite34, RerankCache;
+var import_node_fs12, import_node_path12, import_better_sqlite34, RerankCache;
 var init_rerank_cache = __esm({
   "../bobs-big-brain-registrar/packages/qmd-adapter/dist/rerank/rerank-cache.js"() {
     "use strict";
-    import_node_fs10 = require("node:fs");
+    import_node_fs12 = require("node:fs");
     import_node_path12 = require("node:path");
     import_better_sqlite34 = __toESM(require("better-sqlite3"), 1);
     init_dist2();
@@ -48742,7 +48874,7 @@ var init_rerank_cache = __esm({
         this.modelId = opts.modelId;
         this.modelVersion = opts.modelVersion;
         if (opts.path !== ":memory:") {
-          (0, import_node_fs10.mkdirSync)((0, import_node_path12.dirname)(opts.path), { recursive: true });
+          (0, import_node_fs12.mkdirSync)((0, import_node_path12.dirname)(opts.path), { recursive: true });
         }
         this.db = new import_better_sqlite34.default(opts.path);
         this.db.pragma("journal_mode = WAL");
@@ -48811,11 +48943,11 @@ function resolveCitationPath(exportDir, citation) {
     return null;
   return (0, import_node_path13.join)(exportDir, def.sourceSubdir, fileName);
 }
-var import_node_fs11, import_node_path13, DEFAULT_CANDIDATE_WINDOW, DEFAULT_RERANK_TOP_N, DEFAULT_MAX_DOC_CHARS, RerankStage;
+var import_node_fs13, import_node_path13, DEFAULT_CANDIDATE_WINDOW, DEFAULT_RERANK_TOP_N, DEFAULT_MAX_DOC_CHARS, RerankStage;
 var init_rerank_stage = __esm({
   "../bobs-big-brain-registrar/packages/qmd-adapter/dist/rerank/rerank-stage.js"() {
     "use strict";
-    import_node_fs11 = require("node:fs");
+    import_node_fs13 = require("node:fs");
     import_node_path13 = require("node:path");
     init_dist2();
     init_collection_registry();
@@ -48891,7 +49023,7 @@ var init_rerank_stage = __esm({
         const path = resolveCitationPath(this.exportDir, hit.file);
         if (path !== null) {
           try {
-            return (0, import_node_fs11.readFileSync)(path, "utf8").slice(0, this.maxDocChars);
+            return (0, import_node_fs13.readFileSync)(path, "utf8").slice(0, this.maxDocChars);
           } catch {
           }
         }
@@ -49006,11 +49138,11 @@ var init_embed_client = __esm({
 });
 
 // ../bobs-big-brain-registrar/packages/qmd-adapter/dist/dense/dense-index.js
-var import_node_fs12, import_node_path14, import_better_sqlite35, sqliteVec, DENSE_SNIPPET_CHARS, DenseVecIndex;
+var import_node_fs14, import_node_path14, import_better_sqlite35, sqliteVec, DENSE_SNIPPET_CHARS, DenseVecIndex;
 var init_dense_index = __esm({
   "../bobs-big-brain-registrar/packages/qmd-adapter/dist/dense/dense-index.js"() {
     "use strict";
-    import_node_fs12 = require("node:fs");
+    import_node_fs14 = require("node:fs");
     import_node_path14 = require("node:path");
     import_better_sqlite35 = __toESM(require("better-sqlite3"), 1);
     sqliteVec = __toESM(require("sqlite-vec"), 1);
@@ -49021,7 +49153,7 @@ var init_dense_index = __esm({
       dims;
       constructor(opts) {
         if (opts.path !== ":memory:") {
-          (0, import_node_fs12.mkdirSync)((0, import_node_path14.dirname)(opts.path), { recursive: true });
+          (0, import_node_fs14.mkdirSync)((0, import_node_path14.dirname)(opts.path), { recursive: true });
         }
         this.db = new import_better_sqlite35.default(opts.path);
         sqliteVec.load(this.db);
@@ -49147,11 +49279,11 @@ var init_dense_index = __esm({
 function delay(ms) {
   return new Promise((resolve4) => setTimeout(resolve4, ms));
 }
-var import_node_fs13, import_node_path15, DEFAULT_DENSE_MAX_DOC_CHARS, DEFAULT_DENSE_BATCH_SIZE, DenseIndexer;
+var import_node_fs15, import_node_path15, DEFAULT_DENSE_MAX_DOC_CHARS, DEFAULT_DENSE_BATCH_SIZE, DenseIndexer;
 var init_dense_indexer = __esm({
   "../bobs-big-brain-registrar/packages/qmd-adapter/dist/dense/dense-indexer.js"() {
     "use strict";
-    import_node_fs13 = require("node:fs");
+    import_node_fs15 = require("node:fs");
     import_node_path15 = require("node:path");
     init_dist2();
     init_collection_registry();
@@ -49206,14 +49338,14 @@ var init_dense_indexer = __esm({
         const onDisk = /* @__PURE__ */ new Map();
         for (const def of getExportableCollections()) {
           const dir = (0, import_node_path15.join)(this.exportDir, def.sourceSubdir);
-          if (!(0, import_node_fs13.existsSync)(dir))
+          if (!(0, import_node_fs15.existsSync)(dir))
             continue;
-          for (const name of (0, import_node_fs13.readdirSync)(dir)) {
+          for (const name of (0, import_node_fs15.readdirSync)(dir)) {
             if (!name.endsWith(".md"))
               continue;
             let raw;
             try {
-              raw = (0, import_node_fs13.readFileSync)((0, import_node_path15.join)(dir, name), "utf8");
+              raw = (0, import_node_fs15.readFileSync)((0, import_node_path15.join)(dir, name), "utf8");
             } catch {
               continue;
             }
@@ -49397,11 +49529,11 @@ function buildRerankStage(config2) {
     return null;
   }
 }
-var import_node_fs14, import_node_path16, NATIVE_SEARCH_K, DENSE_SEARCH_K, DENSE_INDEX_TIMEOUT_MS, QmdAdapter;
+var import_node_fs16, import_node_path16, NATIVE_SEARCH_K, DENSE_SEARCH_K, DENSE_INDEX_TIMEOUT_MS, QmdAdapter;
 var init_adapter = __esm({
   "../bobs-big-brain-registrar/packages/qmd-adapter/dist/adapter.js"() {
     "use strict";
-    import_node_fs14 = require("node:fs");
+    import_node_fs16 = require("node:fs");
     import_node_path16 = require("node:path");
     init_real_executor();
     init_collection_manager();
@@ -49630,7 +49762,7 @@ var init_adapter = __esm({
        */
       async ensureCollections() {
         for (const def of getExportableCollections()) {
-          (0, import_node_fs14.mkdirSync)((0, import_node_path16.join)(this.exportDir, def.sourceSubdir), { recursive: true });
+          (0, import_node_fs16.mkdirSync)((0, import_node_path16.join)(this.exportDir, def.sourceSubdir), { recursive: true });
         }
         return this.collections.ensureCollections(this.exportDir);
       }
@@ -49639,10 +49771,65 @@ var init_adapter = __esm({
 });
 
 // ../bobs-big-brain-registrar/packages/qmd-adapter/dist/weights/verify-weights.js
+function resolveQmdModelsDir(env = process.env) {
+  const cacheHome = env["XDG_CACHE_HOME"]?.trim() || (0, import_node_path17.join)((0, import_node_os5.homedir)(), ".cache");
+  return (0, import_node_path17.join)(cacheHome, "qmd", "models");
+}
+async function verifyWeights(manifest, modelsDir = resolveQmdModelsDir()) {
+  const results = [];
+  for (const model of manifest.models) {
+    const path = (0, import_node_path17.join)(modelsDir, model.file);
+    const base = {
+      id: model.id,
+      file: model.file,
+      status: "ok",
+      expectedSha256: model.sha256,
+      expectedSize: model.size
+    };
+    if (!(0, import_node_fs17.existsSync)(path)) {
+      results.push({ ...base, status: "missing" });
+      continue;
+    }
+    const actualSize = (0, import_node_fs17.statSync)(path).size;
+    base.actualSize = actualSize;
+    if (actualSize !== model.size) {
+      results.push({ ...base, status: "size-mismatch" });
+      continue;
+    }
+    const actualSha256 = await computeFileHash(path);
+    base.actualSha256 = actualSha256;
+    if (actualSha256 !== model.sha256) {
+      results.push({ ...base, status: "hash-mismatch" });
+      continue;
+    }
+    results.push(base);
+  }
+  return { ok: results.every((r) => r.status === "ok"), modelsDir, results };
+}
+async function assertWeightsVerified(manifest, modelsDir = resolveQmdModelsDir()) {
+  const result = await verifyWeights(manifest, modelsDir);
+  if (!result.ok) {
+    throw new WeightIntegrityError(result);
+  }
+  return result;
+}
+var import_node_fs17, import_node_os5, import_node_path17, WeightIntegrityError;
 var init_verify_weights = __esm({
   "../bobs-big-brain-registrar/packages/qmd-adapter/dist/weights/verify-weights.js"() {
     "use strict";
+    import_node_fs17 = require("node:fs");
+    import_node_os5 = require("node:os");
+    import_node_path17 = require("node:path");
     init_dist2();
+    WeightIntegrityError = class extends Error {
+      result;
+      constructor(result) {
+        const bad = result.results.filter((r) => r.status !== "ok");
+        super(`qmd model-weight integrity check FAILED (fail-closed) in ${result.modelsDir}: ` + bad.map((r) => `${r.id} [${r.status}]`).join(", ") + ". The retrieval brain's weights do not match the pinned manifest \u2014 refusing to use them.");
+        this.result = result;
+        this.name = "WeightIntegrityError";
+      }
+    };
   }
 });
 
@@ -49656,6 +49843,63 @@ var init_weights = __esm({
 });
 
 // ../bobs-big-brain-registrar/packages/qmd-adapter/dist/eval/metrics.js
+function recallAtK(retrieved, relevant, k) {
+  if (relevant.size === 0)
+    return 0;
+  const found = /* @__PURE__ */ new Set();
+  for (const [i, id] of retrieved.entries()) {
+    if (i >= k)
+      break;
+    if (relevant.has(id))
+      found.add(id);
+  }
+  return found.size / relevant.size;
+}
+function dcgAtK(retrieved, relevant, k) {
+  const seen = /* @__PURE__ */ new Set();
+  let dcg = 0;
+  for (const [i, id] of retrieved.entries()) {
+    if (i >= k)
+      break;
+    if (relevant.has(id) && !seen.has(id)) {
+      seen.add(id);
+      dcg += 1 / Math.log2(i + 2);
+    }
+  }
+  return dcg;
+}
+function ndcgAtK(retrieved, relevant, k) {
+  if (relevant.size === 0)
+    return 0;
+  const dcg = dcgAtK(retrieved, relevant, k);
+  const idealHits = Math.min(relevant.size, k);
+  let idcg = 0;
+  for (let i = 0; i < idealHits; i++) {
+    idcg += 1 / Math.log2(i + 2);
+  }
+  return idcg === 0 ? 0 : dcg / idcg;
+}
+function famaAtK(retrieved, valid, obsolete, k) {
+  const mpa = recallAtK(retrieved, valid, k);
+  const obsoleteRetrieved = [];
+  for (const [i, id] of retrieved.entries()) {
+    if (i >= k)
+      break;
+    if (obsolete.has(id) && !obsoleteRetrieved.includes(id))
+      obsoleteRetrieved.push(id);
+  }
+  const faa = obsolete.size === 0 ? 1 : 1 - obsoleteRetrieved.length / obsolete.size;
+  const total = valid.size + obsolete.size;
+  const lambda = total === 0 ? 0 : obsolete.size / total;
+  return { mpa, faa, lambda, fama: Math.max(0, mpa - lambda * (1 - faa)), obsoleteRetrieved };
+}
+function reciprocalRank(retrieved, relevant) {
+  for (const [i, id] of retrieved.entries()) {
+    if (relevant.has(id))
+      return 1 / (i + 1);
+  }
+  return 0;
+}
 var init_metrics = __esm({
   "../bobs-big-brain-registrar/packages/qmd-adapter/dist/eval/metrics.js"() {
     "use strict";
@@ -49663,17 +49907,108 @@ var init_metrics = __esm({
 });
 
 // ../bobs-big-brain-registrar/packages/qmd-adapter/dist/eval/run-eval.js
+async function runEval(dataset, retrieve, opts = {}) {
+  const k = opts.k ?? 10;
+  const backend = opts.backend ?? "unknown";
+  const perQuery = [];
+  for (const q of dataset.queries) {
+    const retrieved = await retrieve(q.query, k, { phase: "scored", queryId: q.id });
+    const relevant = new Set(q.relevant);
+    const fama = famaAtK(retrieved, relevant, new Set(q.obsolete ?? []), k);
+    perQuery.push({
+      id: q.id,
+      query: q.query,
+      kind: q.kind,
+      retrieved,
+      recallAtK: recallAtK(retrieved, relevant, k),
+      ndcgAtK: ndcgAtK(retrieved, relevant, k),
+      famaAtK: fama.fama,
+      obsoleteRetrieved: fama.obsoleteRetrieved
+    });
+  }
+  const n = perQuery.length;
+  const mean = (sel) => n === 0 ? 0 : perQuery.reduce((sum, r) => sum + sel(r), 0) / n;
+  return {
+    dataset: dataset.name,
+    backend,
+    k,
+    queryCount: n,
+    meanRecallAtK: mean((r) => r.recallAtK),
+    meanNdcgAtK: mean((r) => r.ndcgAtK),
+    meanFamaAtK: mean((r) => r.famaAtK ?? 0),
+    obsoleteExposureRate: mean((r) => (r.obsoleteRetrieved ?? []).length > 0 ? 1 : 0),
+    perQuery
+  };
+}
+function formatReport(report) {
+  return [
+    `eval "${report.dataset}" \xB7 backend=${report.backend} \xB7 ${report.queryCount} queries @k=${report.k}`,
+    `  mean Recall@${report.k} = ${report.meanRecallAtK.toFixed(4)}`,
+    `  mean nDCG@${report.k}   = ${report.meanNdcgAtK.toFixed(4)}`,
+    ...report.meanFamaAtK === void 0 ? [] : [
+      `  mean FAMA@${report.k}   = ${report.meanFamaAtK.toFixed(4)}`,
+      `  obsolete exposure = ${(report.obsoleteExposureRate ?? 0).toFixed(4)}`
+    ]
+  ].join("\n");
+}
+function bm25IsSufficient(bm25Report) {
+  return bm25Report.meanRecallAtK >= BM25_SUFFICIENCY_RECALL_THRESHOLD;
+}
+var BM25_SUFFICIENCY_RECALL_THRESHOLD;
 var init_run_eval = __esm({
   "../bobs-big-brain-registrar/packages/qmd-adapter/dist/eval/run-eval.js"() {
     "use strict";
     init_metrics();
+    BM25_SUFFICIENCY_RECALL_THRESHOLD = 0.85;
   }
 });
 
 // ../bobs-big-brain-registrar/packages/qmd-adapter/dist/eval/datasets/seed-queries.js
+var SEED_EVAL_DATASET;
 var init_seed_queries = __esm({
   "../bobs-big-brain-registrar/packages/qmd-adapter/dist/eval/datasets/seed-queries.js"() {
     "use strict";
+    SEED_EVAL_DATASET = {
+      name: "governed-second-brain-seed",
+      idSpace: "qmd:// citation",
+      queries: [
+        {
+          id: "q1",
+          kind: "lexical",
+          query: "EmbeddingGemma-300M MTEB score",
+          relevant: ["qmd://example/embeddinggemma.md"],
+          notes: "exact model name + metric \u2014 BM25 should nail this"
+        },
+        {
+          id: "q2",
+          kind: "semantic",
+          query: "how do I make the brain forget something outdated",
+          relevant: ["qmd://example/lifecycle-transitions.md"],
+          notes: 'paraphrase of "retire/deprecate a memory" \u2014 BM25 likely misses'
+        },
+        {
+          id: "q3",
+          kind: "semantic",
+          query: "proving nobody tampered with the record after the fact",
+          relevant: ["qmd://example/audit-anchor.md", "qmd://example/hash-chain.md"],
+          notes: "concept query \u2192 the tamper-evidence docs; two gold docs"
+        },
+        {
+          id: "q4",
+          kind: "lexical",
+          query: "qmd query hybrid reranking",
+          relevant: ["qmd://example/qmd-retrieval.md"],
+          notes: "exact qmd terms"
+        },
+        {
+          id: "q5",
+          kind: "semantic",
+          query: "why is the model not allowed to write to durable storage directly",
+          relevant: ["qmd://example/compile-then-govern-thesis.md"],
+          notes: "the propose-vs-dispose thesis, asked in plain language"
+        }
+      ]
+    };
   }
 });
 
@@ -49772,6 +50107,35 @@ var init_dense = __esm({
 });
 
 // ../bobs-big-brain-registrar/packages/qmd-adapter/dist/reindex/reindex.js
+async function reindex(adapter) {
+  try {
+    const ensureResult = await adapter.ensureCollections();
+    if (!ensureResult.ok) {
+      return { ok: false, error: ensureResult.error };
+    }
+    const updateResult = await adapter.update();
+    if (!updateResult.ok) {
+      return { ok: false, error: updateResult.error };
+    }
+    const dense = await adapter.denseSync();
+    return {
+      ok: true,
+      value: {
+        collectionsCreated: ensureResult.value,
+        indexUpdated: true,
+        ...dense === null ? {} : { dense }
+      }
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error: {
+        code: "command_failed",
+        message: error instanceof Error ? error.message : String(error)
+      }
+    };
+  }
+}
 var init_reindex = __esm({
   "../bobs-big-brain-registrar/packages/qmd-adapter/dist/reindex/reindex.js"() {
     "use strict";
@@ -49779,17 +50143,166 @@ var init_reindex = __esm({
 });
 
 // ../bobs-big-brain-registrar/packages/qmd-adapter/dist/canary/search-canary.js
+async function runControls(adapter, controls) {
+  const results = [];
+  for (const control of controls) {
+    const minHits = control.minHits ?? 1;
+    const scope = control.scope ?? "all";
+    const searchResult = await adapter.search.search(control.query, scope);
+    if (!searchResult.ok) {
+      results.push({
+        query: control.query,
+        minHits,
+        hits: 0,
+        passed: false,
+        error: searchResult.error
+      });
+      continue;
+    }
+    const hits = searchResult.value.length;
+    results.push({ query: control.query, minHits, hits, passed: hits >= minHits });
+  }
+  return results;
+}
+function runStalenessGate(maxStalenessSeconds, probe) {
+  let stalenessSeconds;
+  try {
+    stalenessSeconds = probe();
+  } catch {
+    stalenessSeconds = null;
+  }
+  return {
+    stalenessSeconds,
+    maxStalenessSeconds,
+    passed: stalenessSeconds === null || stalenessSeconds <= maxStalenessSeconds
+  };
+}
+async function runSearchCanary(adapter, tenantId, options = {}) {
+  const controls = options.controls ?? DEFAULT_CANARY_CONTROLS;
+  const staleness = options.maxStalenessSeconds !== void 0 && options.stalenessProbe !== void 0 ? runStalenessGate(options.maxStalenessSeconds, options.stalenessProbe) : void 0;
+  const stalenessPassed = staleness?.passed ?? true;
+  if (tenantId !== adapter.boundTenantId) {
+    return {
+      healthy: false,
+      tenantId,
+      controls: controls.map((c) => ({
+        query: c.query,
+        minHits: c.minHits ?? 1,
+        hits: 0,
+        passed: false
+      })),
+      staleness
+    };
+  }
+  const firstPass = await runControls(adapter, controls);
+  const firstHealthy = firstPass.every((c) => c.passed);
+  if (firstHealthy || !options.heal) {
+    return { healthy: firstHealthy && stalenessPassed, tenantId, controls: firstPass, staleness };
+  }
+  const reindexResult = await reindex(adapter);
+  const secondPass = await runControls(adapter, controls);
+  const recheckHealthy = secondPass.every((c) => c.passed);
+  return {
+    healthy: recheckHealthy && stalenessPassed,
+    tenantId,
+    controls: secondPass,
+    staleness,
+    healed: { attempted: true, reindexOk: reindexResult.ok, recheckHealthy }
+  };
+}
+function formatCanaryReport(report) {
+  const header = report.healthy ? `SEARCH HEALTHY (tenant=${report.tenantId})` : `SEARCH DEGRADED (tenant=${report.tenantId})`;
+  const lines = report.controls.map((c) => {
+    const status2 = c.passed ? "OK " : "FAIL";
+    const err2 = c.error ? ` [${c.error.code}: ${c.error.message}]` : "";
+    return `  [${status2}] "${c.query}" -> ${c.hits} hits (min ${c.minHits})${err2}`;
+  });
+  if (report.staleness) {
+    const s = report.staleness;
+    const status2 = s.passed ? "OK " : "FAIL";
+    const value = s.stalenessSeconds === null ? "unmeasured" : `${s.stalenessSeconds}s`;
+    lines.push(`  [${status2}] index staleness -> ${value} (max ${s.maxStalenessSeconds}s)`);
+  }
+  if (report.healed) {
+    lines.push(`  heal: attempted, reindexOk=${report.healed.reindexOk}, recheckHealthy=${report.healed.recheckHealthy}`);
+  }
+  return [header, ...lines].join("\n");
+}
+var DEFAULT_CANARY_CONTROLS;
 var init_search_canary = __esm({
   "../bobs-big-brain-registrar/packages/qmd-adapter/dist/canary/search-canary.js"() {
     "use strict";
     init_reindex();
+    DEFAULT_CANARY_CONTROLS = [
+      { query: "audit chain receipts" },
+      { query: "governed brain backup" },
+      { query: "compile then govern architecture" },
+      // Estate / ops themes that must stay searchable (day-1 operator brain).
+      // If any returns 0 hits, the index is empty/stale/misrouted or corpus was gutted.
+      { query: "SOPS age secrets" },
+      { query: "beads issue tracking" },
+      { query: "Contabo VPS intentsolutions" }
+    ];
   }
 });
 
 // ../bobs-big-brain-registrar/packages/qmd-adapter/dist/scrub/export-truth.js
+function qmdKey(collection, path) {
+  return `${collection}\0${path}`;
+}
+function isHandelizeIdentity(name) {
+  if (name.includes("/") || name.includes("___"))
+    return false;
+  const match = /^(.*)(\.[a-z0-9]+)$/i.exec(name);
+  const stem = match === null ? name : match[1];
+  const cleaned = stem.replace(/[^\p{L}\p{N}$]+/gu, "-").replace(/^-+|-+$/g, "");
+  return cleaned === stem && stem.length > 0;
+}
+function loadExportTruth(exportDir, denseMaxDocChars = DEFAULT_DENSE_MAX_DOC_CHARS) {
+  const byDocId = /* @__PURE__ */ new Map();
+  for (const def of getExportableCollections()) {
+    const dir = (0, import_node_path18.join)(exportDir, def.sourceSubdir);
+    if (!(0, import_node_fs18.existsSync)(dir))
+      continue;
+    for (const name of (0, import_node_fs18.readdirSync)(dir)) {
+      if (!name.endsWith(".md"))
+        continue;
+      let content;
+      try {
+        content = (0, import_node_fs18.readFileSync)((0, import_node_path18.join)(dir, name), "utf8");
+      } catch {
+        continue;
+      }
+      byDocId.set(`qmd://${def.name}/${name}`, {
+        docId: `qmd://${def.name}/${name}`,
+        collection: def.name,
+        name,
+        content,
+        qmdHash: computeContentHash(content),
+        denseHash: computeContentHash(content.slice(0, denseMaxDocChars))
+      });
+    }
+  }
+  return { exportDir, present: byDocId.size > 0, byDocId };
+}
+function qmdTruthIndex(truth) {
+  const map = /* @__PURE__ */ new Map();
+  for (const doc of truth.byDocId.values()) {
+    if (isHandelizeIdentity(doc.name))
+      map.set(qmdKey(doc.collection, doc.name), doc);
+  }
+  return map;
+}
+function memoryIdOfPath(path) {
+  const base = path.slice(path.lastIndexOf("/") + 1);
+  return base.endsWith(".md") ? base.slice(0, -3) : base;
+}
+var import_node_fs18, import_node_path18;
 var init_export_truth = __esm({
   "../bobs-big-brain-registrar/packages/qmd-adapter/dist/scrub/export-truth.js"() {
     "use strict";
+    import_node_fs18 = require("node:fs");
+    import_node_path18 = require("node:path");
     init_dist2();
     init_collection_registry();
     init_dense_indexer();
@@ -49797,45 +50310,609 @@ var init_export_truth = __esm({
 });
 
 // ../bobs-big-brain-registrar/packages/qmd-adapter/dist/scrub/sqlite-open.js
-var import_better_sqlite36, sqliteVec2;
+function isBusyError(error) {
+  const code = error !== null && typeof error === "object" && "code" in error ? String(error.code) : "";
+  return code.startsWith("SQLITE_BUSY") || code.startsWith("SQLITE_LOCKED");
+}
+function errorMessage(error) {
+  return error instanceof Error ? error.message : String(error);
+}
+function walFrames(path) {
+  const wal = `${path}-wal`;
+  return (0, import_node_fs19.existsSync)(wal) ? (0, import_node_fs19.statSync)(wal).size : 0;
+}
+function openForDryRun(path) {
+  if (walFrames(path) === 0) {
+    const buffer = (0, import_node_fs19.readFileSync)(path);
+    if (buffer.length > 19 && buffer[18] === 2) {
+      buffer[18] = 1;
+      buffer[19] = 1;
+    }
+    return new import_better_sqlite36.default(buffer, { readonly: true });
+  }
+  if (!(0, import_node_fs19.existsSync)(`${path}-shm`)) {
+    throw new Error("the WAL holds frames but there is no -shm; a dry run cannot read it without creating one");
+  }
+  return new import_better_sqlite36.default(path, { readonly: true, fileMustExist: true });
+}
+function openForScrub(path, busyTimeoutMs) {
+  return new import_better_sqlite36.default(path, { fileMustExist: true, timeout: busyTimeoutMs });
+}
+function hasTable(db, name) {
+  return db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").get(name) !== void 0;
+}
+function loadVecIfNeeded(db, vecTable) {
+  if (!hasTable(db, vecTable))
+    return false;
+  sqliteVec2.load(db);
+  return true;
+}
+function truncateWal(db) {
+  const rows = db.pragma("wal_checkpoint(TRUNCATE)");
+  return rows[0] !== void 0 && rows[0].busy === 0;
+}
+var import_node_fs19, import_better_sqlite36, sqliteVec2;
 var init_sqlite_open = __esm({
   "../bobs-big-brain-registrar/packages/qmd-adapter/dist/scrub/sqlite-open.js"() {
     "use strict";
+    import_node_fs19 = require("node:fs");
     import_better_sqlite36 = __toESM(require("better-sqlite3"), 1);
     sqliteVec2 = __toESM(require("sqlite-vec"), 1);
   }
 });
 
 // ../bobs-big-brain-registrar/packages/qmd-adapter/dist/scrub/schema-guard.js
+function columnsOf(db, table) {
+  const rows = db.prepare(`SELECT name FROM pragma_table_info(?)`).all(table);
+  return rows.map((row) => row.name);
+}
+function sameSet(a, b) {
+  if (a.length !== b.length)
+    return false;
+  const set = new Set(a);
+  return b.every((item) => set.has(item));
+}
+function checkTable(db, shape) {
+  const row = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?").get(shape.table);
+  if (row === void 0) {
+    return shape.optional === true ? [] : [`table ${shape.table} is missing`];
+  }
+  const problems = [];
+  if (shape.fts5 === true) {
+    const sql = (row.sql ?? "").toLowerCase();
+    if (!/using\s+fts5\s*\(/.test(sql))
+      problems.push(`${shape.table} is not an FTS5 table`);
+    if (/\bcontent\s*=/.test(sql)) {
+      problems.push(`${shape.table} is an external-content or contentless FTS5 table`);
+    }
+  }
+  const actual = columnsOf(db, shape.table);
+  if (!sameSet(actual, shape.columns)) {
+    problems.push(`${shape.table} columns are [${[...actual].sort().join(", ")}], expected [${[...shape.columns].sort().join(", ")}]`);
+  }
+  return problems;
+}
+function checkSchema(db, expected) {
+  return expected.flatMap((shape) => checkTable(db, shape));
+}
+var PINNED_QMD_VERSION, QMD_INDEX_SCHEMA, NATIVE_INDEX_SCHEMA, DENSE_INDEX_SCHEMA;
 var init_schema_guard = __esm({
   "../bobs-big-brain-registrar/packages/qmd-adapter/dist/scrub/schema-guard.js"() {
     "use strict";
+    PINNED_QMD_VERSION = "2.5.3";
+    QMD_INDEX_SCHEMA = [
+      {
+        table: "documents",
+        columns: ["id", "collection", "path", "title", "hash", "created_at", "modified_at", "active"]
+      },
+      { table: "content", columns: ["hash", "doc", "created_at"] },
+      { table: "documents_fts", columns: ["filepath", "title", "body"], fts5: true },
+      {
+        table: "content_vectors",
+        columns: ["hash", "seq", "pos", "model", "embedded_at", "embed_fingerprint", "total_chunks"],
+        optional: true
+      },
+      { table: "llm_cache", columns: ["hash", "result", "created_at"], optional: true }
+    ];
+    NATIVE_INDEX_SCHEMA = [
+      { table: "docs", columns: ["id", "collection", "content"], fts5: true },
+      { table: "files", columns: ["path", "doc_id", "mtime_ms"], optional: true }
+    ];
+    DENSE_INDEX_SCHEMA = [
+      {
+        table: "dense_docs",
+        columns: ["rowid", "doc_id", "collection", "content_hash", "snippet", "embedded_ms"]
+      },
+      { table: "dense_meta", columns: ["key", "value"] }
+    ];
   }
 });
 
 // ../bobs-big-brain-registrar/packages/qmd-adapter/dist/scrub/index-files.js
+function emptyCounts() {
+  return {
+    targetedDocuments: 0,
+    staleDocuments: 0,
+    inactiveDocuments: 0,
+    ftsRows: 0,
+    orphanContent: 0,
+    orphanVectors: 0,
+    cacheRows: 0,
+    fileRows: 0
+  };
+}
+function totalRemovals(counts) {
+  return Object.values(counts).reduce((sum, n) => sum + n, 0);
+}
+function classify(ctx, memoryPath, matchesExport) {
+  if (ctx.dropMemoryIds.has(memoryIdOfPath(memoryPath)))
+    return "targeted";
+  if (!ctx.truth.present)
+    return null;
+  return matchesExport() ? null : "stale";
+}
+function runDeletes(db, sql, keys) {
+  if (keys.length === 0)
+    return;
+  const stmt = db.prepare(sql);
+  for (const key of keys)
+    stmt.run(key);
+}
+function planQmd(db, ctx) {
+  const counts = emptyCounts();
+  const docs = db.prepare("SELECT id, collection, path, hash, active FROM documents").all();
+  const deleteIds = [];
+  const keepIds = /* @__PURE__ */ new Set();
+  const keepHashes = /* @__PURE__ */ new Set();
+  let activeDocuments = 0;
+  for (const doc of docs) {
+    if (doc.active !== 1) {
+      counts.inactiveDocuments += 1;
+      deleteIds.push(doc.id);
+      continue;
+    }
+    activeDocuments += 1;
+    const verdict = classify(ctx, doc.path, () => ctx.qmdTruth.get(qmdKey(doc.collection, doc.path))?.qmdHash === doc.hash);
+    if (verdict === null) {
+      keepIds.add(doc.id);
+      keepHashes.add(doc.hash);
+      continue;
+    }
+    counts[verdict === "targeted" ? "targetedDocuments" : "staleDocuments"] += 1;
+    deleteIds.push(doc.id);
+  }
+  const ftsRowids = db.prepare("SELECT rowid AS id FROM documents_fts").all().map((row) => row.id).filter((id) => !keepIds.has(id));
+  counts.ftsRows = ftsRowids.length;
+  const orphanHashes = db.prepare("SELECT hash FROM content").all().map((row) => row.hash).filter((hash) => !keepHashes.has(hash));
+  counts.orphanContent = orphanHashes.length;
+  const orphanVectors = hasTable(db, "content_vectors") ? db.prepare("SELECT hash, seq FROM content_vectors").all().filter((row) => !keepHashes.has(row.hash)) : [];
+  counts.orphanVectors = orphanVectors.length;
+  const hasCache = hasTable(db, "llm_cache");
+  counts.cacheRows = hasCache ? db.prepare("SELECT count(*) AS n FROM llm_cache").get().n : 0;
+  return {
+    counts,
+    activeDocuments,
+    apply: (target) => {
+      runDeletes(target, "DELETE FROM documents WHERE id = ?", deleteIds);
+      runDeletes(target, "DELETE FROM documents_fts WHERE rowid = ?", ftsRowids);
+      runDeletes(target, "DELETE FROM content WHERE hash = ?", orphanHashes);
+      if (hasTable(target, "vectors_vec")) {
+        runDeletes(target, "DELETE FROM vectors_vec WHERE hash_seq = ?", orphanVectors.map((row) => `${row.hash}_${row.seq}`));
+      }
+      const delVector = target.prepare("DELETE FROM content_vectors WHERE hash = ? AND seq = ?");
+      for (const row of orphanVectors)
+        delVector.run(row.hash, row.seq);
+      if (hasCache)
+        target.exec("DELETE FROM llm_cache");
+      target.exec("INSERT INTO documents_fts(documents_fts) VALUES ('rebuild')");
+      target.exec("INSERT INTO documents_fts(documents_fts) VALUES ('optimize')");
+    }
+  };
+}
+function planNative(db, ctx) {
+  const counts = emptyCounts();
+  const rows = db.prepare("SELECT rowid, id, content FROM docs").all();
+  const deleteRowids = [];
+  const dropFileDocIds = /* @__PURE__ */ new Set();
+  const seen = /* @__PURE__ */ new Set();
+  for (const row of rows) {
+    const verdict = classify(ctx, row.id, () => {
+      const exported = ctx.truth.byDocId.get(row.id);
+      return exported !== void 0 && exported.content === row.content && !seen.has(row.id);
+    });
+    if (verdict === null) {
+      seen.add(row.id);
+      continue;
+    }
+    deleteRowids.push(row.rowid);
+    if (verdict === "targeted") {
+      counts.targetedDocuments += 1;
+    } else {
+      counts.staleDocuments += 1;
+      dropFileDocIds.add(row.id);
+    }
+  }
+  for (const docId of seen)
+    dropFileDocIds.delete(docId);
+  const hasFiles = hasTable(db, "files");
+  const fileRows = hasFiles ? db.prepare("SELECT doc_id FROM files").all().filter((row) => dropFileDocIds.has(row.doc_id)).length : 0;
+  counts.fileRows = fileRows;
+  return {
+    counts,
+    activeDocuments: rows.length,
+    apply: (target) => {
+      runDeletes(target, "DELETE FROM docs WHERE rowid = ?", deleteRowids);
+      if (hasFiles)
+        runDeletes(target, "DELETE FROM files WHERE doc_id = ?", [...dropFileDocIds]);
+      target.exec("INSERT INTO docs(docs) VALUES ('rebuild')");
+      target.exec("INSERT INTO docs(docs) VALUES ('optimize')");
+    }
+  };
+}
+function planDense(db, ctx) {
+  const counts = emptyCounts();
+  const rows = db.prepare("SELECT rowid, doc_id, content_hash FROM dense_docs").all();
+  const deleteRowids = [];
+  const keepRowids = /* @__PURE__ */ new Set();
+  for (const row of rows) {
+    const verdict = classify(ctx, row.doc_id, () => ctx.truth.byDocId.get(row.doc_id)?.denseHash === row.content_hash);
+    if (verdict === null) {
+      keepRowids.add(row.rowid);
+      continue;
+    }
+    counts[verdict === "targeted" ? "targetedDocuments" : "staleDocuments"] += 1;
+    deleteRowids.push(row.rowid);
+  }
+  const hasVec = hasTable(db, "dense_vec");
+  const orphanVecRowids = hasVec ? db.prepare("SELECT rowid FROM dense_vec").all().map((row) => row.rowid).filter((rowid) => !keepRowids.has(rowid)) : [];
+  counts.orphanVectors = orphanVecRowids.length;
+  return {
+    counts,
+    activeDocuments: rows.length,
+    apply: (target) => {
+      if (hasVec) {
+        runDeletes(target, "DELETE FROM dense_vec WHERE rowid = ?", orphanVecRowids.map((rowid) => BigInt(rowid)));
+      }
+      runDeletes(target, "DELETE FROM dense_docs WHERE rowid = ?", deleteRowids);
+    }
+  };
+}
+function prepareVec(db, kind) {
+  if (kind.vecTable !== null)
+    loadVecIfNeeded(db, kind.vecTable);
+}
+var INDEX_FILE_KINDS;
 var init_index_files = __esm({
   "../bobs-big-brain-registrar/packages/qmd-adapter/dist/scrub/index-files.js"() {
     "use strict";
     init_export_truth();
     init_sqlite_open();
     init_schema_guard();
+    INDEX_FILE_KINDS = [
+      {
+        kind: "qmd",
+        relativePath: "cache/qmd/index.sqlite",
+        schema: QMD_INDEX_SCHEMA,
+        vecTable: "vectors_vec",
+        plan: planQmd
+      },
+      {
+        kind: "native",
+        relativePath: "native-fts5.sqlite",
+        schema: NATIVE_INDEX_SCHEMA,
+        vecTable: null,
+        plan: planNative
+      },
+      {
+        kind: "dense",
+        relativePath: "dense-vec.sqlite",
+        schema: DENSE_INDEX_SCHEMA,
+        vecTable: "dense_vec",
+        plan: planDense
+      }
+    ];
   }
 });
 
 // ../bobs-big-brain-registrar/packages/qmd-adapter/dist/scrub/index-scrub.js
+function discoverTenants(indexDir) {
+  if (!(0, import_node_fs20.existsSync)(indexDir))
+    return [];
+  return (0, import_node_fs20.readdirSync)(indexDir, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name).filter((tenant) => INDEX_FILE_KINDS.some((kind) => (0, import_node_fs20.existsSync)((0, import_node_path19.join)(indexDir, tenant, kind.relativePath)))).sort();
+}
+function listFilesUnder(dir) {
+  if (!(0, import_node_fs20.existsSync)(dir))
+    return [];
+  const out = [];
+  for (const entry of (0, import_node_fs20.readdirSync)(dir, { withFileTypes: true })) {
+    const path = (0, import_node_path19.join)(dir, entry.name);
+    if (entry.isDirectory())
+      out.push(...listFilesUnder(path));
+    else if (entry.isFile() && (0, import_node_fs20.lstatSync)(path).isFile())
+      out.push(path);
+  }
+  return out.sort();
+}
+function isMassRemoval(plan) {
+  const stale = plan.counts.staleDocuments;
+  return stale > MASS_REMOVAL_FLOOR && stale > Math.ceil(plan.activeDocuments * MASS_REMOVAL_FRACTION);
+}
+function newFileReport(kind, file) {
+  return {
+    kind: kind.kind,
+    file,
+    status: "failed",
+    removed: emptyCounts(),
+    ftsRebuilt: false,
+    walTruncated: false,
+    vacuumed: false,
+    errors: []
+  };
+}
+function dryRunFile(path, kind, ctx, report) {
+  const db = openForDryRun(path);
+  try {
+    prepareVec(db, kind);
+    const problems = checkSchema(db, kind.schema);
+    if (problems.length > 0) {
+      report.status = "schema_refused";
+      report.errors.push(...problems);
+      return;
+    }
+    const plan = kind.plan(db, ctx);
+    report.removed = plan.counts;
+    if (isMassRemoval(plan)) {
+      report.status = "mass_removal_refused";
+      report.errors.push(massRemovalMessage(plan));
+      return;
+    }
+    report.status = totalRemovals(plan.counts) > 0 ? "would_scrub" : "clean";
+  } finally {
+    db.close();
+  }
+}
+function massRemovalMessage(plan) {
+  return `reconcile would remove ${plan.counts.staleDocuments} of ${plan.activeDocuments} documents; reindex this tenant first, check --export-dir, or pass --allow-mass-removal`;
+}
+function deleteAndRebuild(db, kind, ctx, report, allowMassRemoval) {
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    const plan = kind.plan(db, ctx);
+    report.removed = plan.counts;
+    if (!allowMassRemoval && isMassRemoval(plan)) {
+      db.exec("ROLLBACK");
+      report.status = "mass_removal_refused";
+      report.errors.push(massRemovalMessage(plan));
+      return false;
+    }
+    plan.apply(db);
+    db.exec("COMMIT");
+    report.ftsRebuilt = kind.kind !== "dense";
+    return true;
+  } catch (error) {
+    if (db.inTransaction)
+      db.exec("ROLLBACK");
+    throw error;
+  }
+}
+function compact(db, report) {
+  if (!truncateWal(db))
+    report.errors.push("wal-checkpoint: blocked by another connection");
+  db.exec("VACUUM");
+  report.vacuumed = true;
+  report.walTruncated = truncateWal(db);
+  if (!report.walTruncated) {
+    report.errors.push("wal-checkpoint-after-vacuum: blocked by another connection");
+  }
+}
+function liveScrubFile(path, kind, ctx, report, opts) {
+  const db = openForScrub(path, opts.busyTimeoutMs ?? DEFAULT_BUSY_TIMEOUT_MS);
+  try {
+    prepareVec(db, kind);
+    const problems = checkSchema(db, kind.schema);
+    if (problems.length > 0) {
+      report.status = "schema_refused";
+      report.errors.push(...problems);
+      return;
+    }
+    db.pragma("secure_delete = ON");
+    if (!deleteAndRebuild(db, kind, ctx, report, opts.allowMassRemoval === true))
+      return;
+    compact(db, report);
+    report.status = report.errors.length === 0 ? "scrubbed" : "busy";
+  } finally {
+    db.close();
+  }
+}
+function scrubFile(indexDir, tenant, kind, ctx, opts) {
+  const path = (0, import_node_path19.join)(indexDir, tenant, kind.relativePath);
+  if (!(0, import_node_fs20.existsSync)(path))
+    return null;
+  const report = newFileReport(kind, (0, import_node_path19.relative)(indexDir, path));
+  try {
+    if (opts.dryRun === true)
+      dryRunFile(path, kind, ctx, report);
+    else
+      liveScrubFile(path, kind, ctx, report, opts);
+  } catch (error) {
+    report.status = isBusyError(error) ? "busy" : "failed";
+    report.errors.push(isBusyError(error) ? `database is busy (held by another process): ${errorMessage(error)}` : errorMessage(error));
+  }
+  return report;
+}
+function explainResiduals(truth, fragments, residual, dropMemoryIds) {
+  const explainedBy = /* @__PURE__ */ new Set();
+  let unexplained = 0;
+  for (const index of residual) {
+    const fragment = fragments[index];
+    let explained = false;
+    for (const doc of truth.byDocId.values()) {
+      if (dropMemoryIds.has(memoryIdOfPath(doc.name)))
+        continue;
+      if (doc.content.includes(fragment)) {
+        explainedBy.add(doc.docId);
+        explained = true;
+      }
+    }
+    if (!explained)
+      unexplained += 1;
+  }
+  return { unexplained, explainedBy: [...explainedBy].sort() };
+}
+function scanIndexDir(opts, truth, dropMemoryIds) {
+  const fragments = opts.fragments ?? [];
+  const scan = scanFilesForFragments(listFilesUnder(opts.indexDir), fragments);
+  const { unexplained, explainedBy } = explainResiduals(truth, fragments, scan.residualFragmentIndexes, dropMemoryIds);
+  return {
+    filesScanned: scan.filesScanned.length,
+    fragmentsChecked: scan.fragmentCount,
+    residualFragments: scan.residualFragmentIndexes.length,
+    unexplainedResidualFragments: unexplained,
+    residualFiles: scan.hits.map((hit) => ({
+      file: (0, import_node_path19.relative)(opts.indexDir, hit.file),
+      fragments: hit.fragments
+    })),
+    explainedBy
+  };
+}
+function isComplete(tenants, scan, opts) {
+  const filesOk = tenants.every((t) => t.files.every((f) => READ_OK.has(f.status)));
+  if (!filesOk)
+    return false;
+  if (scan === null || opts.dryRun === true)
+    return true;
+  const residual = opts.explainedResidualIsComplete === true ? scan.unexplainedResidualFragments : scan.residualFragments;
+  return residual === 0;
+}
+function scrubIndexes(opts) {
+  const truth = loadExportTruth(opts.exportDir, opts.denseMaxDocChars);
+  const dropMemoryIds = new Set(opts.dropMemoryIds ?? []);
+  const ctx = { truth, qmdTruth: qmdTruthIndex(truth), dropMemoryIds };
+  const warnings = [];
+  if (!truth.present) {
+    warnings.push("export tree is missing or empty: reconcile skipped (only targeted, inactive and orphan rows are removed)");
+  }
+  const indexDirExists = (0, import_node_fs20.existsSync)(opts.indexDir);
+  const tenants = discoverTenants(opts.indexDir).map((tenant) => ({
+    tenant,
+    files: INDEX_FILE_KINDS.map((kind) => scrubFile(opts.indexDir, tenant, kind, ctx, opts)).filter((report) => report !== null)
+  }));
+  const fragmentScan = opts.fragments !== void 0 && opts.fragments.length > 0 ? scanIndexDir(opts, truth, dropMemoryIds) : null;
+  return {
+    indexDir: opts.indexDir,
+    exportDir: opts.exportDir,
+    dryRun: opts.dryRun === true,
+    indexDirExists,
+    exportPresent: truth.present,
+    tenants,
+    fragmentScan,
+    warnings,
+    schemaRefused: tenants.some((t) => t.files.some((f) => f.status === "schema_refused")),
+    complete: isComplete(tenants, fragmentScan, opts)
+  };
+}
+var import_node_fs20, import_node_path19, MASS_REMOVAL_FRACTION, MASS_REMOVAL_FLOOR, DEFAULT_BUSY_TIMEOUT_MS, READ_OK;
 var init_index_scrub = __esm({
   "../bobs-big-brain-registrar/packages/qmd-adapter/dist/scrub/index-scrub.js"() {
     "use strict";
+    import_node_fs20 = require("node:fs");
+    import_node_path19 = require("node:path");
     init_dist3();
     init_export_truth();
     init_index_files();
     init_schema_guard();
     init_sqlite_open();
+    MASS_REMOVAL_FRACTION = 0.25;
+    MASS_REMOVAL_FLOOR = 50;
+    DEFAULT_BUSY_TIMEOUT_MS = 2e3;
+    READ_OK = /* @__PURE__ */ new Set(["clean", "scrubbed", "would_scrub"]);
   }
 });
 
 // ../bobs-big-brain-registrar/packages/qmd-adapter/dist/scrub/format.js
+function countsJson(counts) {
+  return {
+    targeted_documents: counts.targetedDocuments,
+    stale_documents: counts.staleDocuments,
+    inactive_documents: counts.inactiveDocuments,
+    fts_rows: counts.ftsRows,
+    orphan_content: counts.orphanContent,
+    orphan_vectors: counts.orphanVectors,
+    cache_rows: counts.cacheRows,
+    file_rows: counts.fileRows
+  };
+}
+function fileJson(file) {
+  return {
+    kind: file.kind,
+    file: file.file,
+    status: file.status,
+    removed: countsJson(file.removed),
+    fts_rebuilt: file.ftsRebuilt,
+    wal_truncated: file.walTruncated,
+    vacuumed: file.vacuumed,
+    errors: file.errors
+  };
+}
+function indexScrubJson(report) {
+  const scan = report.fragmentScan;
+  return {
+    complete: report.complete,
+    dry_run: report.dryRun,
+    schema_refused: report.schemaRefused,
+    index_dir: report.indexDir,
+    export_dir: report.exportDir,
+    index_dir_exists: report.indexDirExists,
+    export_present: report.exportPresent,
+    warnings: report.warnings,
+    tenants: report.tenants.map((t) => ({ tenant: t.tenant, files: t.files.map(fileJson) })),
+    fragment_scan: scan === null ? null : {
+      files_scanned: scan.filesScanned,
+      fragments_checked: scan.fragmentsChecked,
+      residual_fragments: scan.residualFragments,
+      unexplained_residual_fragments: scan.unexplainedResidualFragments,
+      residual_files: scan.residualFiles,
+      explained_by: scan.explainedBy
+    }
+  };
+}
+function countsText(counts) {
+  const parts = Object.entries(counts).filter(([, n]) => n > 0).map(([name, n]) => `${name}=${n}`);
+  return parts.length === 0 ? "nothing to remove" : parts.join(" ");
+}
+function formatIndexScrub(report) {
+  const verdict = report.complete ? "complete" : "INCOMPLETE";
+  const lines = [
+    `Index scrub${report.dryRun ? " (dry-run \u2014 nothing written)" : ""}: ${verdict}`,
+    `  index dir: ${report.indexDir}${report.indexDirExists ? "" : " (absent \u2014 nothing to scrub)"}`
+  ];
+  for (const warning of report.warnings)
+    lines.push(`  warning: ${warning}`);
+  for (const tenant of report.tenants) {
+    lines.push(`  tenant ${tenant.tenant}:`);
+    for (const file of tenant.files) {
+      lines.push(`    ${file.file} [${file.status}] ${countsText(file.removed)}`);
+      for (const error of file.errors)
+        lines.push(`      ${error}`);
+    }
+  }
+  const scan = report.fragmentScan;
+  if (scan !== null) {
+    lines.push(`  byte scan: ${scan.fragmentsChecked} fragment(s) checked in ${scan.filesScanned} file(s); ${scan.residualFragments} still present, ${scan.unexplainedResidualFragments} unexplained`);
+    for (const hit of scan.residualFiles) {
+      lines.push(`    ${hit.file}: ${hit.fragments} fragment(s)`);
+    }
+    for (const docId of scan.explainedBy)
+      lines.push(`    still exported by ${docId}`);
+  }
+  if (report.schemaRefused) {
+    lines.push("  A file has an unexpected table layout (qmd version drift?) and was NOT touched.", "  Check the pinned qmd version before scrubbing it.");
+  }
+  if (report.tenants.some((t) => t.files.some((f) => f.status === "busy"))) {
+    lines.push("  A database was busy. Stop the brain API and any MCP-using sessions (or wait for a", "  quiet window) and run the scrub again.");
+  }
+  return lines.join("\n") + "\n";
+}
 var init_format = __esm({
   "../bobs-big-brain-registrar/packages/qmd-adapter/dist/scrub/format.js"() {
     "use strict";
@@ -49843,9 +50920,30 @@ var init_format = __esm({
 });
 
 // ../bobs-big-brain-registrar/packages/qmd-adapter/dist/scrub/fragments-file.js
+function readFragmentsFile(path) {
+  let mode;
+  try {
+    const stat = (0, import_node_fs21.lstatSync)(path);
+    if (!stat.isFile())
+      return { ok: false, message: `${path} is not a regular file` };
+    mode = stat.mode & 511;
+  } catch (error) {
+    return { ok: false, message: `cannot stat ${path}: ${error.message}` };
+  }
+  if ((mode & 63) !== 0) {
+    return {
+      ok: false,
+      message: `${path} is mode ${mode.toString(8).padStart(4, "0")}; it must be 0600 (chmod 600)`
+    };
+  }
+  const fragments = (0, import_node_fs21.readFileSync)(path, "utf8").split("\n").map((line) => line.replace(/\r$/, "")).filter((line) => line.trim().length > 0);
+  return { ok: true, fragments };
+}
+var import_node_fs21;
 var init_fragments_file = __esm({
   "../bobs-big-brain-registrar/packages/qmd-adapter/dist/scrub/fragments-file.js"() {
     "use strict";
+    import_node_fs21 = require("node:fs");
   }
 });
 
@@ -49861,6 +50959,106 @@ var init_scrub = __esm({
 });
 
 // ../bobs-big-brain-registrar/packages/qmd-adapter/dist/index.js
+var dist_exports = {};
+__export(dist_exports, {
+  BM25_SUFFICIENCY_RECALL_THRESHOLD: () => BM25_SUFFICIENCY_RECALL_THRESHOLD,
+  CollectionManager: () => CollectionManager,
+  DEFAULT_CANARY_CONTROLS: () => DEFAULT_CANARY_CONTROLS,
+  DEFAULT_CANDIDATE_WINDOW: () => DEFAULT_CANDIDATE_WINDOW,
+  DEFAULT_DENSE_BATCH_SIZE: () => DEFAULT_DENSE_BATCH_SIZE,
+  DEFAULT_DENSE_MAX_DOC_CHARS: () => DEFAULT_DENSE_MAX_DOC_CHARS,
+  DEFAULT_DENSE_URL: () => DEFAULT_DENSE_URL,
+  DEFAULT_EMBED_TIMEOUT_MS: () => DEFAULT_EMBED_TIMEOUT_MS,
+  DEFAULT_KILL_GRACE_MS: () => DEFAULT_KILL_GRACE_MS,
+  DEFAULT_MAINTENANCE_TIMEOUT: () => DEFAULT_MAINTENANCE_TIMEOUT,
+  DEFAULT_MAX_DOC_CHARS: () => DEFAULT_MAX_DOC_CHARS,
+  DEFAULT_QMD_BINARY: () => DEFAULT_QMD_BINARY,
+  DEFAULT_RERANK_TIMEOUT_MS: () => DEFAULT_RERANK_TIMEOUT_MS,
+  DEFAULT_RERANK_TOP_N: () => DEFAULT_RERANK_TOP_N,
+  DEFAULT_TIMEOUT: () => DEFAULT_TIMEOUT,
+  DENSE_INDEX_SCHEMA: () => DENSE_INDEX_SCHEMA,
+  DENSE_SNIPPET_CHARS: () => DENSE_SNIPPET_CHARS,
+  DenseIndexer: () => DenseIndexer,
+  DenseVecIndex: () => DenseVecIndex,
+  EMBEDDINGGEMMA_DOCUMENT_PREFIX: () => EMBEDDINGGEMMA_DOCUMENT_PREFIX,
+  EMBEDDINGGEMMA_QUERY_PREFIX: () => EMBEDDINGGEMMA_QUERY_PREFIX,
+  EmbedClient: () => EmbedClient,
+  Fts5Backend: () => Fts5Backend,
+  IndexLifecycleManager: () => IndexLifecycleManager,
+  KNOWN_COLLECTIONS: () => KNOWN_COLLECTIONS,
+  MockQmdExecutor: () => MockQmdExecutor,
+  NATIVE_INDEX_SCHEMA: () => NATIVE_INDEX_SCHEMA,
+  NativeIndexManager: () => NativeIndexManager,
+  OwnedQmdRuntimeError: () => OwnedQmdRuntimeError,
+  PINNED_QMD_VERSION: () => PINNED_QMD_VERSION,
+  QMD_BIN_ENV: () => QMD_BIN_ENV,
+  QMD_INDEX_DIR: () => QMD_INDEX_DIR,
+  QMD_INDEX_SCHEMA: () => QMD_INDEX_SCHEMA,
+  QMD_NOT_FOUND_EXIT_CODE: () => QMD_NOT_FOUND_EXIT_CODE,
+  QMD_RUNTIME_ENV: () => QMD_RUNTIME_ENV,
+  QMD_TIMEOUT_ENV: () => QMD_TIMEOUT_ENV,
+  QMD_TIMEOUT_EXIT_CODE: () => QMD_TIMEOUT_EXIT_CODE,
+  QMD_WEIGHTS_MANIFEST: () => QMD_WEIGHTS_MANIFEST,
+  QmdAdapter: () => QmdAdapter,
+  QmdBinaryNotFoundError: () => QmdBinaryNotFoundError,
+  RRF_K: () => RRF_K,
+  RealQmdExecutor: () => RealQmdExecutor,
+  RerankCache: () => RerankCache,
+  RerankClient: () => RerankClient,
+  RerankStage: () => RerankStage,
+  SEED_EVAL_DATASET: () => SEED_EVAL_DATASET,
+  SearchClient: () => SearchClient,
+  WeightIntegrityError: () => WeightIntegrityError,
+  assertWeightsVerified: () => assertWeightsVerified,
+  bm25IsSufficient: () => bm25IsSufficient,
+  buildFts5MatchQuery: () => buildFts5MatchQuery,
+  checkHealth: () => checkHealth,
+  checkSchema: () => checkSchema,
+  denseScore: () => denseScore,
+  deriveCollectionFromPath: () => deriveCollectionFromPath,
+  describeQmdFailure: () => describeQmdFailure,
+  formatCanaryReport: () => formatCanaryReport,
+  formatIndexScrub: () => formatIndexScrub,
+  formatReport: () => formatReport,
+  fts5RetrievalFn: () => fts5RetrievalFn,
+  fuseReciprocalRank: () => fuseReciprocalRank,
+  getAllCollectionNames: () => getAllCollectionNames,
+  getCollectionDataDir: () => getCollectionDataDir,
+  getDefaultDenseConfig: () => getDefaultDenseConfig,
+  getDefaultSearchCollections: () => getDefaultSearchCollections,
+  getExportableCollections: () => getExportableCollections,
+  getNativeIndexManager: () => getNativeIndexManager,
+  getQmdCollectionIndexPath: () => getQmdCollectionIndexPath,
+  getQmdIndexBasePath: () => getQmdIndexBasePath,
+  getQmdTenantEnv: () => getQmdTenantEnv,
+  getQmdTenantIndexPath: () => getQmdTenantIndexPath,
+  getTenantDataDir: () => getTenantDataDir,
+  indexScrubJson: () => indexScrubJson,
+  inspectOwnedQmdRuntime: () => inspectOwnedQmdRuntime,
+  isDefaultSearchCollection: () => isDefaultSearchCollection,
+  isKnownCollection: () => isKnownCollection,
+  isMaintenanceCommand: () => isMaintenanceCommand,
+  ndcgAtK: () => ndcgAtK,
+  parseQueryOutput: () => parseQueryOutput,
+  parseTimeoutMs: () => parseTimeoutMs,
+  readFragmentsFile: () => readFragmentsFile,
+  recallAtK: () => recallAtK,
+  reciprocalRank: () => reciprocalRank,
+  reindex: () => reindex,
+  rerankScore: () => rerankScore,
+  resolveCitationPath: () => resolveCitationPath,
+  resolveMaintenanceTimeoutMs: () => resolveMaintenanceTimeoutMs,
+  resolveQmdBinary: () => resolveQmdBinary,
+  resolveQmdCommand: () => resolveQmdCommand,
+  resolveQmdModelsDir: () => resolveQmdModelsDir,
+  resolveScopeCollections: () => resolveScopeCollections,
+  runEval: () => runEval,
+  runSearchCanary: () => runSearchCanary,
+  scrubIndexes: () => scrubIndexes,
+  stderrTail: () => stderrTail,
+  verifyWeights: () => verifyWeights,
+  withQmdTenantSelector: () => withQmdTenantSelector
+});
 var init_dist4 = __esm({
   "../bobs-big-brain-registrar/packages/qmd-adapter/dist/index.js"() {
     "use strict";
@@ -49888,6 +51086,40 @@ var init_dist4 = __esm({
     init_reindex();
     init_search_canary();
     init_scrub();
+  }
+});
+
+// src/qmd-command.ts
+async function createLocalQmdBinding(options) {
+  const { RealQmdExecutor: RealQmdExecutor2, QmdAdapter: QmdAdapter2, getDefaultDenseConfig: getDefaultDenseConfig2 } = await loadRegistrar();
+  const executor = new RealQmdExecutor2({
+    binary: options.qmdBinary,
+    ownedRuntime: options.qmdRuntime,
+    tenant: { id: options.tenantId, basePath: options.basePath }
+    // Preserve registrar defaults: interactive 30s; maintenance env/default600s.
+  });
+  const adapter = new QmdAdapter2(
+    {
+      tenantId: options.tenantId,
+      basePath: options.basePath,
+      exportDir: options.exportDir,
+      dense: getDefaultDenseConfig2()
+    },
+    executor
+  );
+  return { adapter, provenance: () => executor.commandProvenance };
+}
+function legacyQmdBinary(provenance) {
+  if (!provenance || provenance.source === "owned" || provenance.prefix.length !== 0 || !(0, import_node_path20.isAbsolute)(provenance.executable))
+    return void 0;
+  return { path: provenance.executable, source: provenance.source };
+}
+var import_node_path20, loadRegistrar;
+var init_qmd_command = __esm({
+  "src/qmd-command.ts"() {
+    "use strict";
+    import_node_path20 = require("node:path");
+    loadRegistrar = () => Promise.resolve().then(() => (init_dist4(), dist_exports));
   }
 });
 
@@ -50641,8 +51873,8 @@ var init_context_provider = __esm({
 async function writeToSpool(candidate, spoolDir, agentId) {
   const dir = spoolDir ?? getSpoolPath();
   const filename = agentId ? `spool-${agentId}.jsonl` : getSpoolFilename();
-  const filepath = (0, import_node_path17.resolve)(dir, filename);
-  const resolvedDir = (0, import_node_path17.resolve)(dir);
+  const filepath = (0, import_node_path21.resolve)(dir, filename);
+  const resolvedDir = (0, import_node_path21.resolve)(dir);
   if (!filepath.startsWith(resolvedDir + "/") && filepath !== resolvedDir) {
     return { ok: false, error: `Path traversal rejected: ${filename}` };
   }
@@ -50664,12 +51896,12 @@ async function writeToSpool(candidate, spoolDir, agentId) {
     return { ok: false, error: `Failed to write to spool: ${msg}` };
   }
 }
-var import_promises2, import_node_path17;
+var import_promises2, import_node_path21;
 var init_spool_writer = __esm({
   "../bobs-big-brain-registrar/packages/claude-runtime/dist/spool/spool-writer.js"() {
     "use strict";
     import_promises2 = require("node:fs/promises");
-    import_node_path17 = require("node:path");
+    import_node_path21 = require("node:path");
     init_dist2();
     init_config2();
   }
@@ -50777,20 +52009,20 @@ async function listSpoolFiles(spoolDir) {
   const dir = spoolDir ?? getSpoolPath();
   try {
     const files = await (0, import_promises3.readdir)(dir);
-    const spoolFiles = files.filter((f) => f.startsWith("spool-") && f.endsWith(".jsonl")).sort().map((f) => (0, import_node_path18.join)(dir, f));
+    const spoolFiles = files.filter((f) => f.startsWith("spool-") && f.endsWith(".jsonl")).sort().map((f) => (0, import_node_path22.join)(dir, f));
     return { ok: true, value: spoolFiles };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return { ok: false, error: `Failed to list spool files: ${msg}` };
   }
 }
-var import_node_crypto9, import_promises3, import_node_path18;
+var import_node_crypto9, import_promises3, import_node_path22;
 var init_spool_reader = __esm({
   "../bobs-big-brain-registrar/packages/claude-runtime/dist/spool/spool-reader.js"() {
     "use strict";
     import_node_crypto9 = require("node:crypto");
     import_promises3 = require("node:fs/promises");
-    import_node_path18 = require("node:path");
+    import_node_path22 = require("node:path");
     init_dist();
     init_config2();
   }
@@ -50857,7 +52089,7 @@ var init_dist6 = __esm({
 
 // src/config.ts
 function resolveQmdIndexPath(basePath, tenantId) {
-  return (0, import_node_path19.join)(basePath, "qmd-index", tenantId);
+  return (0, import_node_path23.join)(basePath, "qmd-index", tenantId);
 }
 function resolveConfig() {
   const tenantId = (process.env["TEAMKB_TENANT_ID"] ?? "local").trim() || "local";
@@ -50866,18 +52098,18 @@ function resolveConfig() {
   return {
     tenantId,
     basePath,
-    spoolPath: (0, import_node_path19.join)(basePath, "spool"),
-    dbPath: (0, import_node_path19.join)(basePath, "teamkb.db"),
-    feedbackPath: (0, import_node_path19.join)(basePath, "feedback"),
-    exportDir: envExport && envExport.length > 0 ? envExport : (0, import_node_path19.join)(basePath, "kb-export"),
+    spoolPath: (0, import_node_path23.join)(basePath, "spool"),
+    dbPath: (0, import_node_path23.join)(basePath, "teamkb.db"),
+    feedbackPath: (0, import_node_path23.join)(basePath, "feedback"),
+    exportDir: envExport && envExport.length > 0 ? envExport : (0, import_node_path23.join)(basePath, "kb-export"),
     qmdIndexPath: resolveQmdIndexPath(basePath, tenantId)
   };
 }
-var import_node_path19;
+var import_node_path23;
 var init_config3 = __esm({
   "src/config.ts"() {
     "use strict";
-    import_node_path19 = require("node:path");
+    import_node_path23 = require("node:path");
     init_dist2();
   }
 });
@@ -53032,23 +54264,23 @@ async function ingestFromSpoolDetailed(candidateRepo, spoolDir, opts) {
 async function archiveIngestedFile(spoolFilePath, archiveDir) {
   try {
     await (0, import_promises4.mkdir)(archiveDir, { recursive: true });
-    const dest = (0, import_node_path20.join)(archiveDir, (0, import_node_path20.basename)(spoolFilePath));
+    const dest = (0, import_node_path24.join)(archiveDir, (0, import_node_path24.basename)(spoolFilePath));
     await (0, import_promises4.rename)(spoolFilePath, dest);
     try {
       await (0, import_promises4.rename)(`${spoolFilePath}.manifest.json`, `${dest}.manifest.json`);
     } catch {
     }
   } catch (e) {
-    process.stderr.write(`[spool-intake] archive skipped for ${(0, import_node_path20.basename)(spoolFilePath)}: ${e instanceof Error ? e.message : String(e)}
+    process.stderr.write(`[spool-intake] archive skipped for ${(0, import_node_path24.basename)(spoolFilePath)}: ${e instanceof Error ? e.message : String(e)}
 `);
   }
 }
 async function quarantineTamperedFile(spoolFilePath, spoolDir, quarantineDirOverride, expected, actual) {
   try {
-    const baseDir = quarantineDirOverride ?? (0, import_node_path20.join)(spoolDir ?? ".", "quarantine");
+    const baseDir = quarantineDirOverride ?? (0, import_node_path24.join)(spoolDir ?? ".", "quarantine");
     await (0, import_promises4.mkdir)(baseDir, { recursive: true });
-    const name = (0, import_node_path20.basename)(spoolFilePath);
-    const dest = (0, import_node_path20.join)(baseDir, name);
+    const name = (0, import_node_path24.basename)(spoolFilePath);
+    const dest = (0, import_node_path24.join)(baseDir, name);
     const evidence = {
       spoolFile: name,
       detectedAt: (/* @__PURE__ */ new Date()).toISOString(),
@@ -53067,12 +54299,12 @@ async function quarantineTamperedFile(spoolFilePath, spoolDir, quarantineDirOver
     return null;
   }
 }
-var import_promises4, import_node_path20, DEFAULT_BROAD_IMPORT_CANDIDATE_LIMIT;
+var import_promises4, import_node_path24, DEFAULT_BROAD_IMPORT_CANDIDATE_LIMIT;
 var init_spool_intake = __esm({
   "../bobs-big-brain-registrar/apps/curator/dist/intake/spool-intake.js"() {
     "use strict";
     import_promises4 = require("node:fs/promises");
-    import_node_path20 = require("node:path");
+    import_node_path24 = require("node:path");
     init_dist6();
     init_dist2();
     DEFAULT_BROAD_IMPORT_CANDIDATE_LIMIT = 100;
@@ -53345,7 +54577,7 @@ var init_sensitivity = __esm({
 // ../bobs-big-brain-registrar/apps/git-exporter/dist/diff/stale-files.js
 function readFileTenant(filePath) {
   try {
-    const text2 = (0, import_node_fs15.readFileSync)(filePath, "utf8");
+    const text2 = (0, import_node_fs22.readFileSync)(filePath, "utf8");
     if (!text2.startsWith("---"))
       return null;
     const end = text2.indexOf("\n---", 3);
@@ -53375,12 +54607,12 @@ function findStaleFiles(outputDir, memories, quarantinedIds, tenantId, maxOrphan
   const relocated = [];
   const orphans = [];
   for (const dir of EXPORT_DIRS) {
-    const absDir = (0, import_node_path21.join)(outputDir, dir);
-    if (!(0, import_node_fs15.existsSync)(absDir))
+    const absDir = (0, import_node_path25.join)(outputDir, dir);
+    if (!(0, import_node_fs22.existsSync)(absDir))
       continue;
     let names;
     try {
-      names = (0, import_node_fs15.readdirSync)(absDir);
+      names = (0, import_node_fs22.readdirSync)(absDir);
     } catch {
       continue;
     }
@@ -53392,7 +54624,7 @@ function findStaleFiles(outputDir, memories, quarantinedIds, tenantId, maxOrphan
       if (quarantinedIds.has(id))
         continue;
       const rel = `${dir}/${name}`;
-      const abs = (0, import_node_path21.join)(absDir, name);
+      const abs = (0, import_node_path25.join)(absDir, name);
       if (known.has(id)) {
         if (!desired.has(id))
           continue;
@@ -53418,12 +54650,12 @@ function findStaleFiles(outputDir, memories, quarantinedIds, tenantId, maxOrphan
   }
   return { toRemove: [...relocated, ...orphans] };
 }
-var import_node_fs15, import_node_path21, EXPORT_DIRS, MEMORY_FILE;
+var import_node_fs22, import_node_path25, EXPORT_DIRS, MEMORY_FILE;
 var init_stale_files = __esm({
   "../bobs-big-brain-registrar/apps/git-exporter/dist/diff/stale-files.js"() {
     "use strict";
-    import_node_fs15 = require("node:fs");
-    import_node_path21 = require("node:path");
+    import_node_fs22 = require("node:fs");
+    import_node_path25 = require("node:path");
     init_directory_mapper();
     init_sensitivity();
     EXPORT_DIRS = ["decisions", "curated", "guides", "archive", "bulk"];
@@ -53461,11 +54693,11 @@ function detectChanges(memoryRepo, exportStateRepo, config2) {
     try {
       if (getDirectory(memory) === "archive") {
         const activeDir = getActiveDirectory(memory);
-        const fromPath = (0, import_node_path22.join)(config2.outputDir, activeDir, `${memory.id}.md`);
-        const toPath = (0, import_node_path22.join)(config2.outputDir, getRelativePath2(memory));
+        const fromPath = (0, import_node_path26.join)(config2.outputDir, activeDir, `${memory.id}.md`);
+        const toPath = (0, import_node_path26.join)(config2.outputDir, getRelativePath2(memory));
         toArchive.push({ memory, fromPath, toPath });
       } else {
-        const filePath = (0, import_node_path22.join)(config2.outputDir, getRelativePath2(memory));
+        const filePath = (0, import_node_path26.join)(config2.outputDir, getRelativePath2(memory));
         toWrite.push({ memory, filePath });
       }
     } catch (err2) {
@@ -53488,12 +54720,12 @@ function detectChanges(memoryRepo, exportStateRepo, config2) {
     ...stale.removalBlocked !== void 0 ? { removalBlocked: stale.removalBlocked } : {}
   };
 }
-var import_node_path22, DEFAULT_MAX_ORPHAN_REMOVALS;
+var import_node_path26, DEFAULT_MAX_ORPHAN_REMOVALS;
 var init_change_detector = __esm({
   "../bobs-big-brain-registrar/apps/git-exporter/dist/diff/change-detector.js"() {
     "use strict";
     init_directory_mapper();
-    import_node_path22 = require("node:path");
+    import_node_path26 = require("node:path");
     init_stale_files();
     DEFAULT_MAX_ORPHAN_REMOVALS = 50;
   }
@@ -53509,8 +54741,8 @@ function assertPathSafe(filePath, allowedRoot) {
     throw new Error("Unsafe file path: Path contains directory traversal (..)");
   }
   if (allowedRoot !== void 0) {
-    const resolved = (0, import_node_path23.resolve)(filePath);
-    const resolvedRoot = (0, import_node_path23.resolve)(allowedRoot);
+    const resolved = (0, import_node_path27.resolve)(filePath);
+    const resolvedRoot = (0, import_node_path27.resolve)(allowedRoot);
     if (!resolved.startsWith(resolvedRoot + "/") && resolved !== resolvedRoot) {
       throw new Error(`Path traversal rejected: ${filePath} is outside ${allowedRoot}`);
     }
@@ -53518,36 +54750,36 @@ function assertPathSafe(filePath, allowedRoot) {
 }
 function writeFile3(filePath, content, exportRoot) {
   assertPathSafe(filePath, exportRoot);
-  (0, import_node_fs16.mkdirSync)((0, import_node_path23.dirname)(filePath), { recursive: true });
-  (0, import_node_fs16.writeFileSync)(filePath, content, "utf8");
+  (0, import_node_fs23.mkdirSync)((0, import_node_path27.dirname)(filePath), { recursive: true });
+  (0, import_node_fs23.writeFileSync)(filePath, content, "utf8");
 }
 function archiveFile(fromPath, toPath, content, exportRoot) {
   assertPathSafe(toPath, exportRoot);
   if (exportRoot !== void 0) {
     assertPathSafe(fromPath, exportRoot);
   }
-  (0, import_node_fs16.mkdirSync)((0, import_node_path23.dirname)(toPath), { recursive: true });
-  if ((0, import_node_fs16.existsSync)(fromPath)) {
-    (0, import_node_fs16.unlinkSync)(fromPath);
+  (0, import_node_fs23.mkdirSync)((0, import_node_path27.dirname)(toPath), { recursive: true });
+  if ((0, import_node_fs23.existsSync)(fromPath)) {
+    (0, import_node_fs23.unlinkSync)(fromPath);
   }
-  (0, import_node_fs16.writeFileSync)(toPath, content, "utf8");
+  (0, import_node_fs23.writeFileSync)(toPath, content, "utf8");
 }
 function removeFile(filePath, exportRoot) {
   if (exportRoot !== void 0) {
     assertPathSafe(filePath, exportRoot);
   }
-  if ((0, import_node_fs16.existsSync)(filePath)) {
-    (0, import_node_fs16.unlinkSync)(filePath);
+  if ((0, import_node_fs23.existsSync)(filePath)) {
+    (0, import_node_fs23.unlinkSync)(filePath);
     return true;
   }
   return false;
 }
-var import_node_fs16, import_node_path23;
+var import_node_fs23, import_node_path27;
 var init_file_writer = __esm({
   "../bobs-big-brain-registrar/apps/git-exporter/dist/writer/file-writer.js"() {
     "use strict";
-    import_node_fs16 = require("node:fs");
-    import_node_path23 = require("node:path");
+    import_node_fs23 = require("node:fs");
+    import_node_path27 = require("node:path");
   }
 });
 
@@ -53567,8 +54799,8 @@ function runExport(memoryRepo, exportStateRepo, config2, nowFn = () => (/* @__PU
     }
     try {
       const content = formatMemoryAsMarkdown(item.memory);
-      if ((0, import_node_fs17.existsSync)(item.filePath)) {
-        const existing = (0, import_node_fs17.readFileSync)(item.filePath, "utf8");
+      if ((0, import_node_fs24.existsSync)(item.filePath)) {
+        const existing = (0, import_node_fs24.readFileSync)(item.filePath, "utf8");
         if (existing === content) {
           unchanged++;
           continue;
@@ -53591,7 +54823,7 @@ function runExport(memoryRepo, exportStateRepo, config2, nowFn = () => (/* @__PU
     }
     try {
       const content = formatMemoryAsMarkdown(item.memory);
-      if (!(0, import_node_fs17.existsSync)(item.fromPath) && (0, import_node_fs17.existsSync)(item.toPath) && (0, import_node_fs17.readFileSync)(item.toPath, "utf8") === content) {
+      if (!(0, import_node_fs24.existsSync)(item.fromPath) && (0, import_node_fs24.existsSync)(item.toPath) && (0, import_node_fs24.readFileSync)(item.toPath, "utf8") === content) {
         unchanged++;
         continue;
       }
@@ -53622,7 +54854,7 @@ function runExport(memoryRepo, exportStateRepo, config2, nowFn = () => (/* @__PU
     ...changeset.removalBlocked !== void 0 ? { removalBlocked: changeset.removalBlocked } : {}
   };
 }
-var import_node_fs17;
+var import_node_fs24;
 var init_exporter = __esm({
   "../bobs-big-brain-registrar/apps/git-exporter/dist/exporter.js"() {
     "use strict";
@@ -53630,7 +54862,7 @@ var init_exporter = __esm({
     init_change_detector();
     init_markdown_formatter();
     init_file_writer();
-    import_node_fs17 = require("node:fs");
+    import_node_fs24 = require("node:fs");
   }
 });
 
@@ -53716,7 +54948,7 @@ function commitAnchor(auditDir) {
   };
   const git = (args) => (0, import_node_child_process3.execFileSync)("git", args, { cwd: auditDir, stdio: "ignore", env });
   try {
-    if (!(0, import_node_fs18.existsSync)((0, import_node_path24.join)(auditDir, ".git"))) git(["init", "-q"]);
+    if (!(0, import_node_fs25.existsSync)((0, import_node_path28.join)(auditDir, ".git"))) git(["init", "-q"]);
     git(["add", "anchors.jsonl"]);
     git(["commit", "-q", "-m", `anchor ${(/* @__PURE__ */ new Date()).toISOString()}`]);
     try {
@@ -53732,9 +54964,9 @@ function commitAnchor(auditDir) {
 }
 function anchorChainHead(auditRepo, basePath, tenantId) {
   try {
-    const auditDir = (0, import_node_path24.join)(basePath, "audit");
-    (0, import_node_fs18.mkdirSync)(auditDir, { recursive: true });
-    const rec = appendAnchor(auditRepo, (0, import_node_path24.join)(auditDir, "anchors.jsonl"), { tenantId });
+    const auditDir = (0, import_node_path28.join)(basePath, "audit");
+    (0, import_node_fs25.mkdirSync)(auditDir, { recursive: true });
+    const rec = appendAnchor(auditRepo, (0, import_node_path28.join)(auditDir, "anchors.jsonl"), { tenantId });
     return {
       chainHead: rec.chainHead,
       chainedRows: rec.chainedRows,
@@ -53744,14 +54976,14 @@ function anchorChainHead(auditRepo, basePath, tenantId) {
     return void 0;
   }
 }
-var import_node_child_process3, import_node_fs18, import_node_path24;
+var import_node_child_process3, import_node_fs25, import_node_path28;
 var init_anchor = __esm({
   "src/anchor.ts"() {
     "use strict";
     init_dist3();
     import_node_child_process3 = require("node:child_process");
-    import_node_fs18 = require("node:fs");
-    import_node_path24 = require("node:path");
+    import_node_fs25 = require("node:fs");
+    import_node_path28 = require("node:path");
   }
 });
 
@@ -53769,9 +55001,9 @@ function isContention(err2) {
   return err2.code === "EAGAIN" || err2.code === "EWOULDBLOCK";
 }
 async function acquireWriteLock(basePath, timeoutMs = DEFAULT_TIMEOUT_MS) {
-  (0, import_node_fs19.mkdirSync)(basePath, { recursive: true });
-  const lockPath = (0, import_node_path25.join)(basePath, LOCK_FILENAME);
-  const fd = (0, import_node_fs19.openSync)(lockPath, "a");
+  (0, import_node_fs26.mkdirSync)(basePath, { recursive: true });
+  const lockPath = (0, import_node_path29.join)(basePath, LOCK_FILENAME);
+  const fd = (0, import_node_fs26.openSync)(lockPath, "a");
   const deadline = Date.now() + Math.max(0, timeoutMs);
   for (; ; ) {
     const err2 = await tryFlockExclusive(fd);
@@ -53783,7 +55015,7 @@ async function acquireWriteLock(basePath, timeoutMs = DEFAULT_TIMEOUT_MS) {
           } catch {
           } finally {
             try {
-              (0, import_node_fs19.closeSync)(fd);
+              (0, import_node_fs26.closeSync)(fd);
             } catch {
             }
           }
@@ -53792,14 +55024,14 @@ async function acquireWriteLock(basePath, timeoutMs = DEFAULT_TIMEOUT_MS) {
     }
     if (!isContention(err2)) {
       try {
-        (0, import_node_fs19.closeSync)(fd);
+        (0, import_node_fs26.closeSync)(fd);
       } catch {
       }
       throw err2;
     }
     if (Date.now() >= deadline) {
       try {
-        (0, import_node_fs19.closeSync)(fd);
+        (0, import_node_fs26.closeSync)(fd);
       } catch {
       }
       throw new WriteLockBusyError();
@@ -53807,12 +55039,12 @@ async function acquireWriteLock(basePath, timeoutMs = DEFAULT_TIMEOUT_MS) {
     await sleep2(RETRY_INTERVAL_MS);
   }
 }
-var import_node_fs19, import_node_path25, import_fs_ext, LOCK_FILENAME, DEFAULT_TIMEOUT_MS, RETRY_INTERVAL_MS, WriteLockBusyError, sleep2;
+var import_node_fs26, import_node_path29, import_fs_ext, LOCK_FILENAME, DEFAULT_TIMEOUT_MS, RETRY_INTERVAL_MS, WriteLockBusyError, sleep2;
 var init_write_lock = __esm({
   "src/write-lock.ts"() {
     "use strict";
-    import_node_fs19 = require("node:fs");
-    import_node_path25 = require("node:path");
+    import_node_fs26 = require("node:fs");
+    import_node_path29 = require("node:path");
     import_fs_ext = require("fs-ext");
     LOCK_FILENAME = ".write.lock";
     DEFAULT_TIMEOUT_MS = 8e3;
@@ -53857,7 +55089,7 @@ async function runGovernLocked(config2) {
       );
     }
     const ingestResult = await ingestFromSpool(candidateRepo, config2.spoolPath, {
-      archiveIngestedDir: (0, import_node_path26.join)(config2.spoolPath, "ingested")
+      archiveIngestedDir: (0, import_node_path30.join)(config2.spoolPath, "ingested")
     });
     const ingested = ingestResult.ok ? ingestResult.value.length : 0;
     const curation = sweepInbox(config2, { candidateRepo, memoryRepo, policyRepo, auditRepo });
@@ -53892,24 +55124,20 @@ async function runGovernLocked(config2) {
     }
     let indexUpdated = false;
     let indexError;
+    let qmdCommand;
     let qmdBinary;
     try {
-      qmdBinary = resolveQmdBinary();
-      const adapter = new QmdAdapter({
-        tenantId: config2.tenantId,
-        exportDir: config2.exportDir,
-        qmdBinary: qmdBinary.path,
-        // Dense arm ON by default via the registrar's shared production seam
-        // (#328); TEAMKB_DENSE_ENABLED=false is the emergency kill switch. This
-        // site was the vps.1 drift class — the plugin bypasses the API, so
-        // wiring the API alone would leave local mode lexical-only.
-        dense: getDefaultDenseConfig()
-      });
-      const ensure = await adapter.ensureCollections();
-      if (!ensure.ok) throw new Error(describeQmdError(ensure.error));
-      const upd = await adapter.update();
-      if (!upd.ok) throw new Error(describeQmdError(upd.error));
-      indexUpdated = true;
+      const binding = await createLocalQmdBinding(config2);
+      try {
+        const ensure = await binding.adapter.ensureCollections();
+        if (!ensure.ok) throw new Error(describeQmdError(ensure.error));
+        const upd = await binding.adapter.update();
+        if (!upd.ok) throw new Error(describeQmdError(upd.error));
+        indexUpdated = true;
+      } finally {
+        qmdCommand = binding.provenance() ?? void 0;
+        qmdBinary = legacyQmdBinary(qmdCommand ?? null);
+      }
     } catch (e) {
       indexError = e instanceof Error ? e.message : String(e);
     }
@@ -53935,6 +55163,7 @@ async function runGovernLocked(config2) {
       indexUpdated,
       indexError,
       ...qmdBinary !== void 0 ? { qmdBinary } : {},
+      ...qmdCommand !== void 0 ? { qmdCommand } : {},
       anchored
     };
   } finally {
@@ -54067,18 +55296,18 @@ function sweepInbox(config2, deps) {
 function isMemberAuthored(candidate) {
   return candidate.metadata?.proposedByRole === "member";
 }
-var import_node_crypto12, import_node_path26, SWEEP_RECEIPT_MEMORY_ID;
+var import_node_crypto12, import_node_path30, SWEEP_RECEIPT_MEMORY_ID;
 var init_govern = __esm({
   "src/govern.ts"() {
     "use strict";
     import_node_crypto12 = require("node:crypto");
-    import_node_path26 = require("node:path");
+    import_node_path30 = require("node:path");
     init_dist8();
     init_dist9();
     init_dist2();
     init_dist();
     init_dist3();
-    init_dist4();
+    init_qmd_command();
     init_seed_policy();
     init_anchor();
     init_write_lock();
@@ -54178,11 +55407,11 @@ function isMissingNativeDep(e) {
   );
 }
 function manifestPath(basePath) {
-  return (0, import_node_path27.join)(basePath, "audit", "exceptions.manifest.json");
+  return (0, import_node_path31.join)(basePath, "audit", "exceptions.manifest.json");
 }
 function loadExceptionManifest(basePath) {
   const p = manifestPath(basePath);
-  if (!(0, import_node_fs20.existsSync)(p)) return null;
+  if (!(0, import_node_fs27.existsSync)(p)) return null;
   try {
     return readManifest(p);
   } catch (e) {
@@ -54232,18 +55461,18 @@ async function startLocalServer() {
 `
   );
 }
-var import_node_crypto13, import_node_fs20, import_zod20, import_node_path27, VERSION2, config, CATEGORIES2, NATIVE_DEP_HINT, server2;
+var import_node_crypto13, import_node_fs27, import_zod20, import_node_path31, VERSION2, config, CATEGORIES2, NATIVE_DEP_HINT, server2;
 var init_local_server = __esm({
   "src/local-server.ts"() {
     "use strict";
     import_node_crypto13 = require("node:crypto");
-    import_node_fs20 = require("node:fs");
+    import_node_fs27 = require("node:fs");
     init_mcp();
     init_stdio2();
     import_zod20 = __toESM(require_zod(), 1);
-    import_node_path27 = require("node:path");
+    import_node_path31 = require("node:path");
     init_dist3();
-    init_dist4();
+    init_qmd_command();
     init_dist2();
     init_dist6();
     init_dist();
@@ -54278,15 +55507,7 @@ var init_local_server = __esm({
       async (params) => {
         const scope = params.scope ?? "curated";
         const limit = params.limit ?? 10;
-        const adapter = new QmdAdapter({
-          tenantId: config.tenantId,
-          exportDir: config.exportDir,
-          // Dense arm ON by default via the registrar's shared production seam
-          // (#328); TEAMKB_DENSE_ENABLED=false is the emergency kill switch. This
-          // site was the vps.1 drift class — the plugin bypasses the API, so
-          // wiring the API alone would leave local mode lexical-only.
-          dense: getDefaultDenseConfig()
-        });
+        const { adapter } = await createLocalQmdBinding(config);
         const res = await adapter.query(params.query, scope, config.tenantId);
         if (!res.ok) {
           return jsonResult2({
@@ -54295,7 +55516,7 @@ var init_local_server = __esm({
             scope,
             count: 0,
             results: [],
-            note: "qmd search returned no index \u2014 install qmd 2.x on PATH and run brain_govern to build it."
+            note: `qmd-backed search is unavailable: ${res.error.message}. Native FTS may still provide partial results; repair the selected qmd configuration and run brain_govern.`
           });
         }
         const nowIso = (/* @__PURE__ */ new Date()).toISOString();
@@ -54390,7 +55611,7 @@ var init_local_server = __esm({
         }
         try {
           const auditRepo = new AuditRepository(db);
-          const result = verifyAnchors(auditRepo, (0, import_node_path27.join)(config.basePath, "audit", "anchors.jsonl"));
+          const result = verifyAnchors(auditRepo, (0, import_node_path31.join)(config.basePath, "audit", "anchors.jsonl"));
           const manifest = loadExceptionManifest(config.basePath);
           const rowsById = buildRowsById(auditRepo);
           const classified = classifyChainBreaks(result.chain.breaks, manifest, rowsById);

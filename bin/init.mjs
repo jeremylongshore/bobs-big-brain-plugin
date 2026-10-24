@@ -32,10 +32,14 @@ import { execFileSync } from 'node:child_process';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { validateBrainTarget, revalidateBrainTarget } from './installer-paths.mjs';
+import { effectiveInstallerEnv, assertLocalInstallerMode, selectedQmdEnvironment, qmdAvailabilityOutcome, shellQuote, mcpRegistrationArgs } from './installer-runtime.mjs';
 
 const PLUGIN_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const RUNTIME = join(PLUGIN_ROOT, 'plugin-runtime', 'governed-brain.cjs');
-const RUNTIME_NM = join(PLUGIN_ROOT, 'plugin-runtime', 'node_modules');
+const require = createRequire(import.meta.url);
+const BOOTSTRAP = join(PLUGIN_ROOT, 'plugin-runtime', 'bootstrap.cjs');
+const bootstrap = require(BOOTSTRAP);
+const QMD_HELPER = join(PLUGIN_ROOT, 'plugin-runtime', 'qmd-command.cjs');
 const TEXT_EXT = new Set(['.md', '.markdown', '.txt', '.mdx']);
 
 const C = {
@@ -112,61 +116,28 @@ async function preflight(folder, args, fileCount) {
   return confirm('  Proceed?');
 }
 
-// The bundle externalizes two native modules — better-sqlite3 (the local store)
-// and fs-ext (the flock(2) wrapper the local-mode write lock uses to serialize
-// against the cron's /usr/bin/flock). An npx install pulls them in as deps; a
-// file-copy install (e.g. /plugin install from a marketplace) ships only the
-// bundle, so both must be vendored + native-built into plugin-runtime/.
-const NATIVE_DEPS = [
-  { name: 'better-sqlite3', fallbackVer: '^12.10.0', addonRel: join('build', 'Release', 'better_sqlite3.node') },
-  { name: 'fs-ext', fallbackVer: '^2.1.1', addonRel: join('build', 'Release', 'fs_ext.node') },
-];
-
+// Reuse the import-inert bootstrap's lockfile-pinned provisioner. Its native
+// prefix is separate from any explicitly declared owned qmd artifact.
 function ensureNativeDep() {
-  const require = createRequire(RUNTIME);
-  // Read the version each native dep was built against from package.json, but
-  // NEVER let a missing/malformed package.json crash init — degrade to each dep's
-  // fallbackVer below. (The pre-R9 code read this inside a per-dep try/catch;
-  // hoisting it must keep that fail-safe.)
-  let deps = {};
-  try {
-    deps = JSON.parse(readFileSync(join(PLUGIN_ROOT, 'package.json'), 'utf8')).dependencies || {};
-  } catch {
-    /* missing/unreadable/malformed package.json — fall back to fallbackVer */
-  }
-  for (const { name, fallbackVer, addonRel } of NATIVE_DEPS) {
-    // Already resolvable from the runtime (e.g. npx-installed it as a dependency)? Done.
-    try { require.resolve(name); continue; } catch {}
-    const addon = join(RUNTIME_NM, name, addonRel);
-    if (existsSync(addon)) continue;
-    // Resolve the version the bundle was built against.
-    const ver = deps[name] || fallbackVer;
-    log(C.dim(`  vendoring ${name}@${ver} into plugin-runtime/ (native build)…`));
-    try {
-      execFileSync('npm', ['install', `${name}@${ver}`, '--prefix', join(PLUGIN_ROOT, 'plugin-runtime'), '--no-save', '--silent'],
-        { stdio: ['ignore', 'ignore', 'inherit'] });
-    } catch {
-      die(`failed to build ${name} (needs Node 20+ and a C/C++ toolchain). Install build-essential / Xcode CLT and retry.`);
-    }
-    if (!existsSync(addon)) die(`${name} native addon did not build — see errors above.`);
-  }
+  bootstrap.provisionNativeDependencies();
 }
 
-function checkQmd() {
-  try {
-    const v = execFileSync('qmd', ['--version'], { encoding: 'utf8' }).trim();
-    const m = v.match(/(\d+)\.\d+\.\d+/);
-    if (m && Number(m[1]) < 2) {
-      log(C.yellow(`  ⚠ ${v} is too old — retrieval needs qmd 2.x. Upgrade: https://github.com/tobi/qmd`));
-      return false;
-    }
-    log(C.dim(`  qmd on PATH: ${v}`));
+async function checkQmd(args) {
+  const deadline = Date.now() + 5_000;
+  const { checkLocalQmd } = require(QMD_HELPER);
+  const checked = await checkLocalQmd({
+    tenantId: args.tenant, basePath: args.base, exportDir: join(args.base, 'kb-export'),
+  }, deadline);
+  const outcome = qmdAvailabilityOutcome(checked);
+  args.qmdEnvironment = outcome.available
+    ? selectedQmdEnvironment(checked.provenance, dirname(RUNTIME)) : {};
+  if (outcome.available) {
+    log(C.dim(`  qmd (${checked.provenance?.source ?? 'selected'}): ${outcome.version}`));
     return true;
-  } catch {
-    log(C.yellow('  ⚠ qmd not on PATH — capture + govern + the audit chain will still work, but SEARCH'));
-    log(C.yellow('    will return nothing until you install qmd 2.x and re-run. See https://github.com/tobi/qmd'));
-    return false;
   }
+  log(C.yellow(`  ⚠ Selected qmd is unavailable: ${outcome.reason}`));
+  log(C.yellow('    Capture/govern/audit can continue; native FTS may provide partial retrieval.'));
+  return false;
 }
 
 function qmdIndexPath(args) {
@@ -176,8 +147,8 @@ function qmdIndexPath(args) {
 async function buildBrain(folder, files, args) {
   const transport = new StdioClientTransport({
     command: 'node',
-    args: [RUNTIME],
-    env: { ...process.env, TEAMKB_TENANT_ID: args.tenant, TEAMKB_BASE_PATH: args.base },
+    args: [BOOTSTRAP],
+    env: { ...effectiveInstallerEnv(args), ...args.qmdEnvironment },
   });
   const client = new Client({ name: 'gsb-installer', version: '0.1.0' }, { capabilities: {} });
   await client.connect(transport);
@@ -258,8 +229,8 @@ async function fullCompile(folder, args) {
 
   const transport = new StdioClientTransport({
     command: 'node',
-    args: [RUNTIME],
-    env: { ...process.env, TEAMKB_TENANT_ID: args.tenant, TEAMKB_BASE_PATH: args.base },
+    args: [BOOTSTRAP],
+    env: { ...effectiveInstallerEnv(args), ...args.qmdEnvironment },
   });
   const client = new Client({ name: 'gsb-installer', version: '0.1.0' }, { capabilities: {} });
   await client.connect(transport);
@@ -287,12 +258,7 @@ function hasClaude() {
 function registerMcp(args) {
   try { execFileSync('claude', ['mcp', 'remove', 'governed-brain', '-s', args.scope], { stdio: 'ignore' }); } catch {}
   try {
-    execFileSync('claude', [
-      'mcp', 'add', 'governed-brain', '-s', args.scope,
-      '-e', `TEAMKB_TENANT_ID=${args.tenant}`,
-      '-e', `TEAMKB_BASE_PATH=${args.base}`,
-      '--', 'node', RUNTIME,
-    ], { stdio: 'ignore' });
+    execFileSync('claude', mcpRegistrationArgs(args, BOOTSTRAP), { stdio: 'ignore' });
     return true;
   } catch { return false; }
 }
@@ -311,16 +277,13 @@ function printNextSteps(args, qmdOk, registered) {
     log(C.cyan('    claude plugin install governed-second-brain'));
   } else {
     log('  ' + C.yellow('Register the MCP server with Claude Code:'));
-    log(C.cyan(`    claude mcp add governed-brain -s ${args.scope} \\`));
-    log(C.cyan(`      -e TEAMKB_TENANT_ID=${args.tenant} -e TEAMKB_BASE_PATH=${args.base} \\`));
-    log(C.cyan(`      -- node ${RUNTIME}`));
-    log('  …or, for the skills too: ' + C.cyan('claude plugin marketplace add jeremylongshore/bobs-big-brain-plugin'));
+    log(C.cyan(`    claude ${mcpRegistrationArgs(args, BOOTSTRAP).map(shellQuote).join(' ')}`));
   }
   log('');
   log(C.bold('  Then try'));
   log(`    /brain ${C.dim('"<a few keywords from your notes>"')}        ${C.dim('→ a qmd://-cited answer')}`);
   log(`    /brain-save ${C.dim('"<a fact worth keeping>"')}            ${C.dim('→ governed capture + receipt')}`);
-  if (!qmdOk) log('  ' + C.yellow('(install qmd 2.x on PATH first, or /brain will return nothing)'));
+  if (!qmdOk) log('  ' + C.yellow('(repair the selected qmd configuration; native FTS alone may provide partial retrieval)'));
   log('');
 }
 
@@ -335,6 +298,7 @@ async function main() {
   });
   const folder = target.inputFolder;
   args.base = target.basePath;
+  assertLocalInstallerMode(effectiveInstallerEnv(args), bootstrap);
   if (!existsSync(RUNTIME)) die(`bundled runtime missing at ${RUNTIME} — run "pnpm build" in the plugin repo first.`);
 
   // Full compile mode egresses to DeepSeek — require the key up front (fail fast, before consent).
@@ -350,6 +314,9 @@ async function main() {
 
   if (!(await preflight(folder, args, files.length))) { log(C.dim('  aborted.')); process.exit(0); }
 
+  // Local tool execution follows consent, before cleanup/provisioning/capture.
+  const qmdOk = await checkQmd(args);
+
   // Recheck the original paths and existing directory identities after consent.
   // Use the validated canonical target, never the original alias spelling.
   const currentTarget = revalidateBrainTarget(target);
@@ -359,7 +326,6 @@ async function main() {
   }
 
   ensureNativeDep();
-  const qmdOk = checkQmd();
   const { captured, gov, status } = args.indexOnly
     ? await buildBrain(folder, files, args)
     : await fullCompile(folder, args);

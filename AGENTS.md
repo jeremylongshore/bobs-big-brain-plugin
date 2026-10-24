@@ -118,11 +118,32 @@ Build hard-facts:
   **bundled** (the SDK validates every tool call with ajv — externalizing them makes the runtime inert).
 - **Single zod**: `build.mjs` aliases `zod` to one copy (cross-instance `instanceof` otherwise breaks
   tool registration).
-- **qmd 2.x** for local retrieval. Resolved by the registrar's `resolveQmdBinary`: `TEAMKB_QMD_BIN`,
-  then `PATH`, then `~/.bun/bin/qmd` (an MCP server's PATH usually lacks it). Govern degrades
-  gracefully if absent: everything but the index refresh completes and `indexError` names what was
-  searched and the fix. A `TEAMKB_QMD_BIN` that is set but not executable is an error, never a
-  silent fallback.
+- **qmd 2.x** for local retrieval. Local search and govern share the Registrar's
+  executable/prefix selection: explicit binary, `TEAMKB_QMD_BIN`, paired
+  `TEAMKB_QMD_RUNTIME` declaration, then legacy PATH / Bun discovery only when
+  undeclared. A declared broken artifact never falls back to a global binary.
+  The declaration is JSON with `root` and an independently expected
+  `manifestSha256`; selection metadata is not proof of portable native compatibility.
+  Owned execution requires the artifact's Node 22/platform/ABI match; the team
+  server remains Node 20 and never selects/provisions local qmd or natives.
+- **Installer boundaries**: `init` refuses effective team configuration before
+  local setup. Its requested canonical base controls `team.json` lookup; an
+  unrelated default brain does not block a separate local brain. After consent,
+  availability uses the shared command route within its original 5 s budget,
+  before cleanup or provisioning. Failed explicit selections refuse capture;
+  undeclared legacy absence may proceed with degraded qmd-backed retrieval;
+  native FTS can still provide hits. Synchronous import/metadata work cannot be preempted.
+- **Owned prefix**: persist a verified selected runtime outside
+  `plugin-runtime/node_modules`, which the existing lockfile `npm ci` native
+  provisioner replaces. The installer does not download, copy or activate an
+  owned artifact; archive/platform delivery remains separate work. Only a
+  successful selected binary pin or normalized runtime pair is registered; legacy
+  discovery is not implicitly pinned. Relative env binaries are canonicalized
+  after success; relative explicit-config binaries cannot be persisted.
+- **Headless helper**: `src/qmd-command.ts` builds separately to
+  `plugin-runtime/qmd-command.cjs` for installer availability without starting MCP.
+  Both generated bundles and their `gsb.lock.json` digests must come from the same
+  clean Registrar build. Native provisioning uses bootstrap's existing exports.
 - **Govern reconciles the export tree** (`runExport({ reconcile: true })`), not just new
   promotions: lifecycle changes made by `curator batch-transition` / `brain_transition` land in
   `archive/`, torn files are rewritten, stale copies removed. `brain_govern` reports `exported`
@@ -148,6 +169,10 @@ reports that resolved path through `brain_status` and the local boot receipt.
 (default `<base>/kb-export`), not to the qmd index. No API key or network is
 needed for local grounding. Changes to this contract require config tests and
 an isolated local smoke; never test against the operator's real `~/.teamkb`.
+Existing derived indexes created under a different base are not moved by this
+source change. Reconcile/rebuild the chosen brain's derived indexes through its
+normal reviewed workflow when needed; stored memories require no schema migration.
+Do not repair an operator index as part of fixture validation.
 
 ## Audit-claim honesty
 The chain is tamper-**evident** (detection of edits/reordering), **not** tamper-proof: a local writer

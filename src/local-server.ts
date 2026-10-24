@@ -28,7 +28,7 @@ import {
   type ExceptionManifest,
   type StoredRowTuple,
 } from '@qmd-team-intent-kb/store';
-import { getDefaultDenseConfig, QmdAdapter } from '@qmd-team-intent-kb/qmd-adapter';
+import { createLocalQmdBinding } from './qmd-command.js';
 import { loadOrCreateOriginSecret, mintOriginToken, rerankCitedHits } from '@qmd-team-intent-kb/common';
 import { writeToSpool } from '@qmd-team-intent-kb/claude-runtime';
 import { ContentMetadata, validateTransition } from '@qmd-team-intent-kb/schema';
@@ -192,15 +192,7 @@ server.tool(
   async (params) => {
     const scope = params.scope ?? 'curated';
     const limit = params.limit ?? 10;
-    const adapter = new QmdAdapter({
-      tenantId: config.tenantId,
-      exportDir: config.exportDir,
-      // Dense arm ON by default via the registrar's shared production seam
-      // (#328); TEAMKB_DENSE_ENABLED=false is the emergency kill switch. This
-      // site was the vps.1 drift class — the plugin bypasses the API, so
-      // wiring the API alone would leave local mode lexical-only.
-      dense: getDefaultDenseConfig(),
-    });
+    const { adapter } = await createLocalQmdBinding(config);
     // Pass the bound tenant explicitly: adapter.query() is fail-closed on an
     // undefined tenantId (the c5k.2 hardening), so a local search that omits it
     // is refused and silently returns zero hits. In local mode the query tenant
@@ -213,7 +205,7 @@ server.tool(
         scope,
         count: 0,
         results: [],
-        note: 'qmd search returned no index — install qmd 2.x on PATH and run brain_govern to build it.',
+        note: `qmd-backed search is unavailable: ${res.error.message}. Native FTS may still provide partial results; repair the selected qmd configuration and run brain_govern.`,
       });
     }
     // R1 freshness + category rerank over the R2-fused cited hits.
