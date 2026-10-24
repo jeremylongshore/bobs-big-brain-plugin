@@ -13,7 +13,8 @@ installable Claude Code + Cowork plugin (a local stdio MCP server); the engines 
 - Development-workspace private distribution preparation from actual offline
   npm-pack inventory and a separately verified owned-runtime sibling. Records
   source, verifier, package and historical candidate identities without native
-  installation, activation, archive intake or publication. Clean-bootstrap smoke
+  installation, activation, caller-supplied archive input or external
+  release/marketplace publication. Clean-bootstrap smoke
   now carries the headless helper alongside the other four runtime files.
 
 - **Human-escalation holds (registrar Epic K bead K6).** The deterministic pipeline now puts a

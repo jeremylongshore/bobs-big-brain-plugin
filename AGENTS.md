@@ -156,7 +156,7 @@ Build hard-facts:
 - **Private distribution preparation**: `scripts/prepare-owned-distribution.mjs`
   is a development-workspace tool requiring the trusted sibling Registrar verifier.
   It prepares a fresh directory from actual offline npm-pack bytes plus a verified
-  sibling owned closure; it never provisions, activates, publishes or purges data.
+  sibling owned closure; it never provisions, activates, externally publishes or purges data.
   Preserve relative candidate links and historical source bindings. A prepared
   receipt is separate from actual native installation, retrieval and portability
   evidence. After relocation the caller must supply the new paired owned root.

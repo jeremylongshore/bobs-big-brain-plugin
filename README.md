@@ -135,10 +135,12 @@ Preparation runs `npm pack --offline --ignore-scripts` with private npm settings
 checks its exact file inventory and bytes, copies regular plugin files, and
 preserves the verified candidate's relative links. No archive is extracted into
 the filesystem. Both source and copied runtime must pass the Registrar's graph,
-file, mode and host/ABI checks before a `distribution-receipt.json` is published.
+file, mode and host/ABI checks before a `distribution-receipt.json` is created locally.
 The receipt distinguishes plugin source, packed bytes, verifier source and the
-candidate's historical source bindings. Failed output is retained for inspection;
-there is no cleanup, install, download, activation or publication step.
+candidate's historical source bindings. Failed output is retained for inspection.
+The only archive input is the npm tarball the command just generated; it does not
+accept caller-supplied archives. There is no cleanup, native installation,
+download, activation or external release/marketplace publication step.
 
 The directory is a preparation artifact, not an installation or portability
 certificate. The current local proof targets Linux x64 glibc, Node 22.23.1/ABI127.
@@ -146,8 +148,16 @@ Local bootstrap still needs its independently locked native dependencies and a
 prepared host cache/toolchain. Its `npm ci` replaces `plugin/plugin-runtime/node_modules`;
 keep `owned-qmd` beside the plugin. After relocation, supply the new absolute owned
 root and independently expected digest through `TEAMKB_QMD_RUNTIME`; the receipt's
-selection path describes its original preparation location. Team mode remains a
-separate dependency-free path.
+selection path describes its original preparation location. For local mode, leave
+`TEAMKB_API_URL` unset and replace both values in this JSON declaration:
+
+```bash
+export TEAMKB_QMD_RUNTIME='{"root":"/absolute/relocated-distribution/owned-qmd","manifestSha256":"<independently-reviewed-64-character-sha256>"}'
+```
+
+Team mode uses Node and the bundled server without separately installing local
+qmd or the local native dependency tree. A loopback team-mode test establishes
+the proxy contract; live remote integration needs its own acceptance evidence.
 
 Allow capacity for the complete owned runtime, plugin and preparation files.
 The 2 GiB payload policy and child-process limits do not enforce a total disk/time
