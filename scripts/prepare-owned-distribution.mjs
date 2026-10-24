@@ -194,6 +194,13 @@ export async function prepareOwnedDistribution({
   const verifierRepositoryBefore = repositoryIdentity(verifierRepository);
   const { verifyRuntime } = await import(pathToFileURL(verifierPath).href);
   const before = sourceSnapshot(sourceRoot);
+  // setup-node and version managers install npm in the selected Node prefix;
+  // /usr/bin/npm may be absent or belong to a different Node installation.
+  const nodeExecutable = realpathSync(process.execPath);
+  const npmCli = realpathSync(
+    resolve(dirname(nodeExecutable), '../lib/node_modules/npm/bin/npm-cli.js'),
+  );
+  const npmCliSha256 = fileHash(npmCli);
   const manifestPath = join(candidate, 'runtime-manifest.json');
   if (fileHash(manifestPath) !== expectedManifestSha256) fail('Candidate manifest digest mismatch');
   const verified = verifyRuntime(candidate);
@@ -214,7 +221,7 @@ export async function prepareOwnedDistribution({
   const env = {
     npm_config_userconfig: join(preparation, 'user.npmrc'),
     npm_config_globalconfig: join(preparation, 'global.npmrc'),
-    PATH: '/usr/bin:/bin',
+    PATH: dirname(nodeExecutable) + ':/usr/bin:/bin',
     LANG: 'C.UTF-8',
     HOME: join(preparation, 'home'),
     TMPDIR: join(preparation, 'tmp'),
@@ -229,8 +236,8 @@ export async function prepareOwnedDistribution({
   };
   // No scripts; source-workspace Git/excludes behavior remains the caller's responsibility.
   const raw = command(
-    '/usr/bin/npm',
-    ['pack', '--offline', '--ignore-scripts', '--json', '--pack-destination', preparation],
+    nodeExecutable,
+    [npmCli, 'pack', '--offline', '--ignore-scripts', '--json', '--pack-destination', preparation],
     { cwd: sourceRoot, env },
   );
   writeFileSync(join(preparation, 'pack-output.json'), raw, { flag: 'wx', mode: 0o600 });
@@ -371,6 +378,7 @@ export async function prepareOwnedDistribution({
   )
     fail('Source candidate changed');
   if (
+    fileHash(npmCli) !== npmCliSha256 ||
     fileHash(verifierPath) !== verifierSha256 ||
     JSON.stringify(repositoryIdentity(verifierRepository)) !==
       JSON.stringify(verifierRepositoryBefore) ||
@@ -414,6 +422,7 @@ export async function prepareOwnedDistribution({
     preparation: '.preparation',
     totalPayloadBytes: totalBytes,
     node: { version: process.version, abi: process.versions.modules },
+    packToolchain: { nodeExecutable, npmCli, npmCliSha256 },
   };
   renameSync(incomplete, join(preparation, 'initial-incomplete-record.json'));
   const temporary = join(output, '.receipt-pending.json');

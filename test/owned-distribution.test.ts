@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import {
@@ -9,6 +9,7 @@ import {
   mkdtempSync,
   readFileSync,
   readlinkSync,
+  realpathSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -20,6 +21,7 @@ import { prepareOwnedDistribution } from '../scripts/prepare-owned-distribution.
 const roots: string[] = [];
 const sha256 = (bytes: string | Buffer) => createHash('sha256').update(bytes).digest('hex');
 afterEach(() => {
+  vi.unstubAllEnvs();
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
 function put(path: string, bytes: string, mode = 0o644) {
@@ -178,6 +180,20 @@ function noAcceptedReceipt(f: Fixture) {
 }
 
 describe('private owned distribution pack/path/delegation contract', () => {
+  it('uses npm from the running Node prefix despite hostile ambient node/npm commands', async () => {
+    const f = fixture();
+    const hostile = join(f.root, 'hostile-bin');
+    mkdirSync(hostile);
+    for (const name of ['node', 'npm']) put(join(hostile, name), '#!/bin/sh\nexit 91\n', 0o755);
+    vi.stubEnv('PATH', hostile);
+    const result = await prepare(f);
+    const receipt = JSON.parse(readFileSync(result.receipt, 'utf8'));
+    expect(receipt.packToolchain.nodeExecutable).toBe(realpathSync(process.execPath));
+    expect(receipt.packToolchain.npmCli).toContain('/lib/node_modules/npm/bin/npm-cli.js');
+    expect(receipt.packToolchain.npmCliSha256).toBe(
+      sha256(readFileSync(receipt.packToolchain.npmCli)),
+    );
+  });
   it('uses real offline pack, keeps a thin five-file runtime, and preserves relative links', async () => {
     const f = fixture();
     const result = await prepare(f);

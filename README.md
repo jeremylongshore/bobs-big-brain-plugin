@@ -128,6 +128,8 @@ Use a Linux development checkout with Node 22+, npm, GNU tar, Git, and the trust
 sibling `bobs-big-brain-registrar` checkout. The tool uses that checkout's existing
 runtime verifier; it does not bundle a second verifier. The output must be new,
 outside both inputs, with an existing parent and no ancestor `node_modules`.
+Install npm in the selected Node prefix (`lib/node_modules/npm`); preparation
+invokes that CLI with the running Node binary and records its identity.
 
 Preparation runs `npm pack --offline --ignore-scripts` with private npm settings,
 checks its exact file inventory and bytes, copies regular plugin files, and
