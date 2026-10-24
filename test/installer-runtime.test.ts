@@ -207,6 +207,17 @@ console.log(JSON.stringify(selectedQmdEnvironment({source:'env',executable:'tool
     expect(() => qmdAvailabilityOutcome(checked(0, selected, 'qmd 1.0.0'), {})).toThrow(/too old/);
   });
 
+  it.each(['', 'not-a-version'])('refuses a declared zero-exit malformed version %j', (stdout) => {
+    const selected: QmdCommandProvenance = { source: 'env', executable: '/qmd', prefix: [] };
+    expect(() => qmdAvailabilityOutcome(checked(0, selected, stdout), {})).toThrow(
+      /parseable version/,
+    );
+    expect(qmdAvailabilityOutcome(checked(0, null, stdout), {})).toMatchObject({
+      available: false,
+      reason: expect.stringMatching(/parseable version/),
+    });
+  });
+
   it('reports the exit code when a timed-out version check printed a version but no stderr', () => {
     const f = fixture();
     const timedOut = {

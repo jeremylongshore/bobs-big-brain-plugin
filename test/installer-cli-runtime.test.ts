@@ -161,6 +161,7 @@ async function run(
   full = false,
   clean = false,
   exitCode = 0,
+  versionStdout = exitCode === 0 ? 'qmd 2.5.3' : '',
 ) {
   const child = spawn(
     process.execPath,
@@ -187,7 +188,7 @@ async function run(
         GSB_ICO_CLI: join(f.root, 'fake-ico.cjs'),
         BBB_CHECKED: JSON.stringify({
           result: {
-            stdout: exitCode === 0 ? 'qmd 2.5.3' : '',
+            stdout: versionStdout,
             stderr: 'declared selection failure',
             exitCode,
           },
@@ -314,6 +315,11 @@ describe('actual installer selection/bootstrap boundaries with synthetic MCP', (
       TEAMKB_TENANT_ID: "client's tenant",
       TEAMKB_QMD_BIN: f.pin,
     });
+    expect(child?.env?.TEAMKB_QMD_RUNTIME).toBeUndefined();
+    for (const event of events.filter((e) => ['capture', 'govern', 'status'].includes(e.event))) {
+      expect(event.env?.TEAMKB_QMD_RUNTIME).toBeUndefined();
+      expect(event.env?.TEAMKB_QMD_BIN).toBe(f.pin);
+    }
     expect(
       events.filter((e) => ['capture', 'govern', 'status'].includes(e.event)).map((e) => e.event),
     ).toEqual(['capture', 'govern', 'status']);
@@ -335,6 +341,7 @@ describe('actual installer selection/bootstrap boundaries with synthetic MCP', (
       owned(root),
       {
         TEAMKB_QMD_RUNTIME: 'selected by fixture helper',
+        TEAMKB_QMD_BIN: '  ',
         DEEPSEEK_API_KEY: 'synthetic-not-a-credential',
       },
       true,
@@ -347,6 +354,7 @@ describe('actual installer selection/bootstrap boundaries with synthetic MCP', (
     ]);
     const expected = JSON.stringify({ root, manifestSha256: 'a'.repeat(64) });
     expect(events.find((e) => e.event === 'child')?.env?.TEAMKB_QMD_RUNTIME).toBe(expected);
+    expect(events.find((e) => e.event === 'child')?.env?.TEAMKB_QMD_BIN).toBeUndefined();
     const registration = events.find((e) => e.event === 'claude' && e.args?.[1] === 'add');
     expect(registration?.args).toContain(`TEAMKB_QMD_RUNTIME=${expected}`);
     expect(registration?.args?.some((a) => a.startsWith('TEAMKB_QMD_BIN='))).toBe(false);
@@ -355,6 +363,30 @@ describe('actual installer selection/bootstrap boundaries with synthetic MCP', (
       events.filter((e) => ['govern', 'status'].includes(e.event)).map((e) => e.event),
     ).toEqual(['govern', 'status']);
   });
+
+  it.each(['', 'not-a-version'])(
+    'refuses a declared malformed success %j before effects',
+    async (stdout) => {
+      const f = fixture();
+      const { result, events } = await run(
+        f,
+        owned(f.root),
+        { TEAMKB_QMD_RUNTIME: 'fixture declaration' },
+        false,
+        true,
+        0,
+        stdout,
+      );
+      expect(result.status, result.stderr).toBe(1);
+      expect(result.stderr).toMatch(/parseable version/);
+      expect(
+        events.filter((e) =>
+          ['provision', 'child', 'capture', 'refused', 'claude'].includes(e.event),
+        ),
+      ).toEqual([]);
+      expect(readFileSync(join(f.base, 'keep.txt'), 'utf8')).toBe('existing brain sentinel');
+    },
+  );
 
   for (const kind of ['api', 'team-file', 'failed-pin', 'failed-owned', 'forbidden-prefix']) {
     it(`refuses ${kind} before cleanup, provisioning, child launch or capture`, async () => {

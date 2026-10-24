@@ -9,6 +9,18 @@ export function effectiveInstallerEnv(args, env = process.env) {
   return { ...env, TEAMKB_BASE_PATH: args.base, TEAMKB_TENANT_ID: args.tenant };
 }
 
+/** Only the successful selection travels to installer MCP children.
+ * @param {{base: string, tenant: string, qmdEnvironment?: Record<string, string>}} args
+ * @param {NodeJS.ProcessEnv} [env]
+ * @returns {NodeJS.ProcessEnv}
+ */
+export function installerChildEnv(args, env = process.env) {
+  const child = effectiveInstallerEnv(args, env);
+  delete child.TEAMKB_QMD_BIN;
+  delete child.TEAMKB_QMD_RUNTIME;
+  return { ...child, ...args.qmdEnvironment };
+}
+
 /**
  * The requested brain base controls team.json lookup. Do not consult an
  * unrelated default brain or duplicate bootstrap's team-mode predicate.
@@ -78,9 +90,11 @@ export function qmdAvailabilityOutcome(checked, env = process.env) {
     checked.result.exitCode !== 0
       ? checked.result.stderr.trim() ||
         `qmd availability exited with code ${checked.result.exitCode}`
-      : major && Number(major[1]) < 2
-        ? `${version} is too old; qmd-backed retrieval needs qmd 2.x`
-        : undefined;
+      : !major
+        ? 'qmd availability did not report a parseable version'
+        : Number(major[1]) < 2
+          ? `${version} is too old; qmd-backed retrieval needs qmd 2.x`
+          : undefined;
   const selected = checked.provenance?.source;
   const required =
     selected === 'explicit' ||

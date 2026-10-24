@@ -32,7 +32,7 @@ import { execFileSync } from 'node:child_process';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { validateBrainTarget, revalidateBrainTarget } from './installer-paths.mjs';
-import { effectiveInstallerEnv, assertLocalInstallerMode, selectedQmdEnvironment, qmdAvailabilityOutcome, shellQuote, mcpRegistrationArgs } from './installer-runtime.mjs';
+import { installerChildEnv, effectiveInstallerEnv, assertLocalInstallerMode, selectedQmdEnvironment, qmdAvailabilityOutcome, shellQuote, mcpRegistrationArgs } from './installer-runtime.mjs';
 
 const PLUGIN_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const RUNTIME = join(PLUGIN_ROOT, 'plugin-runtime', 'governed-brain.cjs');
@@ -148,7 +148,7 @@ async function buildBrain(folder, files, args) {
   const transport = new StdioClientTransport({
     command: 'node',
     args: [BOOTSTRAP],
-    env: { ...effectiveInstallerEnv(args), ...args.qmdEnvironment },
+    env: installerChildEnv(args),
   });
   const client = new Client({ name: 'gsb-installer', version: '0.1.0' }, { capabilities: {} });
   await client.connect(transport);
@@ -230,7 +230,7 @@ async function fullCompile(folder, args) {
   const transport = new StdioClientTransport({
     command: 'node',
     args: [BOOTSTRAP],
-    env: { ...effectiveInstallerEnv(args), ...args.qmdEnvironment },
+    env: installerChildEnv(args),
   });
   const client = new Client({ name: 'gsb-installer', version: '0.1.0' }, { capabilities: {} });
   await client.connect(transport);
