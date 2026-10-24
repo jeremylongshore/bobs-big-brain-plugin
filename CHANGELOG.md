@@ -28,6 +28,10 @@ installable Claude Code + Cowork plugin (a local stdio MCP server); the engines 
 
 ### Fixed
 
+- Validate installer brain paths as canonical strict descendants of HOME before
+  side effects. Refuse HOME aliases, escaping paths and `--clean` overlap with
+  the source folder; recheck directory identities after consent before cleanup.
+
 - Limit npm archives to the four tracked runtime entry files. Provisioned native
   dependencies under `plugin-runtime/node_modules` are installed for the target
   host and no longer leak from the build machine into the package.

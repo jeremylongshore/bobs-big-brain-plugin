@@ -31,6 +31,7 @@ import { existsSync, rmSync, readFileSync, statSync, readdirSync, mkdirSync, cop
 import { execFileSync } from 'node:child_process';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { validateBrainTarget, revalidateBrainTarget } from './installer-paths.mjs';
 
 const PLUGIN_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const RUNTIME = join(PLUGIN_ROOT, 'plugin-runtime', 'governed-brain.cjs');
@@ -329,9 +330,11 @@ async function main() {
     log('Usage: governed-second-brain init <folder> [--index-only] [--yes] [--clean] [--base <dir>] [--tenant <id>]');
     process.exit(args._[0] === 'init' ? 1 : 0);
   }
-  const folder = resolve(args._[1]);
-  if (!existsSync(folder) || !statSync(folder).isDirectory()) die(`not a folder: ${folder}`);
-  if (!args.base.startsWith(homedir())) die(`--base must be under your home directory (${homedir()})`);
+  const target = validateBrainTarget({
+    home: homedir(), base: args.base, inputFolder: args._[1], clean: args.clean,
+  });
+  const folder = target.inputFolder;
+  args.base = target.basePath;
   if (!existsSync(RUNTIME)) die(`bundled runtime missing at ${RUNTIME} — run "pnpm build" in the plugin repo first.`);
 
   // Full compile mode egresses to DeepSeek — require the key up front (fail fast, before consent).
@@ -347,9 +350,12 @@ async function main() {
 
   if (!(await preflight(folder, args, files.length))) { log(C.dim('  aborted.')); process.exit(0); }
 
-  if (args.clean && existsSync(args.base)) {
-    log(C.dim(`  --clean: removing ${args.base}`));
-    rmSync(args.base, { recursive: true, force: true });
+  // Recheck the original paths and existing directory identities after consent.
+  // Use the validated canonical target, never the original alias spelling.
+  const currentTarget = revalidateBrainTarget(target);
+  if (args.clean && existsSync(currentTarget.basePath)) {
+    log(C.dim(`  --clean: removing ${currentTarget.basePath}`));
+    rmSync(currentTarget.basePath, { recursive: true, force: true });
   }
 
   ensureNativeDep();
