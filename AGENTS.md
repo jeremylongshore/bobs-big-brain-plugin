@@ -106,6 +106,12 @@ node smoke.mjs                        # LOCAL: capture→govern→search over MC
 node smoke-team.mjs                   # TEAM: dispatch→proxy against a stub API; asserts the surface, bearer, tenant, the Author-object, and the admin 403
 ```
 
+For a reviewed bundle refresh using an existing native installation, run
+`node build.mjs --bundle-only`. This still rebuilds the clean Registrar source and
+records its revision and bundle hash, but skips native npm provisioning. It does
+not verify native compatibility; check the native closure and run the appropriate
+isolated runtime smoke separately. The default build still provisions natives.
+
 Build hard-facts:
 - **Single native dep**: `better-sqlite3` is `--external` + needs `bindings`; the installer provisions
   `plugin-runtime/node_modules/better-sqlite3` per-platform (NOT committed). `ajv`/`ajv-formats` stay
