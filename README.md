@@ -112,6 +112,32 @@ It checks four things against the external anchor log (`anchors.jsonl`, a hash c
 Exit `0` on pass (witness-only warnings still exit `0`); non-zero on any integrity, linkage, or
 history-rewrite failure. Run the verifier's own tests with `npm run verify-anchors:test`.
 
+## Rebuilding an existing local brain
+
+`init <folder> --clean` retains the old brain at a sibling
+`.bbb-clean-<random>/original` and creates a fresh brain directory. The preflight
+and completion output disclose this retention. **This does not reclaim disk
+space.** Existing-brain cleanup requires Linux, `/usr/bin/python3` (3.10+),
+readable `/proc/self/fd` path witnesses, and filesystem
+support for descriptor-relative `renameat2(RENAME_NOREPLACE)`; unsupported cleanup
+refuses rather than falling back to recursive deletion. The interpreter runs in
+isolated mode using only its standard library; the installer does not install it.
+
+The sibling holder contains a `recovery.json` record written before the move.
+On refusal or interruption, inspect the reported backup and recovery record
+before retrying. A changed entry is restored only when its original name is vacant;
+otherwise it remains recoverable in the holder. Keep backups until you have
+verified the rebuilt brain and decided what to archive or remove. There is no
+automatic purge. Full compilation also reserves and retains a fresh
+`ico-workspace-<random>` for each attempt, preserving prior compiler workspaces.
+Budget disk space for both the old data and the new build.
+
+Cleanup uses directory handles and never recursively deletes the old tree. This
+protects against the tested ancestor and leaf replacement interleavings; it does
+not freeze the retained tree, confine another process running as your user, or
+make later capture/provisioning writes a transaction. Avoid concurrent writers
+while rebuilding.
+
 ## Install
 
 Local-mode marketplace installs provision three lockfile-pinned native modules (`better-sqlite3`,
