@@ -27,7 +27,10 @@
   "files": [
     "bin",
     "onboarding",
-    "plugin-runtime",
+    "plugin-runtime/bootstrap.cjs",
+    "plugin-runtime/governed-brain.cjs",
+    "plugin-runtime/package.json",
+    "plugin-runtime/package-lock.json",
     "gsb.lock.json",
     ".claude-plugin",
     "skills",
@@ -66,13 +69,18 @@
     "bootstrap-clean-install:test": "node smoke/bootstrap-clean-install.mjs"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "better-sqlite3": "^12.10.0",
     "fs-ext": "^2.1.1",
     "sqlite-vec": "^0.1.9",
-    "zod": "^4.4.3"
+    "zod": "^4.6.7"
   },
   "pnpm": {
+    "overrides": {
+      "hono@4.12.25": "4.13.11",
+      "@hono/node-server@1.19.14": "1.19.15",
+      "qs@6.15.2": "6.16.1"
+    },
     "onlyBuiltDependencies": [
       "better-sqlite3",
       "esbuild",
@@ -92,11 +100,12 @@
     "@types/better-sqlite3": "^7.6.11",
     "@types/fs-ext": "^2.0.3",
     "@types/node": "^22.10.0",
-    "@vitest/coverage-v8": "^4.1.10",
+    "@vitest/coverage-v8": "^4.1.12",
     "esbuild": "^0.28.1",
     "eslint": "^10.6.0",
     "typescript": "^5.7.0",
     "typescript-eslint": "^8.63.0",
-    "vitest": "^4.1.10"
+    "vite": "8.3.5",
+    "vitest": "^4.1.12"
   }
 }

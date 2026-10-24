@@ -28,13 +28,19 @@ installable Claude Code + Cowork plugin (a local stdio MCP server); the engines 
 
 ### Fixed
 
+- Limit npm archives to the four tracked runtime entry files. Provisioned native
+  dependencies under `plugin-runtime/node_modules` are installed for the target
+  host and no longer leak from the build machine into the package.
+
 - Refresh the committed runtime and provenance lock from Registrar
-  `904a077dc460ef8dfc9bf43ca725047ea0c5eae4`. Imported exporter code routes
-  deprecated memories to archive after reconciliation, and dense maintenance
-  defaults to one document per request. The source revision also contains
-  server-side fixes that are not part of this local bundle. This artifact refresh
-  does not publish a version, deploy an API, reconcile an installed corpus or
-  advance the separately reviewed marketplace pin.
+  `775c8c10aa44afa98d559c390f88300f3ff5a552`, with project SDK `1.32.2` and Zod
+  `4.6.7` aligned for the build. Update compatible SDK HTTP/validation and
+  Vitest/coverage dependency paths to patched versions. Imported exporter code
+  routes deprecated memories to archive after reconciliation, and dense
+  maintenance defaults to one document per request. Registrar server-side fixes
+  remain server-only. This refresh does not replace an installed native closure,
+  activate an owned qmd artifact, publish a version, deploy an API, reconcile an
+  installed corpus or advance the separately reviewed marketplace pin.
 
 - Correct `/brain` and contributor guidance to describe configured BM25/FTS5/dense fusion with lexical fallback; distinguish team API intake deduplication from local spool capture in `/brain-save`. Search-before-save remains required. No runtime or bundle change (umbrella `compile-then-govern-39z.33.1`).
 
@@ -48,6 +54,10 @@ installable Claude Code + Cowork plugin (a local stdio MCP server); the engines 
   fix instead of the opaque `Failed to update index`; the result also reports which binary ran.
 
 ### Changed
+
+- Add `node build.mjs --bundle-only` for a clean Registrar rebuild and bundle
+  provenance refresh without native npm provisioning. Native compatibility needs
+  separate runtime verification; the default build still provisions natives.
 
 - **Onboarding is one universal path.** `onboarding/README.md` (and the live page at
   `demos.intentsolutions.io/bbb/`) lead with a single paste-to-Claude prompt for Mac *and* Windows —
