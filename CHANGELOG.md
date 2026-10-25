@@ -10,6 +10,13 @@ installable Claude Code + Cowork plugin (a local stdio MCP server); the engines 
 
 ### Added
 
+- Development-workspace private distribution preparation from actual offline
+  npm-pack inventory and a separately verified owned-runtime sibling. Records
+  source, verifier, package and historical candidate identities without native
+  installation, activation, caller-supplied archive input or external
+  release/marketplace publication. Clean-bootstrap smoke
+  now carries the headless helper alongside the other four runtime files.
+
 - **Human-escalation holds (registrar Epic K bead K6).** The deterministic pipeline now puts a
   candidate on a bounded hold when an audience or secret question can be detected but not decided;
   it is neither promoted nor dropped, and it closes unpromoted at its expiry. Team mode gains two
@@ -27,6 +34,10 @@ installable Claude Code + Cowork plugin (a local stdio MCP server); the engines 
   leaves the wire shape unchanged. Team mode stays dependency-free via a mirrored validator.
 
 ### Fixed
+
+- Describe historical candidate bindings as verifier-reported rather than asserting
+  a fixed count, and clarify private preparation modes, retained files and dated
+  evidence boundaries.
 
 - Persist local `brain_transition` supersession through the Registrar's dedicated
   repository operation, with fresh endpoint validation and its audit event in one

@@ -153,6 +153,13 @@ Build hard-facts:
   successful selected binary pin or normalized runtime pair is registered; legacy
   discovery is not implicitly pinned. Relative env binaries are canonicalized
   after success; relative explicit-config binaries cannot be persisted.
+- **Private distribution preparation**: `scripts/prepare-owned-distribution.mjs`
+  is a development-workspace tool requiring the trusted sibling Registrar verifier.
+  It prepares a fresh directory from actual offline npm-pack bytes plus a verified
+  sibling owned closure; it never provisions, activates, externally publishes or purges data.
+  Preserve relative candidate links and historical source bindings. A prepared
+  receipt is separate from actual native installation, retrieval and portability
+  evidence. After relocation the caller must supply the new paired owned root.
 - **Headless helper**: `src/qmd-command.ts` builds separately to
   `plugin-runtime/qmd-command.cjs` for installer availability without starting MCP.
   Both generated bundles and their `gsb.lock.json` digests must come from the same
