@@ -125,25 +125,33 @@ node scripts/prepare-owned-distribution.mjs \
 ```
 
 Use a Linux development checkout with Node 22+, npm, GNU tar, Git, and the trusted
-sibling `bobs-big-brain-registrar` checkout. The tool uses that checkout's existing
-runtime verifier; it does not bundle a second verifier. The output must be new,
-outside both inputs, with an existing parent and no ancestor `node_modules`.
+sibling `bobs-big-brain-registrar` checkout. Node 22+ is a caller prerequisite;
+the preparer has no minimum-version guard of its own. It uses that checkout's
+existing runtime verifier, without bundling a second verifier. The output must
+be new, outside both inputs, with an existing parent and no ancestor `node_modules`.
 Install npm in the selected Node prefix (`lib/node_modules/npm`); preparation
 invokes that CLI with the running Node binary and records its identity.
 
 Preparation runs `npm pack --offline --ignore-scripts` with private npm settings,
-checks its exact file inventory and bytes, copies regular plugin files, and
-preserves the verified candidate's relative links. No archive is extracted into
-the filesystem. Both source and copied runtime must pass the Registrar's graph,
-file, mode and host/ABI checks before a `distribution-receipt.json` is created locally.
-The receipt distinguishes plugin source, packed bytes, verifier source and the
-candidate's historical source bindings. Failed output is retained for inspection.
-The only archive input is the npm tarball the command just generated; it does not
-accept caller-supplied archives. There is no cleanup, native installation,
-download, activation or external release/marketplace publication step.
+checks its exact file inventory and bytes, and preserves the verified candidate's
+relative links. It streams each generated tar member to stdout and recreates
+regular plugin files with checked modes; it never unpacks the archive as a tree.
+Source files must have no setuid/setgid/sticky bits and normalize under npm's
+owner-read/write, bin-executable and group/other-write-clearing rules to archive
+mode 0644 or 0755. Source modes need not already equal archive modes. Both source
+and copied runtime must pass the Registrar's graph, file, mode and host/ABI checks
+before a `distribution-receipt.json` is created locally. The receipt distinguishes
+plugin source, packed bytes, verifier source and the candidate's historical source
+bindings. The tool copies `gsb.lock.json` without verifying its internal bundle
+digests; the separate `node smoke/check-lock.mjs` check owns that verification.
+Failed output is retained for inspection. The only archive input is the npm
+tarball the command just generated; it does not accept caller-supplied archives.
+There is no cleanup, native installation, download, activation or external
+release/marketplace publication step.
 
 The directory is a preparation artifact, not an installation or portability
-certificate. The current local proof targets Linux x64 glibc, Node 22.23.1/ABI127.
+certificate. [Development evidence recorded on 2026-10-25](https://github.com/jeremylongshore/bobs-big-brain-plugin/pull/85#issuecomment-6401481860)
+targeted Linux x64 glibc, Node 22.23.1/ABI127.
 Local bootstrap still needs its independently locked native dependencies and a
 prepared host cache/toolchain. Its `npm ci` replaces `plugin/plugin-runtime/node_modules`;
 keep `owned-qmd` beside the plugin. After relocation, supply the new absolute owned
@@ -156,10 +164,16 @@ export TEAMKB_QMD_RUNTIME='{"root":"/absolute/relocated-distribution/owned-qmd",
 ```
 
 Team mode uses Node and the bundled server without separately installing local
-qmd or the local native dependency tree. A loopback team-mode test establishes
-the proxy contract; live remote integration needs its own acceptance evidence.
+qmd or the local native dependency tree. The dated evidence above includes a
+loopback TEAM proxy-contract test; live remote integration needs its own acceptance
+evidence.
 
-Allow capacity for the complete owned runtime, plugin and preparation files.
+The output retains `.preparation/` with the generated tarball, pack inventory,
+private npm cache, HOME/TMP scaffolding and empty npmrc files. The output root also
+retains `.receipt-pending.json` alongside the success receipt. Receipts record
+local source, verifier, toolchain and selection paths. The caller controls which
+files and metadata are distributed.
+Allow capacity for the owned runtime, plugin and retained preparation files.
 The 2 GiB payload policy and child-process limits do not enforce a total disk/time
 quota on synchronous copying or confine concurrent writers running as your user.
 

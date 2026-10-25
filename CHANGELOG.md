@@ -35,6 +35,10 @@ installable Claude Code + Cowork plugin (a local stdio MCP server); the engines 
 
 ### Fixed
 
+- Describe historical candidate bindings as verifier-reported rather than asserting
+  a fixed count, and clarify private preparation modes, retained files and dated
+  evidence boundaries.
+
 - Persist local `brain_transition` supersession through the Registrar's dedicated
   repository operation, with fresh endpoint validation and its audit event in one
   immediate transaction. Require an active, distinct replacement in the same

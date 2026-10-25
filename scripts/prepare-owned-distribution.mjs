@@ -409,7 +409,7 @@ export async function prepareOwnedDistribution({
         sourceSnapshot: verified.manifest.sourceSnapshot,
         sourceFiles: verified.manifest.sourceFiles,
         meaning:
-          'Historical base/uncommitted flag and eight source bindings retained unchanged; not relabeled as plugin or verifier HEAD',
+          'Historical base/uncommitted flag and verifier-reported source bindings retained unchanged; not relabeled as plugin or verifier HEAD',
       },
       platform: verified.manifest.platform,
       nodeAbi: verified.manifest.nodeAbi,
