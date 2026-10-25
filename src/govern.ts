@@ -346,9 +346,12 @@ function expireOverdueHolds(config: BrainConfig, deps: SweepDeps): number {
  *       - flagged → LEFT in the inbox for human review. Repeated evaluations
  *         suppress rejection receipts so review leftovers do not grow the chain.
  *
- * Every candidate is wrapped in its own try/catch: a single bad row is skipped +
- * counted, never aborting the drain (paired with the tolerant `findByStatus`
- * mapper, so even an unparseable row can't wedge the inbox forever).
+ * Per-candidate evaluation errors are caught, skipped and counted (paired with
+ * the tolerant `findByStatus` mapper). Deferred settlement is a separate boundary:
+ * missing evaluation evidence, candidate drift or receipt failure aborts the call
+ * and rolls back the whole deferred batch. Previously committed promotions and
+ * holds retain their own transactions. A persistent settlement conflict can keep
+ * refusing subsequent calls until its cause is resolved.
  *
  * Emits exactly ONE batch-level `governed` audit receipt — but ONLY when ≥1
  * candidate actually LEFT the inbox this run (including terminal rejections).

@@ -31,7 +31,9 @@ installable Claude Code + Cowork plugin (a local stdio MCP server); the engines 
 - Settle hard policy rejections as retained terminal candidates, with the
   Registrar's canonical per-candidate rejection receipt and the sweep receipt in
   the same immediate transaction. Repeated sweeps no longer reconsider those
-  rejected rows. Flagged review items, bounded holds and member quarantine retain
+  rejected rows. Settlement conflicts or missing evidence refuse the call and
+  roll back the deferred batch; already committed promotions/holds retain their
+  own transactions. Flagged review items, bounded holds and member quarantine retain
   their behavior; settlement rechecks a full pre-evaluation candidate snapshot,
   and receipt failure or candidate drift rolls back deferred status changes. Regenerate
   the local runtime from Registrar e0cff6d without provisioning natives or

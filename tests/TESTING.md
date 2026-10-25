@@ -61,7 +61,11 @@ evaluation; they do not exercise a genuinely concurrent second writer. They cove
 terminal rejection and canonical receipt, repeated-sweep no-op, mixed flags /
 holds / member quarantine / tenant isolation, per-candidate and batch receipt
 failure rollback, missing evaluation evidence, and tenant/status/payload drift refusal.
-These cases do not establish bundled MCP, retrieval or external-anchor behavior.
+Evaluation errors skip individual rows. Deferred settlement validation or receipt
+errors instead abort the call and roll back the whole deferred batch; prior
+promotions and holds retain their own commits. A persistent settlement conflict
+can refuse later calls until its cause is resolved. These cases do not establish
+bundled MCP, retrieval or external-anchor behavior.
 
 The generated local runtime separately supports an isolated MCP check: capture a
 nine-character synthetic note, govern twice, then read back the candidate and
