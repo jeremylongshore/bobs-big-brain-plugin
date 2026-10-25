@@ -58,6 +58,16 @@ optional *compile* step (Bob's Big Brain Compiler) is the only thing that egress
 
 Two skills front these: **`/brain`** (cited answers) and **`/brain-save`** (governed capture).
 
+Fresh local tenants receive the Registrar's recommended policy on their first govern pass;
+existing policies are preserved. The current template enables ten registered rule types,
+with decisions depending on the candidate and evaluation context. A capture may be promoted,
+rejected, left in the inbox for review, or placed on a human hold.
+
+The six local MCP tools do not yet provide a general review or hold-resolution interface.
+Flagged and held items remain unpromoted; an installed-user, person-operated route is tracked
+under `compile-then-govern-eqw.10` in the [public outsider-proof work](https://github.com/intent-solutions-io/bobs-big-brain-umbrella/issues/122).
+This policy change adds no automatic approval or migration of existing policy rows.
+
 ## What the receipt does *not* do
 
 Honesty is the point of a receipt. The chain gives you **tamper-*detection*** — integrity + ordering,

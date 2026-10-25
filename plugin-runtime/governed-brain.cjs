@@ -52801,15 +52801,134 @@ var init_hold_triggers = __esm({
 });
 
 // ../bobs-big-brain-registrar/packages/policy-engine/dist/recommended-policy.js
+function buildRecommendedPolicy(tenantId, now, id = (0, import_node_crypto10.randomUUID)()) {
+  return GovernancePolicy.parse({
+    id,
+    name: "Recommended Governance Policy",
+    tenantId,
+    rules: RECOMMENDED_POLICY_RULES,
+    enabled: true,
+    version: 1,
+    createdAt: now,
+    updatedAt: now
+  });
+}
 function findUncoveredRuleTypes(policy) {
   const enabled = new Set(policy.rules.filter((r) => r.enabled).map((r) => r.type));
   return Object.keys(RULE_REGISTRY).filter((t) => !enabled.has(t)).sort();
 }
+var import_node_crypto10, RECOMMENDED_POLICY_RULES;
 var init_recommended_policy = __esm({
   "../bobs-big-brain-registrar/packages/policy-engine/dist/recommended-policy.js"() {
     "use strict";
+    import_node_crypto10 = require("node:crypto");
     init_dist();
     init_rules();
+    RECOMMENDED_POLICY_RULES = [
+      {
+        id: "rec-secret-detection",
+        type: "secret_detection",
+        action: "reject",
+        enabled: true,
+        priority: 0,
+        parameters: {},
+        description: "Reject candidates containing secrets/credentials."
+      },
+      {
+        id: "rec-content-length",
+        type: "content_length",
+        action: "reject",
+        enabled: true,
+        priority: 1,
+        parameters: { min: 25 },
+        description: "Reject candidates below the minimum meaningful length."
+      },
+      {
+        id: "rec-tenant-match",
+        type: "tenant_match",
+        action: "reject",
+        enabled: true,
+        priority: 2,
+        parameters: {},
+        description: "Reject a candidate whose tenant does not match its target."
+      },
+      {
+        id: "rec-source-trust",
+        type: "source_trust",
+        action: "flag",
+        enabled: true,
+        priority: 3,
+        parameters: {},
+        description: "Flag candidates below the minimum source trust level."
+      },
+      {
+        // 5kw.3: action 'reject' + source-keyed evaluator severity. The evaluator
+        // only returns 'fail' (rejectable) for the sources listed in
+        // `rejectSources`; every other source flags at most — so this reject
+        // action hard-rejects below-threshold IMPORT-class candidates while an
+        // identical interactive capture (claude_session / manual / mcp) is only
+        // flagged for review. Both keys (source-keyed 'fail' + action 'reject')
+        // must agree before anything is turned away.
+        id: "rec-relevance-score",
+        type: "relevance_score",
+        action: "reject",
+        enabled: true,
+        priority: 4,
+        parameters: { rejectSources: ["import", "bulk_import"] },
+        description: "Reject below-threshold import-source candidates at intake; flag low-relevance interactive captures for review."
+      },
+      {
+        id: "rec-sensitivity-gate",
+        type: "sensitivity_gate",
+        action: "flag",
+        enabled: true,
+        priority: 5,
+        parameters: {},
+        description: "Flag candidates whose classified sensitivity warrants review."
+      },
+      {
+        id: "rec-dedup-check",
+        type: "dedup_check",
+        action: "flag",
+        enabled: true,
+        priority: 6,
+        parameters: {},
+        description: "Flag likely-duplicate candidates."
+      },
+      {
+        id: "rec-content-sanitization",
+        type: "content_sanitization",
+        action: "flag",
+        enabled: true,
+        priority: 7,
+        parameters: {},
+        description: "Flag content that required sanitization."
+      },
+      {
+        // E1: flag-only in v1, and the pipeline evaluates contradiction rules in a
+        // dedicated pre-phase regardless of this priority number — the priority
+        // only orders it among other contradiction rules.
+        id: "rec-contradiction-check",
+        type: "contradiction_check",
+        action: "flag",
+        enabled: true,
+        priority: 8,
+        parameters: {},
+        description: "Flag candidates that heavily overlap an existing active same-category memory (potential contradiction, v1 token-overlap heuristic)."
+      },
+      {
+        // K3: flag-only by construction (the evaluator never returns 'fail'). It
+        // recommends a narrower audience and writes nothing; narrowing itself is the
+        // curator's receipted `narrow-audience` act.
+        id: "rec-audience-narrowing",
+        type: "audience_narrowing",
+        action: "flag",
+        enabled: true,
+        priority: 9,
+        parameters: {},
+        description: "Flag candidates whose declared audience is wider than their content calls for (credentials -> owner, PII -> admins). Recommendation only."
+      }
+    ];
   }
 });
 
@@ -53304,7 +53423,7 @@ function reject(candidate, pipelineResult, auditRepo, dryRun = false) {
   const reason = pipelineResult.rejectedBy !== void 0 ? `Rejected by rule: ${pipelineResult.rejectedBy}` : `Flagged by rules: ${pipelineResult.flaggedBy?.join(", ") ?? "unknown"}`;
   if (!dryRun) {
     auditRepo.insert(AuditEvent.parse({
-      id: (0, import_node_crypto10.randomUUID)(),
+      id: (0, import_node_crypto11.randomUUID)(),
       action: "deleted",
       memoryId: candidate.id,
       tenantId: candidate.tenantId,
@@ -53320,11 +53439,11 @@ function reject(candidate, pipelineResult, auditRepo, dryRun = false) {
   }
   return reason;
 }
-var import_node_crypto10;
+var import_node_crypto11;
 var init_rejector = __esm({
   "../bobs-big-brain-registrar/apps/curator/dist/rejection/rejector.js"() {
     "use strict";
-    import_node_crypto10 = require("node:crypto");
+    import_node_crypto11 = require("node:crypto");
     init_dist();
   }
 });
@@ -54950,47 +55069,14 @@ var init_dist9 = __esm({
 function seedDefaultPolicy(policyRepo, tenantId) {
   const existing = policyRepo.findByTenant(tenantId);
   if (Array.isArray(existing) && existing.length > 0) return false;
-  const now = (/* @__PURE__ */ new Date()).toISOString();
-  const policy = GovernancePolicy.parse({
-    id: (0, import_node_crypto11.randomUUID)(),
-    name: "local-default",
-    tenantId,
-    enabled: true,
-    version: 1,
-    createdAt: now,
-    updatedAt: now,
-    rules: [
-      {
-        id: "secret-detection",
-        type: "secret_detection",
-        action: "reject",
-        enabled: true,
-        priority: 0,
-        parameters: {},
-        description: "Reject candidates containing credentials/secrets \u2014 a receipted backstop to the always-on disclosure choke point."
-      },
-      {
-        id: "content-length",
-        type: "content_length",
-        action: "reject",
-        enabled: true,
-        priority: 10,
-        // NOTE: the content_length rule reads parameters['min'] (default 10) —
-        // NOT 'minLength' (a 'minLength' key is silently ignored).
-        parameters: { min: 25 },
-        description: "Reject too-short candidates (<25 chars) \u2014 low-signal noise."
-      }
-    ]
-  });
+  const policy = buildRecommendedPolicy(tenantId, (/* @__PURE__ */ new Date()).toISOString());
   policyRepo.insert(policy);
   return true;
 }
-var import_node_crypto11;
 var init_seed_policy = __esm({
   "src/seed-policy.ts"() {
     "use strict";
-    import_node_crypto11 = require("node:crypto");
-    init_dist();
+    init_dist7();
   }
 });
 

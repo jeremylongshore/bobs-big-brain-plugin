@@ -149,13 +149,17 @@ try {
     .prepare("SELECT tenant_id, reason, details_json FROM audit_events WHERE action = 'deleted' AND memory_id = ?")
     .all(rejectId);
   ok(rejectionRows.length === 1, 'exactly one canonical rejection receipt names the candidate');
+  const rejectionPolicyRow = db.prepare('SELECT rules_json FROM governance_policies WHERE tenant_id = ? AND enabled = 1').get(TENANT);
+  const configuredLengthRule = rejectionPolicyRow && JSON.parse(rejectionPolicyRow.rules_json)
+    .find((rule) => rule.enabled && rule.type === 'content_length');
+  ok(typeof configuredLengthRule?.id === 'string', 'the active policy configures its length rule');
   const rejectionRow = rejectionRows[0];
   const rejectionDetails = rejectionRow ? JSON.parse(rejectionRow.details_json) : {};
   ok(
-    rejectionRow?.tenant_id === TENANT && /content-length/.test(rejectionRow.reason ?? '') &&
+    rejectionRow?.tenant_id === TENANT && typeof configuredLengthRule?.id === 'string' && (rejectionRow.reason ?? '').includes(configuredLengthRule.id) &&
       rejectionDetails.candidateId === rejectId && rejectionDetails.outcome === 'rejected' &&
       rejectionDetails.evaluations?.some((evaluation) =>
-        evaluation.ruleId === 'content-length' && evaluation.ruleType === 'content_length' &&
+        evaluation.ruleId === configuredLengthRule.id && evaluation.ruleType === 'content_length' &&
         evaluation.outcome === 'fail'),
     'canonical receipt binds tenant, candidate and the failed length evaluation',
   );
@@ -202,24 +206,14 @@ try {
   ok(statusOf(db, rejectId) === 'rejected', 'rejected candidate remains terminal after re-run');
   db.close();
 
-  // ── Phase 4: human-escalation hold (K6). A candidate whose audience question the
-  //    rules can detect but not decide is HELD: not promoted, not dropped, receipted,
-  //    with an expiry. Enable the two audience rules on this throwaway brain's policy
-  //    (the local default seeds neither), then sweep a PII-shaped admin capture.
+  // ── Phase 4: canonical recommended audience gates already apply on this
+  //    fresh brain. A detected audience question is held for a person, not
+  //    promoted or silently dropped; do not inject duplicate test-only rules.
   db = new Database(DB);
-  const policyRow = db.prepare('SELECT id, rules_json FROM governance_policies WHERE tenant_id = ?').get(TENANT);
-  const audienceRules = ['sensitivity_gate', 'audience_narrowing'].map((type, i) => ({
-    id: `smoke-${type}`,
-    type,
-    action: 'flag',
-    enabled: true,
-    priority: 20 + i,
-    parameters: {},
-  }));
-  db.prepare('UPDATE governance_policies SET rules_json = ? WHERE id = ?').run(
-    JSON.stringify([...JSON.parse(policyRow.rules_json), ...audienceRules]),
-    policyRow.id,
-  );
+  const policyRow = db.prepare('SELECT rules_json FROM governance_policies WHERE tenant_id = ?').get(TENANT);
+  const enabledTypes = new Set(JSON.parse(policyRow.rules_json).filter((rule) => rule.enabled).map((rule) => rule.type));
+  ok(['sensitivity_gate', 'audience_narrowing'].every((type) => enabledTypes.has(type)),
+    'the fresh default already enables both audience gates');
   const HOLD_CONTENT = `Escalate billing questions to dana.whitfield@customer-example.com before Friday.`;
   const holdId = seedCandidate(db, { content: HOLD_CONTENT, title: 'Billing contact', role: 'admin', author: 'jeremy' });
   const memBeforeHold = memoryCount(db);

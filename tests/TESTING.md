@@ -108,6 +108,33 @@ or matched value. This feedback is not a durable hash-chain refusal receipt.
 Existing archives and non-MCP intake remain separate work under umbrella Bead
 `compile-then-govern-eqw.9`; no operator archive is read or purged by these tests.
 
+## Fresh recommended policy
+
+`node --test scripts/seed-policy.test.mjs` runs thirteen real-store cases in the
+provisioned source lane. Persisted rules equal the canonical recommended template
+and cover the current public rule registry. Repeated seeding preserves raw policy
+rows, IDs and timestamps; any existing custom, disabled or older policy suppresses
+seeding, and another tenant's row is preserved. Real Curator cases cover promotion,
+short rejection, low-relevance review, human hold and source trust; a pure pipeline
+case checks explicit tenant context. These direct Curator cases do not implement
+`runGovern` terminal settlement or prove bundled MCP behavior.
+
+`node smoke/recommended-policy.mjs` separately drives the committed runtime through
+nine checkpoints: fresh empty govern seeds ten unique enabled types; a second pass
+preserves the inspected rows; clean capture promotes; short content receives its
+configured rejection receipt once; low relevance stays in review; a synthetic
+reserved-domain contact enters a human hold; repeats add no decision receipts; the
+chain and a nonempty private external anchor verify. The script lists its exact
+inspected columns in the policy/candidate/memory/audit tables. It makes no whole-DB
+or filesystem snapshot claim. qmd is explicitly missing and dense is disabled.
+
+Enabled coverage is not ten decisions per input: hard rejects short-circuit, some
+rules require context, and exact duplicates can return before policy. Existing
+policies are never retrofitted; a disabled-only policy also suppresses seeding.
+The existing caller's best-effort seed-error catch is unchanged and is not a
+fail-closed bootstrap guarantee. Flags remain in the inbox and holds remain
+quarantined; this change adds no local approval interface (`eqw.10`).
+
 ## Run it
 
 ```bash
