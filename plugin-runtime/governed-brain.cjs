@@ -54735,7 +54735,7 @@ function detectChanges(memoryRepo, exportStateRepo, config2) {
   const allMemories = memories;
   const reconcile = config2.reconcile === true;
   if (exportState !== null && !reconcile) {
-    memories = memories.filter((m) => m.updatedAt > exportState.lastExportedAt);
+    memories = memories.filter((m) => m.updatedAt >= exportState.lastExportedAt);
   }
   const toWrite = [];
   const toArchive = [];
@@ -54840,6 +54840,7 @@ var init_file_writer = __esm({
 
 // ../bobs-big-brain-registrar/apps/git-exporter/dist/exporter.js
 function runExport(memoryRepo, exportStateRepo, config2, nowFn = () => (/* @__PURE__ */ new Date()).toISOString()) {
+  const startedAt = nowFn();
   const changeset = detectChanges(memoryRepo, exportStateRepo, config2);
   const written = [];
   const archived = [];
@@ -54897,7 +54898,7 @@ function runExport(memoryRepo, exportStateRepo, config2, nowFn = () => (/* @__PU
       removed.push(filePath);
     }
   }
-  exportStateRepo.set(config2.targetId, nowFn());
+  exportStateRepo.set(config2.targetId, startedAt);
   return {
     written,
     archived,
@@ -54940,6 +54941,7 @@ var init_dist9 = __esm({
     init_change_detector();
     init_file_writer();
     init_exporter();
+    init_sensitivity();
     init_cli();
   }
 });
@@ -55272,6 +55274,7 @@ function sweepInbox(config2, deps) {
   const existingHashes = new Set(memoryRepo.getContentHashesByTenant(config2.tenantId));
   const outcomes = [];
   const pendingFlips = [];
+  const pendingRejections = [];
   for (const candidate of inbox) {
     try {
       if (isMemberAuthored(candidate)) {
@@ -55280,6 +55283,7 @@ function sweepInbox(config2, deps) {
         outcomes.push({ candidateId: candidate.id, outcome: "quarantined" });
         continue;
       }
+      const evaluatedCandidate = structuredClone(candidate);
       const result = curator.processSingle(candidate, existingHashes);
       switch (result.outcome) {
         case "promoted":
@@ -55303,6 +55307,10 @@ function sweepInbox(config2, deps) {
           outcomes.push({ candidateId: candidate.id, outcome: "flagged" });
           break;
         case "rejected":
+          pendingRejections.push({
+            candidate: evaluatedCandidate,
+            pipelineResult: result.pipelineResult
+          });
           res.rejected++;
           outcomes.push({ candidateId: candidate.id, outcome: "rejected" });
           break;
@@ -55316,9 +55324,22 @@ function sweepInbox(config2, deps) {
       );
     }
   }
-  const leftInbox = res.promoted + res.duplicates + res.quarantined + res.held;
+  const leftInbox = res.promoted + res.duplicates + res.quarantined + res.held + res.rejected;
   if (leftInbox > 0) {
     memoryRepo.connection.transaction(() => {
+      for (const pending of pendingRejections) {
+        const current = candidateRepo.findById(pending.candidate.id);
+        if (current === null || current.tenantId !== config2.tenantId || current.status !== "inbox" || !(0, import_node_util2.isDeepStrictEqual)(current, pending.candidate)) {
+          throw new Error(`Rejected candidate settlement conflict: ${pending.candidate.id}`);
+        }
+        if (pending.pipelineResult?.outcome !== "rejected") {
+          throw new Error(`Rejected candidate missing pipeline evidence: ${pending.candidate.id}`);
+        }
+        reject(pending.candidate, pending.pipelineResult, auditRepo);
+        if (candidateRepo.updateStatus(pending.candidate.id, "rejected", config2.tenantId) !== 1) {
+          throw new Error(`Rejected candidate settlement conflict: ${pending.candidate.id}`);
+        }
+      }
       for (const flip of pendingFlips) {
         candidateRepo.updateStatus(flip.id, flip.status, config2.tenantId);
       }
@@ -55344,19 +55365,20 @@ function sweepInbox(config2, deps) {
           timestamp: (/* @__PURE__ */ new Date()).toISOString()
         })
       );
-    })();
+    }).immediate();
   }
   return res;
 }
 function isMemberAuthored(candidate) {
   return candidate.metadata?.proposedByRole === "member";
 }
-var import_node_crypto12, import_node_path30, SWEEP_RECEIPT_MEMORY_ID;
+var import_node_crypto12, import_node_path30, import_node_util2, SWEEP_RECEIPT_MEMORY_ID;
 var init_govern = __esm({
   "src/govern.ts"() {
     "use strict";
     import_node_crypto12 = require("node:crypto");
     import_node_path30 = require("node:path");
+    import_node_util2 = require("node:util");
     init_dist8();
     init_dist9();
     init_dist2();

@@ -26,7 +26,7 @@ is validated locally + by the committed-bundle smoke.
 | L3 unit — anchor-on-transition | `pnpm anchor-on-transition:test` (esbuilds `src/anchor.ts` → needs sibling) | local |
 | L5 system — full chain (zero egress) | `smoke/smoke.mjs`, `smoke/audit-verify-banner.test.mjs` (drive the committed bundle) | `smoke.yml` + local |
 | L5 system — synthetic golden set | `scripts/run-golden-set.mjs` (versioned fixture + expected deterministic outcomes) | `smoke.yml` + local |
-| L5 system — B1 auto-govern inbox sweep | `smoke/b1-inbox-sweep.mjs` (seeds remote-shape candidates in a throwaway `candidates` table, drives the sweep: promote/quarantine/duplicate/keep-in-inbox + idempotency) | `smoke.yml` + local |
+| L5 system — B1 auto-govern inbox sweep | `smoke/b1-inbox-sweep.mjs` (seeds remote-shape candidates in a throwaway `candidates` table, drives the sweep: promotion/member quarantine/duplicate/terminal rejection + idempotency; verifies retained rejected content, canonical per-candidate evaluation receipt and zero-work second sweep) | `smoke.yml` + local |
 | Policy pin | `audit-harness verify` (this file + any future `features/*.feature`) | CI `ci.yml` + local |
 
 ## Coverage floor
@@ -48,6 +48,32 @@ never down.**
   message — never a silent success), `authHeaders` (bearer present/absent), and `search`.
   Two `search` tests **characterize** the current error-swallow (network error / non-OK →
   empty result) that the review flagged (R4/R8): pinned so the fix lands as a visible diff.
+
+## Terminal rejection settlement
+
+`node --test scripts/govern-rejections.test.mjs` runs in the existing
+`anchor-conformance` CI job, after it provisions the public sibling Registrar.
+The dependency-free unit lane retains its existing scope. The nine local-stack
+cases use the actual Curator, policy engine, SQLite and audit repositories.
+qmd refresh and external anchoring are stubbed. Missing-evidence and drift cases
+also wrap the real `Curator.processSingle` to inject deterministic changes after
+evaluation; they do not exercise a genuinely concurrent second writer. They cover a retained
+terminal rejection and canonical receipt, repeated-sweep no-op, mixed flags /
+holds / member quarantine / tenant isolation, per-candidate and batch receipt
+failure rollback, missing evaluation evidence, and tenant/status/payload drift refusal.
+Evaluation errors skip individual rows. Deferred settlement validation or receipt
+errors instead abort the call and roll back the whole deferred batch; prior
+promotions and holds retain their own commits. A persistent settlement conflict
+can refuse later calls until its cause is resolved. These cases do not establish
+bundled MCP, retrieval or external-anchor behavior.
+
+The generated local runtime separately supports an isolated MCP check: capture a
+nine-character synthetic note, govern twice, then read back the candidate and
+receipts. Expect retained `status=rejected`, one canonical `deleted` rejection
+receipt plus one `governed` batch receipt, zero curated memories and no additional
+receipt or processed candidate on the second sweep. Verify the chain and external
+anchor through `brain_audit_verify`. Run only with private HOME/base and a fixture
+qmd executable; this is distinct from activating or migrating a live brain.
 
 ## Run it
 

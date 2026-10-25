@@ -11,11 +11,11 @@
       "expectedStatus": "promoted"
     },
     {
-      "id": "keep-synthetic-short-noise-inbox",
+      "id": "reject-synthetic-short-noise",
       "title": "Synthetic short note",
       "content": "Synthetic note.",
       "category": "reference",
-      "expectedStatus": "inbox"
+      "expectedStatus": "rejected"
     },
     {
       "id": "mark-repeated-synthetic-fact-duplicate",

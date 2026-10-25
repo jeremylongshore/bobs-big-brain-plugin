@@ -19,11 +19,11 @@
  * Asserts the six B1 invariants:
  *   1. admin-authored candidate → promoted, marked 'promoted', searchable
  *   2. member-authored candidate → quarantined (NOT promoted)
- *   3. flagged/rejected candidate → KEPT in the inbox (review queue survives)
+ *   3. hard-rejected candidate → retained as 'rejected' with its canonical receipt
  *   4. duplicate candidate → marked 'duplicate'
  *   5. a batch-level 'governed' receipt is written
  *   6. a SECOND brain_govern is a no-op (idempotent) — no new memories, no new
- *      audit events, review-queue leftovers still in the inbox
+ *      audit events, rejected candidates remain terminal
  *
  * Seeding uses better-sqlite3 directly (the bundle's one external native dep, a
  * PROD dependency present in smoke.yml — no @qmd-team-intent-kb import needed).
@@ -138,8 +138,27 @@ try {
   ok(statusOf(db, memberId) === 'quarantined', "member candidate marked 'quarantined'");
   ok(!memoryExistsForContent(db, MEMBER_CONTENT), 'member candidate did NOT become a curated memory');
 
-  // (3) rejected candidate → KEPT in the inbox (review queue survives).
-  ok(statusOf(db, rejectId) === 'inbox', "rejected candidate KEPT in the inbox for review");
+  // (3) Hard rejection is terminal; retain its content and canonical evaluation.
+  ok(statusOf(db, rejectId) === 'rejected', "hard-rejected candidate marked 'rejected'");
+  ok(
+    db.prepare('SELECT content FROM candidates WHERE id = ?').get(rejectId)?.content === REJECT_CONTENT,
+    'hard-rejected candidate content is retained',
+  );
+  ok(!memoryExistsForContent(db, REJECT_CONTENT), 'hard rejection did NOT become a curated memory');
+  const rejectionRows = db
+    .prepare("SELECT tenant_id, reason, details_json FROM audit_events WHERE action = 'deleted' AND memory_id = ?")
+    .all(rejectId);
+  ok(rejectionRows.length === 1, 'exactly one canonical rejection receipt names the candidate');
+  const rejectionRow = rejectionRows[0];
+  const rejectionDetails = rejectionRow ? JSON.parse(rejectionRow.details_json) : {};
+  ok(
+    rejectionRow?.tenant_id === TENANT && /content-length/.test(rejectionRow.reason ?? '') &&
+      rejectionDetails.candidateId === rejectId && rejectionDetails.outcome === 'rejected' &&
+      rejectionDetails.evaluations?.some((evaluation) =>
+        evaluation.ruleId === 'content-length' && evaluation.ruleType === 'content_length' &&
+        evaluation.outcome === 'fail'),
+    'canonical receipt binds tenant, candidate and the failed length evaluation',
+  );
 
   // (4) duplicate candidate → marked 'duplicate'.
   ok(statusOf(db, dupId) === 'duplicate', "duplicate candidate marked 'duplicate'");
@@ -172,14 +191,15 @@ try {
   // ── Phase 3: idempotency — a SECOND sweep over unchanged input is a no-op. ──
   const gov3 = parse(await client.callTool({ name: 'brain_govern', arguments: {} }));
   ok(
-    gov3.promoted === 0 && gov3.quarantined === 0 && gov3.duplicates === 0,
+    gov3.processed === 0 && gov3.rejected === 0 &&
+      gov3.promoted === 0 && gov3.quarantined === 0 && gov3.duplicates === 0,
     `second sweep governed nothing new (promoted=${gov3.promoted} quarantined=${gov3.quarantined} duplicate=${gov3.duplicates})`,
   );
 
   db = new Database(DB, { readonly: true });
   ok(memoryCount(db) === memAfter, `no new curated memories on re-run (${memAfter} → ${memoryCount(db)})`);
   ok(auditCount(db) === auditAfter, `no new audit events on re-run (${auditAfter} → ${auditCount(db)})`);
-  ok(statusOf(db, rejectId) === 'inbox', 'rejected candidate STILL in the inbox after re-run');
+  ok(statusOf(db, rejectId) === 'rejected', 'rejected candidate remains terminal after re-run');
   db.close();
 
   // ── Phase 4: human-escalation hold (K6). A candidate whose audience question the

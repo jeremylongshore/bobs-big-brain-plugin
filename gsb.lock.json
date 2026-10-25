@@ -21,10 +21,10 @@
     "govern": {
       "name": "bobs-big-brain-registrar",
       "version": "0.8.0",
-      "commit": "2599598ccb4894ad3124f7bb868b7b32c8d0e0cf",
+      "commit": "e0cff6df3c48cfd12fe4ea5ac742f32939ec246f",
       "registry": "bundled",
       "role": "INTKB \u2014 deterministic dedupe -> policy -> promote + the SHA-256 hash-chained audit + external anchor; dense retrieval default-on (#328/#334). Private monorepo; compiled into plugin-runtime/governed-brain.cjs, never published to a registry.",
-      "bundleSha256": "4a9fb8737eeea93809aa2f9a19368d186a3f40157c7e5e404320dfde92132989",
+      "bundleSha256": "bab58f4f1e047f662d457d48a305dd47d75c9ca23435db2c1896f74fd78164b1",
       "qmdCommandHelperSha256": "beb172902c025300c1facb14851ba23fc86b40bddeae604b5f63e975fe7e0cce"
     },
     "retrieve": {
