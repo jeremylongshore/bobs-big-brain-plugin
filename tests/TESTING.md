@@ -54,8 +54,10 @@ never down.**
 `node --test scripts/govern-rejections.test.mjs` runs in the existing
 `anchor-conformance` CI job, after it provisions the public sibling Registrar.
 The dependency-free unit lane retains its existing scope. The nine local-stack
-cases use the actual Curator, policy engine, SQLite and audit repositories; only
-qmd refresh and external anchoring are substituted. They cover a retained
+cases use the actual Curator, policy engine, SQLite and audit repositories.
+qmd refresh and external anchoring are stubbed. Missing-evidence and drift cases
+also wrap the real `Curator.processSingle` to inject deterministic changes after
+evaluation; they do not exercise a genuinely concurrent second writer. They cover a retained
 terminal rejection and canonical receipt, repeated-sweep no-op, mixed flags /
 holds / member quarantine / tenant isolation, per-candidate and batch receipt
 failure rollback, missing evaluation evidence, and tenant/status/payload drift refusal.

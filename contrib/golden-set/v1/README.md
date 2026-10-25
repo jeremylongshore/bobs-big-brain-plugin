@@ -19,6 +19,8 @@ The runner recognizes these deterministic local outcomes:
 - `promoted` — the candidate became a durable curated memory.
 - `inbox` — deterministic policy kept the candidate in the review inbox.
 - `duplicate` — the candidate matched an earlier promoted case.
+- `rejected` — hard policy rejected the retained candidate; it is terminal,
+  with a canonical rejection receipt rather than another inbox evaluation.
 
 Cases run in file order inside one isolated tenant. That ordering is important
 when a later case intentionally checks duplicate detection.
@@ -43,5 +45,5 @@ when a later case intentionally checks duplicate detection.
    deterministic test change. The runner is zero-egress and must remain so.
 
 The checked-in `synthetic-local-v1.json` is the reference example. It exercises
-promotion, the short-content policy queue, and duplicate detection using only
+promotion, terminal short-content rejection, and duplicate detection using only
 made-up text.
