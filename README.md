@@ -134,8 +134,9 @@ invokes that CLI with the running Node binary and records its identity.
 
 Preparation runs `npm pack --offline --ignore-scripts` with private npm settings,
 checks its exact file inventory and bytes, and preserves the verified candidate's
-relative links. It streams each generated tar member to stdout and recreates
-regular plugin files with checked modes; it never unpacks the archive as a tree.
+relative links. Each generated tar member is extracted individually to stdout,
+captured in full, checked, and then recreated as a regular file with checked
+modes. The archive is never unpacked as a directory tree.
 Source files must have no setuid/setgid/sticky bits and normalize under npm's
 owner-read/write, bin-executable and group/other-write-clearing rules to archive
 mode 0644 or 0755. Source modes need not already equal archive modes. Both source
