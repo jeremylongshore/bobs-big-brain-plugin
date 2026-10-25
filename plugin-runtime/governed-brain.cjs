@@ -55753,21 +55753,6 @@ var init_local_server = __esm({
         }
         const id = (0, import_node_crypto13.randomUUID)();
         const capturedAt = (/* @__PURE__ */ new Date()).toISOString();
-        let origin;
-        try {
-          const secret = loadOrCreateOriginSecret(config.basePath);
-          origin = {
-            tokenHmac: mintOriginToken2(secret, {
-              candidateId: id,
-              tenantId: config.tenantId,
-              capturedAt
-            }),
-            channel: "local-mcp",
-            mintedAt: capturedAt
-          };
-        } catch {
-          origin = void 0;
-        }
         const candidate = {
           // Pinned literal (5bm.6): the registrar rejects unversioned/other-version
           // spool lines rather than silently stripping unknown fields.
@@ -55783,9 +55768,41 @@ var init_local_server = __esm({
           tenantId: config.tenantId,
           metadata,
           prePolicyFlags: { potentialSecret: false, lowConfidence: false, duplicateSuspect: false },
-          capturedAt,
-          ...origin !== void 0 ? { origin } : {}
+          capturedAt
         };
+        try {
+          assertDisclosureClean(candidate);
+        } catch (error) {
+          if (error instanceof DisclosureRejectedError) {
+            return jsonResult2({
+              ok: false,
+              error: "capture-disclosure-rejected",
+              category: error.category,
+              message: "Capture refused before writing to the spool."
+            });
+          }
+          return jsonResult2({
+            ok: false,
+            error: "capture-validation-unavailable",
+            message: "Capture refused before writing to the spool."
+          });
+        }
+        let origin;
+        try {
+          const secret = loadOrCreateOriginSecret(config.basePath);
+          origin = {
+            tokenHmac: mintOriginToken2(secret, {
+              candidateId: id,
+              tenantId: config.tenantId,
+              capturedAt
+            }),
+            channel: "local-mcp",
+            mintedAt: capturedAt
+          };
+        } catch {
+          origin = void 0;
+        }
+        if (origin !== void 0) candidate.origin = origin;
         const res = await writeToSpool(candidate, config.spoolPath);
         if (!res.ok) {
           return jsonResult2({ ok: false, error: res.error });

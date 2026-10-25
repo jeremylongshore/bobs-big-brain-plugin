@@ -155,3 +155,12 @@ jobs:
           out=$(node --test scripts/govern-rejections.test.mjs 2>&1) || { echo "$out"; exit 1; }
           echo "$out" | tail -12
           echo "$out" | grep -q '# skipped 0' || { echo "::error::rejection cases SKIPPED"; exit 1; }
+
+      # eqw.3: unexpected scanner errors refuse without echo or origin/spool writes.
+      # Source-handler injection is separate from the actual bundled MCP smoke.
+      - name: Capture disclosure scanner failure (source handler, zero skips)
+        working-directory: bobs-big-brain-plugin
+        run: |
+          out=$(node --test scripts/capture-feedback.test.mjs 2>&1) || { echo "$out"; exit 1; }
+          echo "$out" | tail -12
+          echo "$out" | grep -q '# skipped 0' || { echo "::error::capture failure cases SKIPPED"; exit 1; }

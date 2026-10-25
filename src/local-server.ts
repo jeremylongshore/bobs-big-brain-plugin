@@ -30,7 +30,13 @@ import {
   type StoredRowTuple,
 } from '@qmd-team-intent-kb/store';
 import { createLocalQmdBinding } from './qmd-command.js';
-import { loadOrCreateOriginSecret, mintOriginToken, rerankCitedHits } from '@qmd-team-intent-kb/common';
+import {
+  assertDisclosureClean,
+  DisclosureRejectedError,
+  loadOrCreateOriginSecret,
+  mintOriginToken,
+  rerankCitedHits,
+} from '@qmd-team-intent-kb/common';
 import { writeToSpool } from '@qmd-team-intent-kb/claude-runtime';
 import { ContentMetadata, TransitionRequest, validateTransition } from '@qmd-team-intent-kb/schema';
 import type { MemoryCandidate } from '@qmd-team-intent-kb/schema';
@@ -421,6 +427,44 @@ server.tool(
     }
     const id = randomUUID();
     const capturedAt = new Date().toISOString();
+    const candidate: MemoryCandidate = {
+      // Pinned literal (5bm.6): the registrar rejects unversioned/other-version
+      // spool lines rather than silently stripping unknown fields.
+      schemaVersion: '1',
+      id,
+      status: 'inbox',
+      source: 'mcp',
+      content: params.content,
+      title: params.title,
+      category: params.category ?? 'reference',
+      trustLevel: 'medium',
+      author: { type: 'ai', id: 'governed-brain' },
+      tenantId: config.tenantId,
+      metadata,
+      prePolicyFlags: { potentialSecret: false, lowConfidence: false, duplicateSuspect: false },
+      capturedAt,
+    };
+    // Use the same full-candidate disclosure gate as store admission, before
+    // creating an origin secret or persisting any spool data. This is immediate
+    // caller feedback, not a durable refusal receipt or an archive purge.
+    try {
+      assertDisclosureClean(candidate);
+    } catch (error) {
+      if (error instanceof DisclosureRejectedError) {
+        return jsonResult({
+          ok: false,
+          error: 'capture-disclosure-rejected',
+          category: error.category,
+          message: 'Capture refused before writing to the spool.',
+        });
+      }
+      // Scanner failures must neither acknowledge capture nor echo raw errors.
+      return jsonResult({
+        ok: false,
+        error: 'capture-validation-unavailable',
+        message: 'Capture refused before writing to the spool.',
+      });
+    }
     // H1 write-time provenance: mint the origin token over (id, tenantId,
     // capturedAt) with the per-installation secret (~/.teamkb/origin-secret,
     // auto-created 0600 on first capture; TEAMKB_ORIGIN_SECRET overrides). The
@@ -444,24 +488,7 @@ server.tool(
     } catch {
       origin = undefined;
     }
-    const candidate: MemoryCandidate = {
-      // Pinned literal (5bm.6): the registrar rejects unversioned/other-version
-      // spool lines rather than silently stripping unknown fields.
-      schemaVersion: '1',
-      id,
-      status: 'inbox',
-      source: 'mcp',
-      content: params.content,
-      title: params.title,
-      category: params.category ?? 'reference',
-      trustLevel: 'medium',
-      author: { type: 'ai', id: 'governed-brain' },
-      tenantId: config.tenantId,
-      metadata,
-      prePolicyFlags: { potentialSecret: false, lowConfidence: false, duplicateSuspect: false },
-      capturedAt,
-      ...(origin !== undefined ? { origin } : {}),
-    };
+    if (origin !== undefined) candidate.origin = origin;
     const res = await writeToSpool(candidate, config.spoolPath);
     if (!res.ok) {
       return jsonResult({ ok: false, error: res.error });

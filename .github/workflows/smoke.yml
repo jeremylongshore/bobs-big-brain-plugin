@@ -59,6 +59,11 @@ jobs:
       - name: Smoke — local supersession link, receipt and rollback
         run: node smoke/local-transition.mjs
 
+      # eqw.3: canonical disclosure refusal before origin/spool writes; clean
+      # capture still promotes. Actual committed MCP/native closure, private roots.
+      - name: Smoke — capture disclosure feedback and clean capture preservation
+        run: node smoke/capture-feedback.mjs
+
       # Team-mode proxy (stub API on loopback): tool surface + bearer + tenant + 403 clarity.
       - name: Smoke — team-mode stub (search / capture / transition)
         run: node smoke-team.mjs

@@ -75,6 +75,39 @@ receipt or processed candidate on the second sweep. Verify the chain and externa
 anchor through `brain_audit_verify`. Run only with private HOME/base and a fixture
 qmd executable; this is distinct from activating or migrating a live brain.
 
+## Capture disclosure feedback
+
+`node smoke/capture-feedback.mjs` runs against the committed local bundle and
+its native SQLite closure in the hosted Node20 full-chain job. Fourteen private
+MCP cases cover canonical secret refusals in content, title, file paths and
+configured tenant, PII/compensation refusals, unchanged preexisting spool and
+settled database rows, clean spool mode/origin HMAC, and clean promotion/audit.
+The explicit qmd executable is missing and dense is disabled; this proves no
+actual qmd ranking, dense quality or live corpus behavior.
+
+The refusal snapshot has an observer-only stability control. It checks private
+file inventory, bytes, mode, inode/device and logical candidate/memory/audit rows;
+only `teamkb.db-shm` mtime is excluded because read-only inspection itself updates
+that derived timestamp. This is state-preservation evidence, not zero filesystem
+I/O or a sandbox. Scratch is removed only after transport closure is witnessed.
+Reply and request-era stderr checks exclude the existing configured-tenant boot
+log; these do not establish whole-process configuration secrecy.
+
+`node --test scripts/capture-feedback.test.mjs` separately bundles the actual
+source handler with fake MCP registration/config, an injected throwing scanner,
+and origin/spool counters. Error and non-Error faults must return the fixed
+`capture-validation-unavailable` reply, write no origin/spool data and expose no
+fault value in the reply or intercepted stderr. It runs with zero skips in the
+provisioned Node22 source lane; this instrumentation is not an actual scanner
+fault or an independent shipped-bundle test.
+
+The capture path uses the Registrar's full-candidate disclosure gate before
+origin creation and spool writing. Canonical refusals return
+`capture-disclosure-rejected` with category and fixed text, without a candidate ID
+or matched value. This feedback is not a durable hash-chain refusal receipt.
+Existing archives and non-MCP intake remain separate work under umbrella Bead
+`compile-then-govern-eqw.9`; no operator archive is read or purged by these tests.
+
 ## Run it
 
 ```bash
