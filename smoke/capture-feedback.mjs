@@ -118,7 +118,9 @@ async function main() {
       };
       // SQLite's read-only inspection itself updates SHM mtime (the observer-
       // only stability control below detects this). Keep SHM bytes, identity,
-      // mode and every logical DB row exact; omit only that volatile timestamp.
+      // mode and all rows in the three inspected tables exact; omit only that
+      // volatile timestamp. Other database tables and unrecorded metadata are
+      // outside this fixture's preservation evidence.
       if (relative === 'teamkb.db-shm') delete entry.mtime;
       if (stat.isFile()) {
         totalBytes += stat.size;
