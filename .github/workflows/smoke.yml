@@ -64,6 +64,10 @@ jobs:
       - name: Smoke — capture disclosure feedback and clean capture preservation
         run: node smoke/capture-feedback.mjs
 
+      # eqw.1: fresh canonical policy, stable existing row, and real outcomes.
+      - name: Smoke — recommended fresh local policy and review outcomes
+        run: node smoke/recommended-policy.mjs
+
       # Team-mode proxy (stub API on loopback): tool surface + bearer + tenant + 403 clarity.
       - name: Smoke — team-mode stub (search / capture / transition)
         run: node smoke-team.mjs

@@ -163,11 +163,11 @@ async function runGovernLocked(config: BrainConfig): Promise<GovernSummary> {
     const auditRepo = new AuditRepository(db);
     const exportStateRepo = new ExportStateRepository(db);
 
-    // 0. Seed the local default governance policy once (idempotent). Without it
-    //    the Curator auto-approves every non-duplicate candidate; with it, local
-    //    mode gets receipted rejections for secrets + too-short content. Best-effort:
-    //    a seed failure (schema mismatch, read-only DB) must NOT crash the govern
-    //    pass — degrade to the prior no-policy behavior.
+    // 0. Seed the canonical recommended policy for a fresh tenant; any existing
+    //    tenant policy remains untouched. Rules may reject, flag or place a hold.
+    //    Existing best-effort error handling is retained: a seed failure can leave
+    //    the prior no-policy auto-approval behavior. This is not a fail-closed
+    //    bootstrap guarantee or a retrofit of an operator's existing policy.
     try {
       seedDefaultPolicy(policyRepo, config.tenantId);
     } catch (e) {

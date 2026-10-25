@@ -60,10 +60,12 @@ behavior at runtime; a stray native import will break a marketplace install.
   counts `held` / `holdCapBlocked` / `holdsExpired`): seed local policy → ingest spool →
   `Curator.processBatch` (dedupe → policy → promote) → `runExport` → qmd index refresh → SHA-256
   hash-chained audit + git-committed external anchor.
-- `src/seed-policy.ts` — seeds a minimal local default `GovernancePolicy` once per tenant (idempotent)
-  so local govern produces **receipted** rejections (`secret_detection` + `content_length` min=25)
-  instead of silent auto-approve. Wrapped in try/catch in `runGovern` (best-effort; never crash govern).
-  Note: the `content_length` rule reads `parameters['min']`, **not** `minLength`.
+- `src/seed-policy.ts` — seeds the Registrar's canonical recommended policy only when a tenant
+  has no policy rows. Existing custom, disabled and older policies remain unchanged. Enabled rules
+  can reject, flag for review or create a human hold; ten enabled types does not mean ten decisions
+  on every capture. `runGovern` retains best-effort seed error handling, so insertion failure is
+  not a fail-closed bootstrap guarantee. Local review/resolution availability remains separate
+  work (`compile-then-govern-eqw.10`); do not auto-promote flags or expose hold release through MCP.
 - `src/remote-server.ts` — team server (dependency-free); proxies search/capture/transition. Tenant
   from `TEAMKB_TENANT_ID` (default `intent-solutions`). `errorResult()` maps 401/403/422 to clear
   member/admin messages.

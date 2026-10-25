@@ -169,13 +169,18 @@ test('hard rejection retains content, receipts its real evaluation once, then be
     assert.equal(event.memoryId, candidate.id);
     assert.equal(event.tenantId, tenantId);
     assert.deepEqual(event.actor, { type: 'system', id: 'curator' });
-    assert.match(event.reason, /content-length/);
+    const lengthRule = f.policies
+      .findByTenant(tenantId)
+      .find((policy) => policy.enabled)
+      ?.rules.find((rule) => rule.enabled && rule.type === 'content_length');
+    assert.ok(lengthRule);
+    assert.ok(event.reason.includes(lengthRule.id));
     assert.equal(event.details.candidateId, candidate.id);
     assert.equal(event.details.outcome, 'rejected');
     assert.ok(
       event.details.evaluations.some(
         (evaluation) =>
-          evaluation.ruleId === 'content-length' &&
+          evaluation.ruleId === lengthRule.id &&
           evaluation.ruleType === 'content_length' &&
           evaluation.outcome === 'fail',
       ),

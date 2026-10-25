@@ -164,3 +164,12 @@ jobs:
           out=$(node --test scripts/capture-feedback.test.mjs 2>&1) || { echo "$out"; exit 1; }
           echo "$out" | tail -12
           echo "$out" | grep -q '# skipped 0' || { echo "::error::capture failure cases SKIPPED"; exit 1; }
+
+      # eqw.1: canonical registry coverage, existing-policy preservation and
+      # actual Curator behavior. Requires the public sibling already built here.
+      - name: Fresh recommended policy contracts (real local stack, zero skips)
+        working-directory: bobs-big-brain-plugin
+        run: |
+          out=$(node --test scripts/seed-policy.test.mjs 2>&1) || { echo "$out"; exit 1; }
+          echo "$out" | tail -12
+          echo "$out" | grep -q '# skipped 0' || { echo "::error::seed policy cases SKIPPED"; exit 1; }
