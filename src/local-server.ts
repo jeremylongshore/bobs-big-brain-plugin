@@ -21,6 +21,7 @@ import { join } from 'node:path';
 import {
   createDatabase,
   MemoryRepository,
+  InvalidSupersessionError,
   AuditRepository,
   verifyAnchors,
   readManifest,
@@ -31,7 +32,7 @@ import {
 import { createLocalQmdBinding } from './qmd-command.js';
 import { loadOrCreateOriginSecret, mintOriginToken, rerankCitedHits } from '@qmd-team-intent-kb/common';
 import { writeToSpool } from '@qmd-team-intent-kb/claude-runtime';
-import { ContentMetadata, validateTransition } from '@qmd-team-intent-kb/schema';
+import { ContentMetadata, TransitionRequest, validateTransition } from '@qmd-team-intent-kb/schema';
 import type { MemoryCandidate } from '@qmd-team-intent-kb/schema';
 import { resolveConfig } from './config.js';
 import { toCitedHitMetadata } from './rerank-meta.js';
@@ -532,35 +533,65 @@ server.tool(
       try {
         const memoryRepo = new MemoryRepository(db);
         const auditRepo = new AuditRepository(db);
-        const memory = memoryRepo.findById(params.memoryId);
-        if (!memory) {
-          return jsonResult({ ok: false, error: `No memory found with id ${params.memoryId}` });
-        }
-        const actor = { type: 'human' as const, id: params.actor ?? 'owner' };
-        const validation = validateTransition(memory.lifecycle, params.to, {
+        const request = TransitionRequest.safeParse({
           reason: params.reason,
-          actor,
+          actor: { type: 'human', id: params.actor ?? 'owner' },
           supersededBy: params.supersededBy,
         });
-        if (!validation.valid) {
-          return jsonResult({ ok: false, error: validation.error });
+        if (!request.success) return jsonResult({ ok: false, error: 'Invalid transition metadata' });
+        let transition;
+        try {
+          transition = db
+            .transaction(() => {
+              // Validate fresh endpoints under the same immediate transaction as
+              // the state/link and audit writes. The outer flock also covers the
+              // subsequent best-effort anchor append.
+              const memory = memoryRepo.findById(params.memoryId);
+              if (!memory) {
+                return { ok: false as const, error: `No memory found with id ${params.memoryId}` };
+              }
+              const validation = validateTransition(memory.lifecycle, params.to, request.data);
+              if (!validation.valid) return { ok: false as const, error: validation.error };
+              const now = new Date().toISOString();
+              const auditEventId = randomUUID();
+              if (params.to === 'superseded') {
+                const replacement = request.data.supersededBy;
+                if (replacement === undefined) {
+                  throw new InvalidSupersessionError('supersededBy is required');
+                }
+                memoryRepo.supersede(params.memoryId, replacement, request.data.reason, now);
+              } else {
+                memoryRepo.updateLifecycle(params.memoryId, params.to, now);
+              }
+              auditRepo.insert({
+                id: auditEventId,
+                action:
+                  params.to === 'archived'
+                    ? 'archived'
+                    : params.to === 'superseded'
+                      ? 'superseded'
+                      : 'demoted',
+                memoryId: params.memoryId,
+                tenantId: memory.tenantId,
+                actor: request.data.actor,
+                reason: request.data.reason,
+                details: {
+                  from: memory.lifecycle,
+                  to: params.to,
+                  ...(params.to === 'superseded' ? { supersededBy: request.data.supersededBy } : {}),
+                },
+                timestamp: now,
+              });
+              return { ok: true as const, from: memory.lifecycle, auditEventId };
+            })
+            .immediate();
+        } catch (error) {
+          if (error instanceof InvalidSupersessionError) {
+            return jsonResult({ ok: false, error: error.message });
+          }
+          throw error;
         }
-        const now = new Date().toISOString();
-        const action =
-          params.to === 'archived' ? 'archived' : params.to === 'superseded' ? 'superseded' : 'demoted';
-        db.transaction(() => {
-          memoryRepo.updateLifecycle(params.memoryId, params.to, now);
-          auditRepo.insert({
-            id: randomUUID(),
-            action,
-            memoryId: params.memoryId,
-            tenantId: memory.tenantId,
-            actor,
-            reason: params.reason,
-            details: { from: memory.lifecycle, to: params.to },
-            timestamp: now,
-          });
-        })();
+        if (!transition.ok) return jsonResult(transition);
         // Re-anchor the chain head AFTER the durable audit write commits, so this
         // transition's row is snapshotted into the external anchor log immediately
         // — narrowing the rewrite-detection window to one write instead of one
@@ -573,8 +604,9 @@ server.tool(
         return jsonResult({
           ok: true,
           memoryId: params.memoryId,
-          from: memory.lifecycle,
+          from: transition.from,
           to: params.to,
+          auditEventId: transition.auditEventId,
           anchored,
           message: anchored
             ? 'Transition applied; hash-chained audit event written and chain head re-anchored.'

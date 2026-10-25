@@ -55,6 +55,10 @@ jobs:
       - name: Smoke — capture -> govern -> audit-verify -> search
         run: node smoke/smoke.mjs
 
+      # 39z.34: actual local MCP + reopened SQLite, no qmd/model dependency.
+      - name: Smoke — local supersession link, receipt and rollback
+        run: node smoke/local-transition.mjs
+
       # Team-mode proxy (stub API on loopback): tool surface + bearer + tenant + 403 clarity.
       - name: Smoke — team-mode stub (search / capture / transition)
         run: node smoke-team.mjs
