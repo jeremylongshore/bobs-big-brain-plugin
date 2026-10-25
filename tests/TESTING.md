@@ -49,6 +49,26 @@ never down.**
   Two `search` tests **characterize** the current error-swallow (network error / non-OK →
   empty result) that the review flagged (R4/R8): pinned so the fix lands as a visible diff.
 
+## Terminal rejection settlement
+
+`node --test scripts/govern-rejections.test.mjs` runs in the existing
+`anchor-conformance` CI job, after it provisions the public sibling Registrar.
+The dependency-free unit lane retains its existing scope. The nine local-stack
+cases use the actual Curator, policy engine, SQLite and audit repositories; only
+qmd refresh and external anchoring are substituted. They cover a retained
+terminal rejection and canonical receipt, repeated-sweep no-op, mixed flags /
+holds / member quarantine / tenant isolation, per-candidate and batch receipt
+failure rollback, missing evaluation evidence, and tenant/status/payload drift refusal.
+These cases do not establish bundled MCP, retrieval or external-anchor behavior.
+
+The generated local runtime separately supports an isolated MCP check: capture a
+nine-character synthetic note, govern twice, then read back the candidate and
+receipts. Expect retained `status=rejected`, one canonical `deleted` rejection
+receipt plus one `governed` batch receipt, zero curated memories and no additional
+receipt or processed candidate on the second sweep. Verify the chain and external
+anchor through `brain_audit_verify`. Run only with private HOME/base and a fixture
+qmd executable; this is distinct from activating or migrating a live brain.
+
 ## Run it
 
 ```bash

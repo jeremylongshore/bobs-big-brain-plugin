@@ -28,6 +28,15 @@ installable Claude Code + Cowork plugin (a local stdio MCP server); the engines 
 
 ### Fixed
 
+- Settle hard policy rejections as retained terminal candidates, with the
+  Registrar's canonical per-candidate rejection receipt and the sweep receipt in
+  the same immediate transaction. Repeated sweeps no longer reconsider those
+  rejected rows. Flagged review items, bounded holds and member quarantine retain
+  their behavior; settlement rechecks a full pre-evaluation candidate snapshot,
+  and receipt failure or candidate drift rolls back deferred status changes. Regenerate
+  the local runtime from Registrar e0cff6d without provisioning natives or
+  activating a live brain (`compile-then-govern-eqw.2`).
+
 - Persist local `brain_transition` supersession through the Registrar's dedicated
   repository operation, with fresh endpoint validation and its audit event in one
   immediate transaction. Require an active, distinct replacement in the same

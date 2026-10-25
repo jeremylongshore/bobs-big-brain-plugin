@@ -1,8 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
+import { isDeepStrictEqual } from 'node:util';
 import {
   ingestFromSpool,
   Curator,
+  reject,
+  type CurationResult,
   expireHolds,
   holdLimitsFromEnv,
 } from '@qmd-team-intent-kb/curator';
@@ -338,18 +341,17 @@ function expireOverdueHolds(config: BrainConfig, deps: SweepDeps): number {
  *         decide. The curator ALREADY stamped the row `quarantined` and wrote its
  *         `held` receipt in one transaction; the sweep only counts it. It leaves
  *         the inbox for a bounded hold that a person resolves.
- *       - flagged / rejected → LEFT in the inbox for human review. The review
- *         queue + the only copy of the content must survive, so the sweep never
- *         retires them. Per-candidate reject receipts are suppressed
- *         (`suppressRejectionReceipts`) so a candidate re-evaluated every night
- *         never grows the audit chain — the batch receipt below is the record.
+ *       - rejected → retained as a terminal candidate, with the canonical
+ *         per-candidate rejection receipt and batch receipt committed together.
+ *       - flagged → LEFT in the inbox for human review. Repeated evaluations
+ *         suppress rejection receipts so review leftovers do not grow the chain.
  *
  * Every candidate is wrapped in its own try/catch: a single bad row is skipped +
  * counted, never aborting the drain (paired with the tolerant `findByStatus`
  * mapper, so even an unparseable row can't wedge the inbox forever).
  *
  * Emits exactly ONE batch-level `governed` audit receipt — but ONLY when ≥1
- * candidate actually LEFT the inbox this run (promoted / duplicate / quarantined).
+ * candidate actually LEFT the inbox this run (including terminal rejections).
  * That condition is what makes a re-run over unchanged input a genuine no-op: a
  * sweep that only re-encounters candidates already left in the inbox for review
  * writes nothing. The receipt records the per-candidate outcomes (ids + outcome),
@@ -410,6 +412,10 @@ function sweepInbox(config: BrainConfig, deps: SweepDeps): SweepResult {
   // rolls their flips back too — so those candidates stay `inbox` and are retried next
   // run, instead of leaving the inbox with NO on-chain record of why.
   const pendingFlips: Array<{ id: string; status: 'quarantined' | 'duplicate' }> = [];
+  const pendingRejections: Array<{
+    candidate: MemoryCandidate;
+    pipelineResult: CurationResult['pipelineResult'];
+  }> = [];
 
   for (const candidate of inbox) {
     try {
@@ -421,6 +427,9 @@ function sweepInbox(config: BrainConfig, deps: SweepDeps): SweepResult {
         continue;
       }
 
+      // Bind any deferred rejection to the exact schema data evaluated, even
+      // if the caller object or stored row changes before settlement.
+      const evaluatedCandidate = structuredClone(candidate);
       const result = curator.processSingle(candidate, existingHashes);
       switch (result.outcome) {
         case 'promoted':
@@ -446,7 +455,13 @@ function sweepInbox(config: BrainConfig, deps: SweepDeps): SweepResult {
           outcomes.push({ candidateId: candidate.id, outcome: 'flagged' });
           break;
         case 'rejected':
-          // LEFT in the inbox for human review (row + content survive).
+          // Keep the candidate/content, but settle its terminal state with receipts.
+          // Validation happens outside per-candidate containment: an incomplete
+          // rejection must fail the settlement rather than silently lose evidence.
+          pendingRejections.push({
+            candidate: evaluatedCandidate,
+            pipelineResult: result.pipelineResult,
+          });
           res.rejected++;
           outcomes.push({ candidateId: candidate.id, outcome: 'rejected' });
           break;
@@ -464,9 +479,10 @@ function sweepInbox(config: BrainConfig, deps: SweepDeps): SweepResult {
   // ONE batch receipt — only when durable state changed (a candidate left the
   // inbox). A no-op sweep (only review-queue leftovers) writes nothing, keeping a
   // re-run idempotent. Content is NEVER included (ids + outcomes only).
-  const leftInbox = res.promoted + res.duplicates + res.quarantined + res.held;
+  const leftInbox = res.promoted + res.duplicates + res.quarantined + res.held + res.rejected;
   if (leftInbox > 0) {
-    // ATOMIC (jfv.2.5b): apply the deferred quarantine/duplicate marker flips AND
+    // ATOMIC: settle rejected candidates with canonical receipts, apply the
+    // deferred quarantine/duplicate marker flips, AND
     // write the batch receipt in ONE transaction. Previously the receipt was a
     // swallow-on-failure append AFTER the flips had already autocommitted — so a
     // failed insert left those flips on the record-less. Now a failed receipt rolls
@@ -475,6 +491,24 @@ function sweepInbox(config: BrainConfig, deps: SweepDeps): SweepResult {
     // wrapper's fail-loud path alerts) rather than silently drifting. Promoted rows
     // already carry their own transactional 'promoted' receipt, so they persist.
     memoryRepo.connection.transaction((): void => {
+      for (const pending of pendingRejections) {
+        const current = candidateRepo.findById(pending.candidate.id);
+        if (
+          current === null ||
+          current.tenantId !== config.tenantId ||
+          current.status !== 'inbox' ||
+          !isDeepStrictEqual(current, pending.candidate)
+        ) {
+          throw new Error(`Rejected candidate settlement conflict: ${pending.candidate.id}`);
+        }
+        if (pending.pipelineResult?.outcome !== 'rejected') {
+          throw new Error(`Rejected candidate missing pipeline evidence: ${pending.candidate.id}`);
+        }
+        reject(pending.candidate, pending.pipelineResult, auditRepo);
+        if (candidateRepo.updateStatus(pending.candidate.id, 'rejected', config.tenantId) !== 1) {
+          throw new Error(`Rejected candidate settlement conflict: ${pending.candidate.id}`);
+        }
+      }
       for (const flip of pendingFlips) {
         candidateRepo.updateStatus(flip.id, flip.status, config.tenantId);
       }
@@ -500,7 +534,7 @@ function sweepInbox(config: BrainConfig, deps: SweepDeps): SweepResult {
           timestamp: new Date().toISOString(),
         }),
       );
-    })();
+    }).immediate();
   }
 
   return res;

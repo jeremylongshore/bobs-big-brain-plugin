@@ -146,3 +146,12 @@ jobs:
       - name: Audit-verify banner honesty (R8 — 3-state, no false klaxon)
         working-directory: bobs-big-brain-plugin
         run: node --test smoke/audit-verify-banner.test.mjs
+
+      # Terminal policy rejection must settle with its canonical receipt and batch
+      # receipt atomically. This real-store test needs the sibling provisioned above.
+      - name: Rejection settlement contracts (real local stack, zero skips)
+        working-directory: bobs-big-brain-plugin
+        run: |
+          out=$(node --test scripts/govern-rejections.test.mjs 2>&1) || { echo "$out"; exit 1; }
+          echo "$out" | tail -12
+          echo "$out" | grep -q '# skipped 0' || { echo "::error::rejection cases SKIPPED"; exit 1; }
