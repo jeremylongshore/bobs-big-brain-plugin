@@ -45740,7 +45740,7 @@ function appendOptionalFilters(conditions, params, tenantId, categories, prefix)
     });
   }
 }
-var import_zod13, InvalidLifecycleTransitionError, MemoryRowSchema, MemoryRepository;
+var import_zod13, InvalidLifecycleTransitionError, InvalidSupersessionError, MemoryRowSchema, MemoryRepository;
 var init_memory_repository = __esm({
   "../bobs-big-brain-registrar/packages/store/dist/repositories/memory-repository.js"() {
     "use strict";
@@ -45755,6 +45755,12 @@ var init_memory_repository = __esm({
         this.from = from;
         this.to = to;
         this.name = "InvalidLifecycleTransitionError";
+      }
+    };
+    InvalidSupersessionError = class extends Error {
+      constructor(message) {
+        super(message);
+        this.name = "InvalidSupersessionError";
       }
     };
     MemoryRowSchema = import_zod13.z.object({
@@ -45790,6 +45796,7 @@ var init_memory_repository = __esm({
       stmtFindByLifecycle;
       stmtUpdateLifecycle;
       stmtGetLifecycle;
+      stmtSupersede;
       stmtUpdate;
       stmtCount;
       stmtAllHashes;
@@ -45842,6 +45849,10 @@ var init_memory_repository = __esm({
     `);
         this.stmtUpdateLifecycle = db.prepare(`
       UPDATE curated_memories SET lifecycle = @lifecycle, updated_at = @updated_at WHERE id = @id
+    `);
+        this.stmtSupersede = db.prepare(`
+      UPDATE curated_memories SET lifecycle = 'superseded',
+        supersession_json = @supersession_json, updated_at = @updated_at WHERE id = @id
     `);
         this.stmtGetLifecycle = db.prepare(`
       SELECT lifecycle FROM curated_memories WHERE id = ?
@@ -45983,8 +45994,42 @@ var init_memory_repository = __esm({
         if (current !== lifecycle && !isTransitionAllowed(current, lifecycle)) {
           throw new InvalidLifecycleTransitionError(current, lifecycle);
         }
+        if (current !== lifecycle && lifecycle === "superseded") {
+          throw new InvalidSupersessionError("Supersession requires a validated replacement; use supersede()");
+        }
         const result = this.stmtUpdateLifecycle.run({ id, lifecycle, updated_at: updatedAt });
         return result.changes > 0;
+      }
+      /**
+       * Retire an active memory in favor of a distinct active memory in its tenant.
+       * State and SupersessionLink are written together. Callers wrap this operation
+       * and their audit insert in one immediate transaction on this connection.
+       * This method also takes an immediate transaction for standalone callers.
+       */
+      supersede(id, supersededBy, reason, now) {
+        const parsed = SupersessionLink.safeParse({ supersededBy, reason, linkedAt: now });
+        if (!parsed.success)
+          throw new InvalidSupersessionError("Invalid supersession metadata");
+        return this.db.transaction(() => {
+          const memory = this.findById(id);
+          if (memory === null)
+            return false;
+          if (!isTransitionAllowed(memory.lifecycle, "superseded")) {
+            throw new InvalidLifecycleTransitionError(memory.lifecycle, "superseded");
+          }
+          if (id.toLowerCase() === supersededBy.toLowerCase()) {
+            throw new InvalidSupersessionError("Supersession replacement must be distinct from the source");
+          }
+          const replacement = this.findById(supersededBy);
+          if (replacement === null || replacement.tenantId !== memory.tenantId || replacement.lifecycle !== "active") {
+            throw new InvalidSupersessionError("Supersession replacement must be an existing active memory in the same tenant");
+          }
+          return this.stmtSupersede.run({
+            id,
+            supersession_json: JSON.stringify(parsed.data),
+            updated_at: now
+          }).changes > 0;
+        }).immediate();
       }
       /**
        * Perform a full update of a curated memory record.
@@ -54411,6 +54456,15 @@ var init_resolve_hold = __esm({
   }
 });
 
+// ../bobs-big-brain-registrar/apps/curator/dist/contradictions/contradiction-planner.js
+var init_contradiction_planner = __esm({
+  "../bobs-big-brain-registrar/apps/curator/dist/contradictions/contradiction-planner.js"() {
+    "use strict";
+    init_dist2();
+    init_dist();
+  }
+});
+
 // ../bobs-big-brain-registrar/apps/curator/dist/index.js
 var init_dist8 = __esm({
   "../bobs-big-brain-registrar/apps/curator/dist/index.js"() {
@@ -54432,6 +54486,7 @@ var init_dist8 = __esm({
     init_redact_memory();
     init_hold();
     init_resolve_hold();
+    init_contradiction_planner();
   }
 });
 
@@ -55766,40 +55821,62 @@ var init_local_server = __esm({
           try {
             const memoryRepo = new MemoryRepository(db);
             const auditRepo = new AuditRepository(db);
-            const memory = memoryRepo.findById(params.memoryId);
-            if (!memory) {
-              return jsonResult2({ ok: false, error: `No memory found with id ${params.memoryId}` });
-            }
-            const actor = { type: "human", id: params.actor ?? "owner" };
-            const validation = validateTransition(memory.lifecycle, params.to, {
+            const request = TransitionRequest.safeParse({
               reason: params.reason,
-              actor,
+              actor: { type: "human", id: params.actor ?? "owner" },
               supersededBy: params.supersededBy
             });
-            if (!validation.valid) {
-              return jsonResult2({ ok: false, error: validation.error });
+            if (!request.success) return jsonResult2({ ok: false, error: "Invalid transition metadata" });
+            let transition;
+            try {
+              transition = db.transaction(() => {
+                const memory = memoryRepo.findById(params.memoryId);
+                if (!memory) {
+                  return { ok: false, error: `No memory found with id ${params.memoryId}` };
+                }
+                const validation = validateTransition(memory.lifecycle, params.to, request.data);
+                if (!validation.valid) return { ok: false, error: validation.error };
+                const now = (/* @__PURE__ */ new Date()).toISOString();
+                const auditEventId = (0, import_node_crypto13.randomUUID)();
+                if (params.to === "superseded") {
+                  const replacement = request.data.supersededBy;
+                  if (replacement === void 0) {
+                    throw new InvalidSupersessionError("supersededBy is required");
+                  }
+                  memoryRepo.supersede(params.memoryId, replacement, request.data.reason, now);
+                } else {
+                  memoryRepo.updateLifecycle(params.memoryId, params.to, now);
+                }
+                auditRepo.insert({
+                  id: auditEventId,
+                  action: params.to === "archived" ? "archived" : params.to === "superseded" ? "superseded" : "demoted",
+                  memoryId: params.memoryId,
+                  tenantId: memory.tenantId,
+                  actor: request.data.actor,
+                  reason: request.data.reason,
+                  details: {
+                    from: memory.lifecycle,
+                    to: params.to,
+                    ...params.to === "superseded" ? { supersededBy: request.data.supersededBy } : {}
+                  },
+                  timestamp: now
+                });
+                return { ok: true, from: memory.lifecycle, auditEventId };
+              }).immediate();
+            } catch (error) {
+              if (error instanceof InvalidSupersessionError) {
+                return jsonResult2({ ok: false, error: error.message });
+              }
+              throw error;
             }
-            const now = (/* @__PURE__ */ new Date()).toISOString();
-            const action = params.to === "archived" ? "archived" : params.to === "superseded" ? "superseded" : "demoted";
-            db.transaction(() => {
-              memoryRepo.updateLifecycle(params.memoryId, params.to, now);
-              auditRepo.insert({
-                id: (0, import_node_crypto13.randomUUID)(),
-                action,
-                memoryId: params.memoryId,
-                tenantId: memory.tenantId,
-                actor,
-                reason: params.reason,
-                details: { from: memory.lifecycle, to: params.to },
-                timestamp: now
-              });
-            })();
+            if (!transition.ok) return jsonResult2(transition);
             const anchored = anchorChainHead(auditRepo, config.basePath, config.tenantId);
             return jsonResult2({
               ok: true,
               memoryId: params.memoryId,
-              from: memory.lifecycle,
+              from: transition.from,
               to: params.to,
+              auditEventId: transition.auditEventId,
               anchored,
               message: anchored ? "Transition applied; hash-chained audit event written and chain head re-anchored." : "Transition applied; hash-chained audit event written. (External anchor skipped \u2014 best-effort; the durable write is unaffected.)"
             });

@@ -35,6 +35,13 @@ installable Claude Code + Cowork plugin (a local stdio MCP server); the engines 
 
 ### Fixed
 
+- Persist local `brain_transition` supersession through the Registrar's dedicated
+  repository operation, with fresh endpoint validation and its audit event in one
+  immediate transaction. Require an active, distinct replacement in the same
+  tenant and preserve post-commit anchoring under the existing write lock. The
+  rebuilt runtime includes Registrar PR404; older bundles are not repaired in
+  place, and no stored-memory migration or live brain activation runs.
+
 - Retain the existing brain in a recoverable sibling backup for `init --clean`,
   using Linux directory handles and no-overwrite rename through an isolated
   stdlib Python helper. Refuse changed bindings without recursively deleting old
