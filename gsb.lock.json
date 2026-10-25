@@ -24,7 +24,7 @@
       "commit": "e0cff6df3c48cfd12fe4ea5ac742f32939ec246f",
       "registry": "bundled",
       "role": "INTKB \u2014 deterministic dedupe -> policy -> promote + the SHA-256 hash-chained audit + external anchor; dense retrieval default-on (#328/#334). Private monorepo; compiled into plugin-runtime/governed-brain.cjs, never published to a registry.",
-      "bundleSha256": "bab58f4f1e047f662d457d48a305dd47d75c9ca23435db2c1896f74fd78164b1",
+      "bundleSha256": "1746e6393179037a16745c5bb7c4dc69e4f5bea3f952b0e5d5262cb6a35ab856",
       "qmdCommandHelperSha256": "beb172902c025300c1facb14851ba23fc86b40bddeae604b5f63e975fe7e0cce"
     },
     "retrieve": {
