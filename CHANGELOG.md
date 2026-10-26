@@ -10,6 +10,17 @@ installable Claude Code + Cowork plugin (a local stdio MCP server); the engines 
 
 ### Added
 
+- Separate `governed-second-brain-recovery apply|repair` command for reviewed
+  private Registrar envelopes. Retains the actual Brain lock through strict
+  global local-Git anchoring, both tenant-exclusive exports, owned qmd registry
+  binding and full canonical document/FTS verification. Preserves committed truth
+  after maintenance faults; explicit repair adds no governance receipts, replay
+  remains unverified and partial settlement cannot report completion. Requires
+  Linux Node22, explicit runtime/digest pins and existing private roots; refuses
+  team mode before native loading and adds no MCP authority. A fourth independently
+  hash-bound helper ships with the same clean Registrar build
+  (`compile-then-govern-eqw.8.1.2.7`).
+
 - Separate `governed-second-brain-review` local command to list sanitized inbox/hold
   metadata, reject pending proposals and release or reject eligible human holds.
   Uses canonical atomic dispositions, local anchor and derived refresh; reports

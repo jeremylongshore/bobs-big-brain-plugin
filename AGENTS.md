@@ -80,7 +80,7 @@ Its builtin-only guard refuses effective team configuration before helper/native
 loading. It requires an existing regular SQLite file and existing native closure;
 never add implicit provisioning or migration. `src/local-review.ts` is bundled to
 `plugin-runtime/local-review.cjs`, independently hash-bound in `gsb.lock.json`.
-Rebuild all three helpers from the same clean Registrar revision.
+Rebuild all four helpers from the same clean Registrar revision.
 
 Listing is read-only and returns sanitized metadata, with output limits per queue;
 repository reads can still materialize the tenant queue. Writes take the shared
@@ -91,6 +91,27 @@ commit even when release is refused. Anchor first, then refresh through
 as that sweeps unrelated inbox items. Post-commit failure must retain a truthful
 committed result. Local declared actor/role are not physical-person authentication.
 No MCP review tool or general policy-flag approval override is added.
+
+### Local reviewed recovery
+
+`bin/recovery.mjs` exposes `governed-second-brain-recovery apply|repair` for a
+private Registrar recovery envelope and independently reviewed digest. It refuses
+effective team configuration before native/helper loading, requires Linux Node22,
+and never installs dependencies. The explicit owned qmd2.5.3 manifest pin and
+existing private source/target export and tenant index roots are prerequisites.
+The source roots need the five canonical export directories before execution.
+
+`src/recovery-maintenance.ts` is bundled as `plugin-runtime/local-recovery.cjs`,
+with its own `localRecoveryHelperSha256` in `gsb.lock.json`. The fixed coordinator
+retains the Registrar's actual shared flock and existing DB through global local
+Git anchoring, both tenant-exclusive exports, actual selected indexing, and final
+canonical document/registry/witness checks. No configurable postcommit shell hook
+or new MCP tool is added. Partial outcomes and blocked exports stay incomplete;
+postcommit failure preserves known database settlement. Apply replay deliberately
+stays unverified; explicit repair rechecks derived state without governance or
+archival receipts. CLI output omits source bodies, keys, policy prose and runtime
+paths. Local witness verification does not publish a remote anchor. Preserve the
+existing general-purpose best-effort anchor and derived refresh behavior.
 
 ### Team-mode server contract (the Registrar's `apps/api`)
 - `POST /api/candidates` — member-allowed; body = a full `MemoryCandidate` built client-side (the
@@ -176,7 +197,7 @@ Build hard-facts:
   after success; relative explicit-config binaries cannot be persisted.
 - **Headless helper**: `src/qmd-command.ts` builds separately to
   `plugin-runtime/qmd-command.cjs` for installer availability without starting MCP.
-  All three generated helpers and their `gsb.lock.json` digests must come from the same
+  All four generated helpers and their `gsb.lock.json` digests must come from the same
   clean Registrar build. Native provisioning uses bootstrap's existing exports.
 - **Govern reconciles the export tree** (`runExport({ reconcile: true })`), not just new
   promotions: lifecycle changes made by `curator batch-transition` / `brain_transition` land in

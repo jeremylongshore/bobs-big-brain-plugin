@@ -96,6 +96,20 @@ await esbuild.build({
 });
 console.error('✓ bundled → plugin-runtime/local-review.cjs');
 
+// Person-operated recovery stays outside MCP and shares the reviewed Registrar build.
+await esbuild.build({
+  entryPoints: ['src/recovery-maintenance.ts'],
+  bundle: true,
+  platform: 'node',
+  format: 'cjs',
+  target: 'node20',
+  outfile: 'plugin-runtime/local-recovery.cjs',
+  external: ['better-sqlite3', 'bindings', 'fs-ext', 'sqlite-vec'],
+  alias: { zod: zodAlias },
+  logLevel: 'info',
+});
+console.error('✓ bundled → plugin-runtime/local-recovery.cjs');
+
 // Install the externalized native modules INTO plugin-runtime/node_modules so the
 // runtime is SELF-CONTAINED. The three externals (better-sqlite3 + its 'bindings'
 // loader, and fs-ext) ship compiled .node addons that esbuild cannot inline; if the
@@ -142,6 +156,9 @@ lock.stack.govern.qmdCommandHelperSha256 = createHash('sha256')
   .digest('hex');
 lock.stack.govern.localReviewHelperSha256 = createHash('sha256')
   .update(readFileSync(new URL('./plugin-runtime/local-review.cjs', import.meta.url)))
+  .digest('hex');
+lock.stack.govern.localRecoveryHelperSha256 = createHash('sha256')
+  .update(readFileSync(new URL('./plugin-runtime/local-recovery.cjs', import.meta.url)))
   .digest('hex');
 // Preserve the lockfile's existing ASCII JSON representation.
 const lockJson = JSON.stringify(lock, null, 2)
