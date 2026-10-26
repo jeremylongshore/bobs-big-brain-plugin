@@ -113,6 +113,18 @@ archival receipts. CLI output omits source bodies, keys, policy prose and runtim
 paths. Local witness verification does not publish a remote anchor. Preserve the
 existing general-purpose best-effort anchor and derived refresh behavior.
 
+Fresh apply uses the fixed synchronous checker in `src/recovery-audit.ts` through
+the Registrar readiness boundary, under the shared flock and the same outer
+SQLite immediate transaction as application. It performs no mkdir, append, Git
+command or settlement-receipt lookup. Existing logs use bounded read-only
+descriptor snapshots and the canonical snapshot verifier; only ENOENT means
+absence, and path/descriptor metadata is rechecked. Canonical exact exception
+pins remain required; ordering forks never gain amnesty. Apply replay skips this
+fresh check; repair retains historical commitment and strict postcommit checks.
+Readiness establishes audit prerequisites, not guaranteed later maintenance.
+The canonical postcommit appender retains its own path read; do not claim that
+every postcommit internal read is bounded by the new readiness reader.
+
 ### Team-mode server contract (the Registrar's `apps/api`)
 - `POST /api/candidates` — member-allowed; body = a full `MemoryCandidate` built client-side (the
   server `safeParse`s with no defaults — provide every field, like `local-server.ts` does). Optional

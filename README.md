@@ -116,6 +116,14 @@ can accompany a maintenance failure: the database settlement remains committed.
 Use `repair` with the same plan and digest to retry maintenance without repeating
 governance or source archival. An apply replay does not reverify maintenance.
 
+Before fresh settlement, the command checks the strict global audit chain,
+existing anchors and any independently pinned exceptions under the same write
+transaction. A failed audit prerequisite refuses with `committed: false` before
+recovery writes; the check creates no audit files. Historical ordering forks need
+a separately reviewed disposition and cannot be cleared through exception
+amnesty or silent rehashing. Later Git, export or index failures can still retain
+a committed database settlement.
+
 Exit 0 means verified local completion; exit 2 means settled but incomplete,
 including replay or partial governance; exit 1 means refusal or failure. Inspect
 `committed` and `recoveryComplete` separately. Local verification does not publish

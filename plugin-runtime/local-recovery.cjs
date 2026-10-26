@@ -17744,10 +17744,10 @@ var require_api = __commonJS({
       });
     }
     // @__NO_SIDE_EFFECTS__
-    function _mime(types, params) {
+    function _mime(types2, params) {
       return new checks.$ZodCheckMimeType({
         check: "mime_type",
-        mime: types,
+        mime: types2,
         ...util.normalizeParams(params)
       });
     }
@@ -18367,7 +18367,7 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
       const options = schema.anyOf;
       if (!Array.isArray(options) || options.length === 0 || schema.type !== void 0)
         return;
-      const types = [];
+      const types2 = [];
       for (const option of options) {
         if (!option || typeof option !== "object")
           return;
@@ -18379,12 +18379,12 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
         for (const member of Array.isArray(type) ? type : [type]) {
           if (typeof member !== "string")
             return;
-          if (!types.includes(member))
-            types.push(member);
+          if (!types2.includes(member))
+            types2.push(member);
         }
       }
       delete schema.anyOf;
-      schema.type = types.length === 1 ? types[0] : types;
+      schema.type = types2.length === 1 ? types2[0] : types2;
     }
     var FOLDABLE_KEYS = /* @__PURE__ */ new Set(["type", "properties", "required", "additionalProperties"]);
     var UNION_KEYS = ["oneOf", "anyOf"];
@@ -19269,8 +19269,8 @@ var require_json_schema_processors = __commonJS({
         if (mapped.some((branch, i) => branch !== branches[i]))
           json2 = { ...json2, [keyword]: mapped };
       }
-      const types = Array.isArray(json2.type) ? json2.type : [json2.type];
-      const numericType = !types.includes("string") && types.some((t) => t === "number" || t === "integer");
+      const types2 = Array.isArray(json2.type) ? json2.type : [json2.type];
+      const numericType = !types2.includes("string") && types2.some((t) => t === "number" || t === "integer");
       const values = json2.enum ?? (json2.const !== void 0 ? [json2.const] : void 0);
       if (!numericType && !values?.some((v) => typeof v === "number"))
         return json2;
@@ -19283,7 +19283,7 @@ var require_json_schema_processors = __commonJS({
         return rest;
       rest.type = "string";
       if (!values)
-        rest.pattern = (types.includes("number") ? regexes.number : regexes.integer).source;
+        rest.pattern = (types2.includes("number") ? regexes.number : regexes.integer).source;
       return rest;
     }
     var pendingRecords = /* @__PURE__ */ new WeakMap();
@@ -21329,7 +21329,7 @@ var require_schemas2 = __commonJS({
       inst._zod.processJSONSchema = (ctx, json3, params) => processors.fileProcessor(inst, ctx, json3, params);
       inst.min = (size, params) => inst.check(core._minSize(size, params));
       inst.max = (size, params) => inst.check(core._maxSize(size, params));
-      inst.mime = (types, params) => inst.check(core._mime(Array.isArray(types) ? types : [types], params));
+      inst.mime = (types2, params) => inst.check(core._mime(Array.isArray(types2) ? types2 : [types2], params));
     });
     function file(params) {
       return core._file(exports2.ZodFile, params);
@@ -30630,8 +30630,8 @@ __export(recovery_maintenance_exports, {
   executeRecoveryMaintenance: () => executeRecoveryMaintenance
 });
 module.exports = __toCommonJS(recovery_maintenance_exports);
-var import_node_path19 = require("node:path");
-var import_node_util16 = require("node:util");
+var import_node_path20 = require("node:path");
+var import_node_util17 = require("node:util");
 
 // ../bobs-big-brain-registrar/apps/curator/dist/recovery/sensitivity-constraint.js
 var import_node_util2 = require("node:util");
@@ -35751,7 +35751,10 @@ function chainedRowsOf(repo) {
 function readAnchors(anchorPath) {
   if (!(0, import_node_fs.existsSync)(anchorPath))
     return [];
-  return (0, import_node_fs.readFileSync)(anchorPath, "utf8").split("\n").filter((l) => l.trim().length > 0).map((l) => JSON.parse(l));
+  return parseAnchorLog((0, import_node_fs.readFileSync)(anchorPath, "utf8"));
+}
+function parseAnchorLog(snapshot) {
+  return snapshot.split("\n").filter((l) => l.trim().length > 0).map((l) => JSON.parse(l));
 }
 function appendAnchor(repo, anchorPath, opts) {
   const now = opts.nowFn ?? (() => (/* @__PURE__ */ new Date()).toISOString());
@@ -35775,9 +35778,10 @@ function appendAnchor(repo, anchorPath, opts) {
   (0, import_node_fs.appendFileSync)(anchorPath, JSON.stringify(record3) + "\n", { mode: 384 });
   return record3;
 }
-function verifyAnchors(repo, anchorPath) {
-  const chain = verifyAuditChain(repo);
-  const anchors = readAnchors(anchorPath);
+function verifyAnchorRecords(repo, anchors) {
+  return verifyCapturedAnchors(repo, verifyAuditChain(repo), anchors);
+}
+function verifyCapturedAnchors(repo, chain, anchors) {
   const rows = chainedRowsOf(repo);
   const anchorBreaks = [];
   let expectedPrev = null;
@@ -35902,10 +35906,10 @@ function manifestBodyJson(body) {
 function computeManifestHash(body) {
   return (0, import_node_crypto7.createHash)("sha256").update(manifestBodyJson(body), "utf8").digest("hex");
 }
-function classifyChainBreaks(breaks, manifest2, rowsById) {
+function classifyChainBreaks(breaks, manifest, rowsById) {
   const manifestById = /* @__PURE__ */ new Map();
-  if (manifest2) {
-    for (const e of manifest2.entries)
+  if (manifest) {
+    for (const e of manifest.entries)
       manifestById.set(e.id, e);
   }
   const documentedExceptions = [];
@@ -37406,7 +37410,7 @@ function readApplySecret(path) {
     throw new Error("Empty recovery key");
   return secret;
 }
-async function executeRecoveryEnvelope(request, postcommit) {
+async function executeRecoveryEnvelope(request, postcommit, beforeApply) {
   const observed = {
     operation: "unknown",
     committed: false,
@@ -37422,7 +37426,7 @@ async function executeRecoveryEnvelope(request, postcommit) {
     if (operation !== "apply" && operation !== "repair")
       throw new Error("Unknown recovery operation");
     observed.operation = operation;
-    if (typeof postcommit !== "function" || operation === "repair" && request.originSecretFile !== void 0)
+    if (typeof postcommit !== "function" || operation === "repair" && request.originSecretFile !== void 0 || beforeApply !== void 0 && (typeof beforeApply !== "function" || import_node_util12.types.isAsyncFunction(beforeApply)))
       throw new Error("Invalid recovery composition");
     const envelope = readRecoveryEnvelope(request.planPath, request.expectedDigest);
     const secret = operation === "apply" ? readApplySecret(request.originSecretFile) : void 0;
@@ -37430,23 +37434,46 @@ async function executeRecoveryEnvelope(request, postcommit) {
     lock.verify();
     database = openExistingDatabase({ path: envelope.store.databasePath, readonly: false });
     lock.verify();
-    observed.stage = "database";
     let status;
     let replay = false;
     if (operation === "apply") {
-      observed.committed = "unknown";
-      observed.appliedNow = "unknown";
-      const result2 = applyRecoveryPlan(envelope.plan, envelope.plan.digest, database, {
-        ...secret === void 0 ? {} : { originSecret: secret },
-        onDormantPolicy: () => {
-          if (!observed.warnings.includes("dormant_policy_rules"))
-            observed.warnings.push("dormant_policy_rules");
+      const apply = () => {
+        observed.stage = "database";
+        observed.committed = "unknown";
+        observed.appliedNow = "unknown";
+        return applyRecoveryPlan(envelope.plan, envelope.plan.digest, database, {
+          ...secret === void 0 ? {} : { originSecret: secret },
+          onDormantPolicy: () => {
+            if (!observed.warnings.includes("dormant_policy_rules"))
+              observed.warnings.push("dormant_policy_rules");
+          }
+        });
+      };
+      const result2 = beforeApply === void 0 ? apply() : database.transaction(() => {
+        if (readRecoveryStatus(envelope.plan, envelope.plan.digest, database).state === "not_applied") {
+          const value = beforeApply({
+            database,
+            store: Object.freeze({ ...envelope.store }),
+            runId: envelope.plan.runId,
+            planDigest: envelope.plan.digest,
+            sourceTenantId: envelope.plan.sourceTenantId,
+            targetTenantId: envelope.plan.targetTenantId,
+            assertStillBound: () => lock.verify()
+          });
+          if (import_node_util12.types.isPromise(value)) {
+            void Promise.prototype.then.call(value, void 0, () => void 0);
+          }
+          if (value !== void 0)
+            throw new Error("Recovery readiness must be synchronous");
+          lock.verify();
         }
-      });
+        return apply();
+      }).immediate();
       status = result2.status;
       replay = result2.alreadyApplied;
       observed.appliedNow = !replay;
     } else {
+      observed.stage = "database";
       status = readRecoveryStatus(envelope.plan, envelope.plan.digest, database);
       if (status.state === "drifted")
         observed.committed = "unknown";
@@ -37514,27 +37541,731 @@ async function executeRecoveryEnvelope(request, postcommit) {
   return result;
 }
 
-// ../bobs-big-brain-registrar/packages/qmd-adapter/dist/config.js
+// src/recovery-audit.ts
+var import_node_fs9 = require("node:fs");
+var import_node_path9 = require("node:path");
+var import_node_util13 = require("node:util");
+
+// src/recovery-export.ts
+var import_node_crypto10 = require("node:crypto");
+var import_node_fs8 = require("node:fs");
+var import_node_path8 = require("node:path");
+
+// ../bobs-big-brain-registrar/apps/git-exporter/dist/formatter/frontmatter.js
+function extractFrontmatter(memory) {
+  return {
+    id: memory.id,
+    title: memory.title,
+    category: memory.category,
+    lifecycle: memory.lifecycle,
+    trustLevel: memory.trustLevel,
+    sensitivity: memory.sensitivity,
+    tenantId: memory.tenantId,
+    contentHash: memory.contentHash,
+    author: `${memory.author.type}:${memory.author.id}`,
+    promotedAt: memory.promotedAt,
+    updatedAt: memory.updatedAt,
+    version: memory.version,
+    tags: memory.metadata.tags,
+    supersededBy: memory.supersession?.supersededBy
+  };
+}
+function renderFrontmatter(data) {
+  const lines = ["---"];
+  lines.push(`id: "${data.id}"`);
+  lines.push(`title: "${escapeYamlString(data.title)}"`);
+  lines.push(`category: "${data.category}"`);
+  lines.push(`lifecycle: "${data.lifecycle}"`);
+  lines.push(`trust_level: "${data.trustLevel}"`);
+  lines.push(`sensitivity: "${data.sensitivity}"`);
+  lines.push(`tenant_id: "${data.tenantId}"`);
+  lines.push(`content_hash: "${data.contentHash}"`);
+  lines.push(`author: "${data.author}"`);
+  lines.push(`promoted_at: "${data.promotedAt}"`);
+  lines.push(`updated_at: "${data.updatedAt}"`);
+  lines.push(`version: ${data.version}`);
+  if (data.tags.length > 0) {
+    lines.push(`tags:`);
+    for (const tag of data.tags) {
+      lines.push(`  - "${escapeYamlString(tag)}"`);
+    }
+  } else {
+    lines.push(`tags: []`);
+  }
+  if (data.supersededBy !== void 0) {
+    lines.push(`superseded_by: "${data.supersededBy}"`);
+  }
+  lines.push("---");
+  return lines.join("\n");
+}
+function escapeYamlString(s) {
+  return s.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+}
+
+// ../bobs-big-brain-registrar/apps/git-exporter/dist/formatter/markdown-formatter.js
+function formatMemoryAsMarkdown(memory, resolveLinks) {
+  const frontmatter = renderFrontmatter(extractFrontmatter(memory));
+  const content = resolveLinks ? resolveLinks(memory.content) : memory.content;
+  return `${frontmatter}
+
+# ${memory.title}
+
+${content}
+`;
+}
+
+// ../bobs-big-brain-registrar/apps/git-exporter/dist/formatter/directory-mapper.js
+var UnknownCategoryError = class extends Error {
+  category;
+  constructor(category) {
+    super(`No export-directory mapping for category "${category}"`);
+    this.category = category;
+    this.name = "UnknownCategoryError";
+  }
+};
+function getDirectory(memory) {
+  if (memory.lifecycle !== "active") {
+    return "archive";
+  }
+  return getActiveDirectory(memory);
+}
+function getActiveDirectory(memory) {
+  if (memory.source === "bulk_import") {
+    return "bulk";
+  }
+  return getCategoryDirectory(memory.category);
+}
+function getCategoryDirectory(category) {
+  switch (category) {
+    case "decision":
+      return "decisions";
+    case "pattern":
+    case "convention":
+    case "architecture":
+      return "curated";
+    case "troubleshooting":
+    case "reference":
+    case "onboarding":
+      return "guides";
+    default:
+      throw new UnknownCategoryError(category);
+  }
+}
+function getRelativePath(memory) {
+  return `${getDirectory(memory)}/${memory.id}.md`;
+}
+
+// ../bobs-big-brain-registrar/apps/git-exporter/dist/diff/change-detector.js
+var import_node_path6 = require("node:path");
+
+// ../bobs-big-brain-registrar/apps/git-exporter/dist/diff/stale-files.js
+var import_node_fs5 = require("node:fs");
 var import_node_path5 = require("node:path");
+
+// ../bobs-big-brain-registrar/apps/git-exporter/dist/sensitivity.js
+var CONFIDENTIAL_INDEX = Sensitivity.options.indexOf("confidential");
+function isSensitivityRestricted(level) {
+  const idx = Sensitivity.options.indexOf(level);
+  return idx >= CONFIDENTIAL_INDEX;
+}
+function isExportRestricted(memory) {
+  return isSensitivityRestricted(memory.sensitivity) || !isExportableAudience(memory.metadata?.audience);
+}
+
+// ../bobs-big-brain-registrar/apps/git-exporter/dist/diff/stale-files.js
+var EXPORT_DIRS = ["decisions", "curated", "guides", "archive", "bulk"];
+var MEMORY_FILE = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.md$/i;
+function readFileTenant(filePath) {
+  try {
+    const text2 = (0, import_node_fs5.readFileSync)(filePath, "utf8");
+    if (!text2.startsWith("---"))
+      return null;
+    const end = text2.indexOf("\n---", 3);
+    if (end === -1)
+      return null;
+    const m = /^tenant_id:\s*"([^"\n]*)"\s*$/m.exec(text2.slice(0, end));
+    return m?.[1] ?? null;
+  } catch {
+    return null;
+  }
+}
+function findStaleFiles(outputDir, memories, quarantinedIds, tenantId, maxOrphanRemovals) {
+  const desired = /* @__PURE__ */ new Map();
+  for (const m of memories) {
+    if (quarantinedIds.has(m.id))
+      continue;
+    if (isExportRestricted(m)) {
+      desired.set(m.id, null);
+      continue;
+    }
+    try {
+      desired.set(m.id, getRelativePath(m));
+    } catch {
+    }
+  }
+  const known = new Set(memories.map((m) => m.id));
+  const relocated = [];
+  const orphans = [];
+  for (const dir of EXPORT_DIRS) {
+    const absDir = (0, import_node_path5.join)(outputDir, dir);
+    if (!(0, import_node_fs5.existsSync)(absDir))
+      continue;
+    let names;
+    try {
+      names = (0, import_node_fs5.readdirSync)(absDir);
+    } catch {
+      continue;
+    }
+    for (const name of names.sort()) {
+      const m = MEMORY_FILE.exec(name);
+      if (m === null)
+        continue;
+      const id = m[1].toLowerCase();
+      if (quarantinedIds.has(id))
+        continue;
+      const rel = `${dir}/${name}`;
+      const abs = (0, import_node_path5.join)(absDir, name);
+      if (known.has(id)) {
+        if (!desired.has(id))
+          continue;
+        const want = desired.get(id);
+        if (want === void 0 || want !== rel) {
+          const owner = tenantId === void 0 ? null : readFileTenant(abs);
+          if (owner !== null && owner !== tenantId)
+            continue;
+          relocated.push(abs);
+        }
+        continue;
+      }
+      if (tenantId !== void 0 && readFileTenant(abs) !== tenantId)
+        continue;
+      orphans.push(abs);
+    }
+  }
+  if (orphans.length > maxOrphanRemovals) {
+    return {
+      toRemove: relocated,
+      removalBlocked: { orphans: orphans.length, limit: maxOrphanRemovals }
+    };
+  }
+  return { toRemove: [...relocated, ...orphans] };
+}
+
+// ../bobs-big-brain-registrar/apps/git-exporter/dist/diff/change-detector.js
+var DEFAULT_MAX_ORPHAN_REMOVALS = 50;
+function detectChanges(memoryRepo, exportStateRepo, config) {
+  const exportState = exportStateRepo.get(config.targetId);
+  let memories;
+  const readFailures = [];
+  if (config.tenantId !== void 0) {
+    const res = memoryRepo.findByTenantResilient(config.tenantId);
+    memories = res.memories;
+    readFailures.push(...res.failures);
+  } else {
+    const parts = ["active", "deprecated", "superseded", "archived"].map((lc) => memoryRepo.findByLifecycleResilient(lc));
+    memories = parts.flatMap((p) => p.memories);
+    readFailures.push(...parts.flatMap((p) => p.failures));
+  }
+  const allMemories = memories;
+  const reconcile = config.reconcile === true;
+  if (exportState !== null && !reconcile) {
+    memories = memories.filter((m) => m.updatedAt >= exportState.lastExportedAt);
+  }
+  const toWrite = [];
+  const toArchive = [];
+  const quarantined = readFailures.map((f) => ({
+    id: f.id,
+    category: "",
+    reason: f.reason
+  }));
+  for (const memory of memories) {
+    try {
+      if (getDirectory(memory) === "archive") {
+        const activeDir = getActiveDirectory(memory);
+        const fromPath = (0, import_node_path6.join)(config.outputDir, activeDir, `${memory.id}.md`);
+        const toPath = (0, import_node_path6.join)(config.outputDir, getRelativePath(memory));
+        toArchive.push({ memory, fromPath, toPath });
+      } else {
+        const filePath = (0, import_node_path6.join)(config.outputDir, getRelativePath(memory));
+        toWrite.push({ memory, filePath });
+      }
+    } catch (err2) {
+      quarantined.push({
+        id: memory.id,
+        category: memory.category ?? "",
+        reason: err2 instanceof Error ? err2.message : String(err2)
+      });
+    }
+  }
+  if (!reconcile) {
+    return { toWrite, toArchive, toRemove: [], quarantined };
+  }
+  const stale = findStaleFiles(config.outputDir, allMemories, new Set(quarantined.map((q) => q.id)), config.tenantId, config.maxOrphanRemovals ?? DEFAULT_MAX_ORPHAN_REMOVALS);
+  return {
+    toWrite,
+    toArchive,
+    toRemove: stale.toRemove,
+    quarantined,
+    ...stale.removalBlocked !== void 0 ? { removalBlocked: stale.removalBlocked } : {}
+  };
+}
+
+// ../bobs-big-brain-registrar/apps/git-exporter/dist/writer/file-writer.js
+var import_node_fs6 = require("node:fs");
+var import_node_path7 = require("node:path");
+function assertPathSafe(filePath, allowedRoot) {
+  if (filePath.includes("\0")) {
+    throw new Error("Unsafe file path: Path contains null byte");
+  }
+  const segments = filePath.split(/[/\\]/);
+  if (segments.includes("..")) {
+    throw new Error("Unsafe file path: Path contains directory traversal (..)");
+  }
+  if (allowedRoot !== void 0) {
+    const resolved = (0, import_node_path7.resolve)(filePath);
+    const resolvedRoot = (0, import_node_path7.resolve)(allowedRoot);
+    if (!resolved.startsWith(resolvedRoot + "/") && resolved !== resolvedRoot) {
+      throw new Error(`Path traversal rejected: ${filePath} is outside ${allowedRoot}`);
+    }
+  }
+}
+function writeFile(filePath, content, exportRoot) {
+  assertPathSafe(filePath, exportRoot);
+  (0, import_node_fs6.mkdirSync)((0, import_node_path7.dirname)(filePath), { recursive: true });
+  (0, import_node_fs6.writeFileSync)(filePath, content, "utf8");
+}
+function archiveFile(fromPath, toPath, content, exportRoot) {
+  assertPathSafe(toPath, exportRoot);
+  if (exportRoot !== void 0) {
+    assertPathSafe(fromPath, exportRoot);
+  }
+  (0, import_node_fs6.mkdirSync)((0, import_node_path7.dirname)(toPath), { recursive: true });
+  if ((0, import_node_fs6.existsSync)(fromPath)) {
+    (0, import_node_fs6.unlinkSync)(fromPath);
+  }
+  (0, import_node_fs6.writeFileSync)(toPath, content, "utf8");
+}
+function removeFile(filePath, exportRoot) {
+  if (exportRoot !== void 0) {
+    assertPathSafe(filePath, exportRoot);
+  }
+  if ((0, import_node_fs6.existsSync)(filePath)) {
+    (0, import_node_fs6.unlinkSync)(filePath);
+    return true;
+  }
+  return false;
+}
+
+// ../bobs-big-brain-registrar/apps/git-exporter/dist/exporter.js
+var import_node_fs7 = require("node:fs");
+function runExport(memoryRepo, exportStateRepo, config, nowFn = () => (/* @__PURE__ */ new Date()).toISOString()) {
+  const startedAt = nowFn();
+  const changeset = detectChanges(memoryRepo, exportStateRepo, config);
+  const written = [];
+  const archived = [];
+  const removed = [];
+  const skipped = [];
+  const quarantined = [...changeset.quarantined];
+  let unchanged = 0;
+  for (const item of changeset.toWrite) {
+    if (isExportRestricted(item.memory)) {
+      skipped.push(item.memory.id);
+      continue;
+    }
+    try {
+      const content = formatMemoryAsMarkdown(item.memory);
+      if ((0, import_node_fs7.existsSync)(item.filePath)) {
+        const existing = (0, import_node_fs7.readFileSync)(item.filePath, "utf8");
+        if (existing === content) {
+          unchanged++;
+          continue;
+        }
+      }
+      writeFile(item.filePath, content);
+      written.push(item.filePath);
+    } catch (err2) {
+      quarantined.push({
+        id: item.memory.id,
+        category: item.memory.category ?? "",
+        reason: err2 instanceof Error ? err2.message : String(err2)
+      });
+    }
+  }
+  for (const item of changeset.toArchive) {
+    if (isExportRestricted(item.memory)) {
+      skipped.push(item.memory.id);
+      continue;
+    }
+    try {
+      const content = formatMemoryAsMarkdown(item.memory);
+      if (!(0, import_node_fs7.existsSync)(item.fromPath) && (0, import_node_fs7.existsSync)(item.toPath) && (0, import_node_fs7.readFileSync)(item.toPath, "utf8") === content) {
+        unchanged++;
+        continue;
+      }
+      archiveFile(item.fromPath, item.toPath, content);
+      archived.push(item.toPath);
+    } catch (err2) {
+      quarantined.push({
+        id: item.memory.id,
+        category: item.memory.category ?? "",
+        reason: err2 instanceof Error ? err2.message : String(err2)
+      });
+    }
+  }
+  for (const filePath of changeset.toRemove) {
+    if (removeFile(filePath)) {
+      removed.push(filePath);
+    }
+  }
+  exportStateRepo.set(config.targetId, startedAt);
+  return {
+    written,
+    archived,
+    removed,
+    skipped,
+    quarantined,
+    unchanged,
+    totalProcessed: changeset.toWrite.length + changeset.toArchive.length + changeset.toRemove.length,
+    ...changeset.removalBlocked !== void 0 ? { removalBlocked: changeset.removalBlocked } : {}
+  };
+}
+
+// src/recovery-export.ts
+var DIRECTORIES = /* @__PURE__ */ new Set([
+  "decisions",
+  "curated",
+  "guides",
+  "archive",
+  "bulk"
+]);
+var MEMORY_FILE2 = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.md$/i;
+var TENANT = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
+function inspectRecoveryExportRoot(root) {
+  if (!(0, import_node_path8.isAbsolute)(root) || (0, import_node_path8.normalize)(root) !== root || (0, import_node_fs8.realpathSync)(root) !== root)
+    throw new Error("Recovery export root must be canonical");
+  const info = (0, import_node_fs8.lstatSync)(root);
+  if (!info.isDirectory() || info.uid !== process.getuid?.() || (info.mode & 63) !== 0)
+    throw new Error("Recovery export root must be owner-private");
+  return { device: info.dev, inode: info.ino };
+}
+function requireRoot(root, expected) {
+  const actual = inspectRecoveryExportRoot(root);
+  if (actual.device !== expected.device || actual.inode !== expected.inode)
+    throw new Error("Recovery export root changed");
+}
+function readDocument(path) {
+  const fd = (0, import_node_fs8.openSync)(
+    path,
+    import_node_fs8.constants.O_RDONLY | import_node_fs8.constants.O_NOFOLLOW | import_node_fs8.constants.O_NONBLOCK
+  );
+  try {
+    const info = (0, import_node_fs8.fstatSync)(fd);
+    if (!info.isFile() || info.nlink !== 1 || info.uid !== process.getuid?.() || info.size > 16 * 1024 * 1024)
+      throw new Error("Unsafe recovery export document");
+    const buffer = Buffer.alloc(info.size + 1);
+    let used = 0;
+    while (used < buffer.length) {
+      const count = (0, import_node_fs8.readSync)(fd, buffer, used, buffer.length - used, null);
+      if (count === 0) break;
+      used += count;
+    }
+    const after = (0, import_node_fs8.fstatSync)(fd);
+    const named = (0, import_node_fs8.lstatSync)(path);
+    if (used !== info.size || after.size !== info.size || after.mtimeMs !== info.mtimeMs || named.dev !== info.dev || named.ino !== info.ino || named.nlink !== 1)
+      throw new Error("Recovery export document changed during read");
+    return buffer.subarray(0, used).toString("utf8");
+  } finally {
+    (0, import_node_fs8.closeSync)(fd);
+  }
+}
+function scanTree(root, tenantId) {
+  const documents = /* @__PURE__ */ new Map();
+  for (const directory of (0, import_node_fs8.readdirSync)(root).sort()) {
+    const path = (0, import_node_path8.join)(root, directory);
+    const info = (0, import_node_fs8.lstatSync)(path);
+    if (!DIRECTORIES.has(directory) || !info.isDirectory() || info.uid !== process.getuid?.() || (0, import_node_fs8.realpathSync)(path) !== path)
+      throw new Error("Recovery export tree has an unexpected entry");
+    for (const name of (0, import_node_fs8.readdirSync)(path).sort()) {
+      if (!MEMORY_FILE2.test(name))
+        throw new Error("Unexpected recovery export filename");
+      const text2 = readDocument((0, import_node_path8.join)(path, name));
+      const end = text2.indexOf("\n---\n", 4);
+      const header = text2.slice(0, end);
+      const tenants = [...header.matchAll(/^tenant_id: "([^"\n]*)"$/gm)];
+      if (!text2.startsWith("---\n") || end < 0 || tenants.length !== 1 || tenants[0][1] !== tenantId)
+        throw new Error("Recovery export tree is not tenant-exclusive");
+      documents.set((0, import_node_path8.relative)(root, (0, import_node_path8.join)(path, name)), text2);
+    }
+  }
+  return documents;
+}
+function reconcileRecoveryExport(database, binding, assertStillBound) {
+  const { tenantId, exportDir } = binding;
+  if (!TENANT.test(tenantId))
+    throw new Error("Unsupported recovery export tenant");
+  const identity2 = inspectRecoveryExportRoot(exportDir);
+  assertStillBound();
+  scanTree(exportDir, tenantId);
+  const memories = new MemoryRepository(database);
+  const state = new ExportStateRepository(database);
+  const targetId = `recovery-${(0, import_node_crypto10.createHash)("sha256").update(JSON.stringify([tenantId, exportDir])).digest("hex")}`;
+  const result = runExport(memories, state, {
+    outputDir: exportDir,
+    tenantId,
+    targetId,
+    reconcile: true
+  });
+  assertStillBound();
+  requireRoot(exportDir, identity2);
+  const summary = {
+    written: result.written.length,
+    archived: result.archived.length,
+    removed: result.removed.length,
+    unchanged: result.unchanged,
+    quarantined: result.quarantined.length,
+    removalBlocked: result.removalBlocked !== void 0,
+    verifiedDocuments: 0,
+    complete: false
+  };
+  if (summary.quarantined > 0 || summary.removalBlocked) return summary;
+  const actual = verifyRecoveryExportDocuments(database, binding, () => {
+  });
+  assertStillBound();
+  requireRoot(exportDir, identity2);
+  return { ...summary, verifiedDocuments: actual.size, complete: true };
+}
+function verifyRecoveryExportDocuments(database, binding, assertStillBound) {
+  const { tenantId, exportDir } = binding;
+  if (!TENANT.test(tenantId))
+    throw new Error("Unsupported recovery export tenant");
+  assertStillBound();
+  const identity2 = inspectRecoveryExportRoot(exportDir);
+  const current = new MemoryRepository(database).findByTenantResilient(
+    tenantId
+  );
+  if (current.failures.length > 0)
+    throw new Error("Recovery export source cannot be read");
+  const expected = new Map(
+    current.memories.filter((memory) => !isExportRestricted(memory)).map((memory) => [
+      getRelativePath(memory),
+      formatMemoryAsMarkdown(memory)
+    ])
+  );
+  const actual = scanTree(exportDir, tenantId);
+  if (actual.size !== expected.size || [...expected].some(([path, text2]) => actual.get(path) !== text2))
+    throw new Error("Recovery export differs from canonical tenant rendering");
+  assertStillBound();
+  requireRoot(exportDir, identity2);
+  return actual;
+}
+
+// src/recovery-audit.ts
+function readRecoveryExceptionManifest(options) {
+  if (options.exceptionManifest === void 0) return null;
+  const { path, expectedManifestHash } = options.exceptionManifest;
+  if (!/^[a-f0-9]{64}$/.test(expectedManifestHash) || (0, import_node_fs9.realpathSync)(path) !== path)
+    throw new Error("Invalid recovery exception manifest binding");
+  const fd = (0, import_node_fs9.openSync)(
+    path,
+    import_node_fs9.constants.O_RDONLY | import_node_fs9.constants.O_NOFOLLOW | import_node_fs9.constants.O_NONBLOCK
+  );
+  try {
+    const info = (0, import_node_fs9.fstatSync)(fd);
+    if (!info.isFile() || info.nlink !== 1 || info.uid !== process.getuid?.() || (info.mode & 63) !== 0 || info.size > 8 * 1024 * 1024)
+      throw new Error("Unsafe recovery exception manifest");
+    const buffer = Buffer.alloc(info.size + 1);
+    let used = 0;
+    while (used < buffer.length) {
+      const count = (0, import_node_fs9.readSync)(fd, buffer, used, buffer.length - used, null);
+      if (!count) break;
+      used += count;
+    }
+    const after = (0, import_node_fs9.fstatSync)(fd);
+    const named = (0, import_node_fs9.lstatSync)(path);
+    if (used !== info.size || after.size !== info.size || after.mtimeMs !== info.mtimeMs || after.ctimeMs !== info.ctimeMs || named.dev !== info.dev || named.ino !== info.ino || named.nlink !== 1)
+      throw new Error("Recovery exception manifest changed during read");
+    const value = ExceptionManifestSchema.parse(
+      JSON.parse(buffer.subarray(0, used).toString("utf8"))
+    );
+    const { manifestHash, ...body } = value;
+    if (value.entryCount !== value.entries.length || computeManifestHash(body) !== manifestHash)
+      throw new Error("Recovery exception manifest digest or count differs");
+    if (value.manifestHash !== expectedManifestHash || new Set(value.entries.map((entry) => entry.id)).size !== value.entries.length)
+      throw new Error("Recovery exception manifest digest or identity differs");
+    return value;
+  } finally {
+    (0, import_node_fs9.closeSync)(fd);
+  }
+}
+function readRecoveryAnchorSnapshot(fd) {
+  const info = (0, import_node_fs9.fstatSync)(fd);
+  if (!info.isFile() || info.nlink !== 1 || info.uid !== process.getuid?.() || (info.mode & 63) !== 0 || info.size > 64 * 1024 * 1024)
+    throw new Error("Unsafe recovery anchor log");
+  const buffer = Buffer.alloc(info.size + 1);
+  let used = 0;
+  while (used < buffer.length) {
+    const count = (0, import_node_fs9.readSync)(fd, buffer, used, buffer.length - used, used);
+    if (!count) break;
+    used += count;
+  }
+  const after = (0, import_node_fs9.fstatSync)(fd);
+  if (used !== info.size || after.size !== info.size || after.mtimeMs !== info.mtimeMs || after.ctimeMs !== info.ctimeMs || after.mode !== info.mode || after.uid !== info.uid || after.nlink !== 1)
+    throw new Error("Recovery anchor log changed during read");
+  return buffer.subarray(0, used);
+}
+function verifyRecoveryAuditSnapshot(database, snapshot, approved) {
+  const rows = database.prepare(
+    "SELECT id, tenant_id, entry_hash, prev_entry_hash, hash_version, seq FROM audit_events ORDER BY seq"
+  ).all();
+  const tuples = /* @__PURE__ */ new Map();
+  for (const row of rows) {
+    if (!Number.isSafeInteger(row.seq) || row.seq < 1)
+      throw new Error("Recovery audit sequence is unavailable");
+    tuples.set(row.id, {
+      entry_hash: row.entry_hash,
+      prev_entry_hash: row.prev_entry_hash,
+      hash_version: row.hash_version ?? 1,
+      seq: row.seq
+    });
+  }
+  const verification = verifyAnchorRecords(
+    new AuditRepository(database),
+    parseAnchorLog(
+      typeof snapshot === "string" ? snapshot : snapshot.toString("utf8")
+    )
+  );
+  const classified = classifyChainBreaks(
+    verification.chain.breaks,
+    approved,
+    tuples
+  );
+  if (verification.anchorBreaks.length > 0 || !classified.verified)
+    throw new Error("Recovery anchor or chain verification refused");
+  return { rows, verification, classified };
+}
+function absent(path) {
+  try {
+    (0, import_node_fs9.lstatSync)(path);
+    return false;
+  } catch (error) {
+    if (error.code === "ENOENT") return true;
+    throw error;
+  }
+}
+function directoryBinding(path, fd) {
+  const named = inspectRecoveryExportRoot(path);
+  const opened = (0, import_node_fs9.fstatSync)(fd);
+  if (!opened.isDirectory() || opened.dev !== named.device || opened.ino !== named.inode || opened.uid !== process.getuid?.() || (opened.mode & 63) !== 0)
+    throw new Error("Recovery audit directory binding changed");
+  return {
+    ...named,
+    mode: opened.mode,
+    uid: opened.uid,
+    mtimeMs: opened.mtimeMs,
+    ctimeMs: opened.ctimeMs
+  };
+}
+function assertRecoveryAuditReadiness(context, options = {}) {
+  if (process.platform !== "linux")
+    throw new Error("Recovery audit readiness requires Linux");
+  context.assertStillBound();
+  const approved = readRecoveryExceptionManifest(options);
+  const base = context.store.basePath;
+  const baseIdentity = inspectRecoveryExportRoot(base);
+  const baseFd = (0, import_node_fs9.openSync)(
+    base,
+    import_node_fs9.constants.O_RDONLY | import_node_fs9.constants.O_DIRECTORY | import_node_fs9.constants.O_NOFOLLOW
+  );
+  let auditFd;
+  let fileFd;
+  try {
+    const initialBase = directoryBinding(base, baseFd);
+    if (initialBase.device !== baseIdentity.device || initialBase.inode !== baseIdentity.inode)
+      throw new Error("Recovery audit base changed while opening");
+    const boundBase = () => {
+      context.assertStillBound();
+      if (!(0, import_node_util13.isDeepStrictEqual)(initialBase, directoryBinding(base, baseFd)))
+        throw new Error("Recovery audit base changed");
+    };
+    boundBase();
+    const auditPath = (0, import_node_path9.join)(base, "audit");
+    const relativeAudit = `/proc/self/fd/${baseFd}/audit`;
+    if (absent(relativeAudit)) {
+      verifyRecoveryAuditSnapshot(context.database, "", approved);
+      boundBase();
+      if (!absent(relativeAudit))
+        throw new Error("Recovery audit directory appeared during readiness");
+      return void 0;
+    }
+    const auditIdentity = inspectRecoveryExportRoot(auditPath);
+    auditFd = (0, import_node_fs9.openSync)(
+      relativeAudit,
+      import_node_fs9.constants.O_RDONLY | import_node_fs9.constants.O_DIRECTORY | import_node_fs9.constants.O_NOFOLLOW
+    );
+    const initialAudit = directoryBinding(auditPath, auditFd);
+    if (initialAudit.device !== auditIdentity.device || initialAudit.inode !== auditIdentity.inode)
+      throw new Error("Recovery audit directory changed while opening");
+    const boundAudit = () => {
+      boundBase();
+      if (!(0, import_node_util13.isDeepStrictEqual)(initialAudit, directoryBinding(auditPath, auditFd)))
+        throw new Error("Recovery audit directory changed");
+    };
+    boundAudit();
+    const relativeFile = `/proc/self/fd/${auditFd}/anchors.jsonl`;
+    if (absent(relativeFile)) {
+      verifyRecoveryAuditSnapshot(context.database, "", approved);
+      boundAudit();
+      if (!absent(relativeFile))
+        throw new Error("Recovery anchor log appeared during readiness");
+      return void 0;
+    }
+    fileFd = (0, import_node_fs9.openSync)(
+      relativeFile,
+      import_node_fs9.constants.O_RDONLY | import_node_fs9.constants.O_NOFOLLOW | import_node_fs9.constants.O_NONBLOCK
+    );
+    const initial = (0, import_node_fs9.fstatSync)(fileFd);
+    const snapshot = readRecoveryAnchorSnapshot(fileFd);
+    verifyRecoveryAuditSnapshot(context.database, snapshot, approved);
+    boundAudit();
+    const current = (0, import_node_fs9.fstatSync)(fileFd);
+    const named = (0, import_node_fs9.lstatSync)(relativeFile);
+    if (named.dev !== initial.dev || named.ino !== initial.ino || named.nlink !== 1 || current.size !== initial.size || current.mtimeMs !== initial.mtimeMs || current.ctimeMs !== initial.ctimeMs || current.mode !== initial.mode || current.uid !== initial.uid || current.nlink !== 1)
+      throw new Error("Recovery anchor binding changed during readiness");
+    return void 0;
+  } finally {
+    try {
+      if (fileFd !== void 0) (0, import_node_fs9.closeSync)(fileFd);
+    } finally {
+      try {
+        if (auditFd !== void 0) (0, import_node_fs9.closeSync)(auditFd);
+      } finally {
+        (0, import_node_fs9.closeSync)(baseFd);
+      }
+    }
+  }
+}
+
+// ../bobs-big-brain-registrar/packages/qmd-adapter/dist/config.js
+var import_node_path10 = require("node:path");
 var QMD_INDEX_DIR = "qmd-index";
 function getQmdTenantIndexPath(tenantId, basePath) {
-  const root = (0, import_node_path5.resolve)(basePath ?? getTeamKbBasePath(), QMD_INDEX_DIR);
-  const parts = tenantId.split(import_node_path5.sep);
-  if (!tenantId || tenantId.includes("\0") || (0, import_node_path5.isAbsolute)(tenantId) || parts.some((p) => p === "." || p === ".." || p === ""))
+  const root = (0, import_node_path10.resolve)(basePath ?? getTeamKbBasePath(), QMD_INDEX_DIR);
+  const parts = tenantId.split(import_node_path10.sep);
+  if (!tenantId || tenantId.includes("\0") || (0, import_node_path10.isAbsolute)(tenantId) || parts.some((p) => p === "." || p === ".." || p === ""))
     throw new Error("Tenant index identity must be a nonempty relative path without traversal");
-  const path = (0, import_node_path5.resolve)(root, tenantId);
-  const within = (0, import_node_path5.relative)(root, path);
-  if (!within || (0, import_node_path5.isAbsolute)(within) || within === ".." || within.startsWith(`..${import_node_path5.sep}`))
+  const path = (0, import_node_path10.resolve)(root, tenantId);
+  const within = (0, import_node_path10.relative)(root, path);
+  if (!within || (0, import_node_path10.isAbsolute)(within) || within === ".." || within.startsWith(`..${import_node_path10.sep}`))
     throw new Error("Tenant index path escapes the configured TeamKB base");
   return path;
 }
 function getQmdTenantEnv(tenantId, basePath) {
   const base = getQmdTenantIndexPath(tenantId, basePath);
   return {
-    XDG_CONFIG_HOME: (0, import_node_path5.join)(base, "config"),
-    XDG_CACHE_HOME: (0, import_node_path5.join)(base, "cache"),
-    QMD_CONFIG_DIR: (0, import_node_path5.join)(base, "config", "qmd"),
-    INDEX_PATH: (0, import_node_path5.join)(base, "cache", "qmd", "index.sqlite")
+    XDG_CONFIG_HOME: (0, import_node_path10.join)(base, "config"),
+    XDG_CACHE_HOME: (0, import_node_path10.join)(base, "cache"),
+    QMD_CONFIG_DIR: (0, import_node_path10.join)(base, "config", "qmd"),
+    INDEX_PATH: (0, import_node_path10.join)(base, "cache", "qmd", "index.sqlite")
   };
 }
 function withQmdTenantSelector(args) {
@@ -37558,13 +38289,13 @@ function resolveMaintenanceTimeoutMs(env = process.env) {
 
 // ../bobs-big-brain-registrar/packages/qmd-adapter/dist/executor/real-executor.js
 var import_node_child_process3 = require("node:child_process");
-var import_node_fs7 = require("node:fs");
-var import_node_path8 = require("node:path");
+var import_node_fs12 = require("node:fs");
+var import_node_path13 = require("node:path");
 
 // ../bobs-big-brain-registrar/packages/qmd-adapter/dist/executor/resolve-binary.js
-var import_node_fs5 = require("node:fs");
+var import_node_fs10 = require("node:fs");
 var import_node_os2 = require("node:os");
-var import_node_path6 = require("node:path");
+var import_node_path11 = require("node:path");
 var QMD_BIN_ENV = "TEAMKB_QMD_BIN";
 var QMD_NOT_FOUND_EXIT_CODE = 127;
 var QmdBinaryNotFoundError = class extends Error {
@@ -37577,9 +38308,9 @@ var QmdBinaryNotFoundError = class extends Error {
 };
 function defaultIsExecutable(p) {
   try {
-    if (!(0, import_node_fs5.statSync)(p).isFile())
+    if (!(0, import_node_fs10.statSync)(p).isFile())
       return false;
-    (0, import_node_fs5.accessSync)(p, import_node_fs5.constants.X_OK);
+    (0, import_node_fs10.accessSync)(p, import_node_fs10.constants.X_OK);
     return true;
   } catch {
     return false;
@@ -37594,7 +38325,7 @@ function resolveQmdBinary(options = {}) {
     if (v === void 0 || v === "")
       return null;
     searched.push(`${label}=${v}`);
-    if (!(0, import_node_path6.isAbsolute)(v) && !v.includes("/")) {
+    if (!(0, import_node_path11.isAbsolute)(v) && !v.includes("/")) {
       const hit = findOnPath(v, env, isExecutable);
       if (hit !== null)
         return { path: hit, source };
@@ -37614,17 +38345,17 @@ function resolveQmdBinary(options = {}) {
   searched.push("PATH");
   if (onPath !== null)
     return { path: onPath, source: "path" };
-  const bunDefault = (0, import_node_path6.join)(options.home ?? (0, import_node_os2.homedir)(), ".bun", "bin", "qmd");
+  const bunDefault = (0, import_node_path11.join)(options.home ?? (0, import_node_os2.homedir)(), ".bun", "bin", "qmd");
   searched.push(bunDefault);
   if (isExecutable(bunDefault))
     return { path: bunDefault, source: "bun-default" };
   throw new QmdBinaryNotFoundError(`qmd binary not found (searched: ${searched.join(", ")}). The search index cannot be refreshed until it is available. Install it (bun add -g @tobilu/qmd) and either put it on PATH or set ${QMD_BIN_ENV}=/absolute/path/to/qmd in the MCP server environment, then re-run.`, searched);
 }
 function findOnPath(name, env, isExecutable) {
-  for (const dir of (env["PATH"] ?? "").split(import_node_path6.delimiter)) {
+  for (const dir of (env["PATH"] ?? "").split(import_node_path11.delimiter)) {
     if (dir === "")
       continue;
-    const candidate = (0, import_node_path6.join)(dir, name);
+    const candidate = (0, import_node_path11.join)(dir, name);
     if (isExecutable(candidate))
       return candidate;
   }
@@ -37632,9 +38363,9 @@ function findOnPath(name, env, isExecutable) {
 }
 
 // ../bobs-big-brain-registrar/packages/qmd-adapter/dist/executor/resolve-command.js
-var import_node_crypto10 = require("node:crypto");
-var import_node_fs6 = require("node:fs");
-var import_node_path7 = require("node:path");
+var import_node_crypto11 = require("node:crypto");
+var import_node_fs11 = require("node:fs");
+var import_node_path12 = require("node:path");
 var QMD_RUNTIME_ENV = "TEAMKB_QMD_RUNTIME";
 var MANIFEST_LIMIT = 8 * 1024 * 1024;
 var SOURCE_LIMIT = 128 * 1024;
@@ -37663,66 +38394,66 @@ function digest3(value, label) {
     throw new OwnedQmdRuntimeError(`invalid ${label}`);
   return result.toLowerCase();
 }
-var sha256 = (bytes) => (0, import_node_crypto10.createHash)("sha256").update(bytes).digest("hex");
+var sha256 = (bytes) => (0, import_node_crypto11.createHash)("sha256").update(bytes).digest("hex");
 function exactFile(root, relative5, limit) {
-  const path = (0, import_node_path7.join)(root, relative5);
-  const before = (0, import_node_fs6.lstatSync)(path);
-  if (!before.isFile() || (0, import_node_fs6.realpathSync)(path) !== path)
+  const path = (0, import_node_path12.join)(root, relative5);
+  const before = (0, import_node_fs11.lstatSync)(path);
+  if (!before.isFile() || (0, import_node_fs11.realpathSync)(path) !== path)
     throw new OwnedQmdRuntimeError(`invalid or redirected ${relative5} under declared root`);
-  const fd = (0, import_node_fs6.openSync)(path, import_node_fs6.constants.O_RDONLY | import_node_fs6.constants.O_NOFOLLOW);
+  const fd = (0, import_node_fs11.openSync)(path, import_node_fs11.constants.O_RDONLY | import_node_fs11.constants.O_NOFOLLOW);
   try {
-    const opened = (0, import_node_fs6.fstatSync)(fd);
+    const opened = (0, import_node_fs11.fstatSync)(fd);
     if (!opened.isFile() || opened.dev !== before.dev || opened.ino !== before.ino || opened.size > limit)
       throw new OwnedQmdRuntimeError(`invalid or oversized ${relative5} under declared root`);
     const bytes = Buffer.alloc(limit + 1);
     let length = 0;
     while (length < bytes.length) {
-      const read = (0, import_node_fs6.readSync)(fd, bytes, length, bytes.length - length, null);
+      const read = (0, import_node_fs11.readSync)(fd, bytes, length, bytes.length - length, null);
       if (read === 0)
         break;
       length += read;
     }
-    if (length > limit || (0, import_node_fs6.realpathSync)(path) !== path)
+    if (length > limit || (0, import_node_fs11.realpathSync)(path) !== path)
       throw new OwnedQmdRuntimeError(`oversized or redirected ${relative5} under declared root`);
-    const after = (0, import_node_fs6.lstatSync)(path);
+    const after = (0, import_node_fs11.lstatSync)(path);
     if (after.dev !== opened.dev || after.ino !== opened.ino)
       throw new OwnedQmdRuntimeError(`replaced ${relative5} under declared root`);
     return bytes.subarray(0, length);
   } finally {
-    (0, import_node_fs6.closeSync)(fd);
+    (0, import_node_fs11.closeSync)(fd);
   }
 }
 function exactDirectory(root, relative5) {
-  const path = (0, import_node_path7.join)(root, relative5);
-  if (!(0, import_node_fs6.lstatSync)(path).isDirectory() || (0, import_node_fs6.realpathSync)(path) !== path)
+  const path = (0, import_node_path12.join)(root, relative5);
+  if (!(0, import_node_fs11.lstatSync)(path).isDirectory() || (0, import_node_fs11.realpathSync)(path) !== path)
     throw new OwnedQmdRuntimeError(`redirected ${relative5} directory under declared root`);
 }
-function sourceIdentity(root, manifest2) {
-  const entries = record2(record2(manifest2["inventory"], "inventory")["entries"], "inventory entries");
+function sourceIdentity(root, manifest) {
+  const entries = record2(record2(manifest["inventory"], "inventory")["entries"], "inventory entries");
   for (const name of ["bin/owned-qmd.mjs", "lib/runtime-inventory.mjs"]) {
     const expected = record2(entries[name], `${name} identity`);
     const bytes = exactFile(root, name, SOURCE_LIMIT);
-    if (expected["kind"] !== "file" || bytes.length !== expected["bytes"] || ((0, import_node_fs6.lstatSync)((0, import_node_path7.join)(root, name)).mode & 511) !== expected["mode"] || sha256(bytes) !== digest3(expected["sha256"], `${name} SHA256`)) {
+    if (expected["kind"] !== "file" || bytes.length !== expected["bytes"] || ((0, import_node_fs11.lstatSync)((0, import_node_path12.join)(root, name)).mode & 511) !== expected["mode"] || sha256(bytes) !== digest3(expected["sha256"], `${name} SHA256`)) {
       throw new OwnedQmdRuntimeError(`${name} differs from the bound manifest`);
     }
   }
 }
-function platformIdentity(manifest2) {
-  const platform = record2(manifest2["platform"], "platform");
+function platformIdentity(manifest) {
+  const platform = record2(manifest["platform"], "platform");
   const report = process.report?.getReport();
   const header = record2(record2(report, "Node report")["header"], "Node report header");
   const libc = process.platform === "linux" ? header["glibcVersionRuntime"] ? "glibc" : "musl" : "none";
-  if (Number(process.versions.node.split(".")[0]) < 22 || platform["os"] !== process.platform || platform["cpu"] !== process.arch || platform["libc"] !== libc || manifest2["nodeAbi"] !== process.versions.modules) {
+  if (Number(process.versions.node.split(".")[0]) < 22 || platform["os"] !== process.platform || platform["cpu"] !== process.arch || platform["libc"] !== libc || manifest["nodeAbi"] !== process.versions.modules) {
     throw new OwnedQmdRuntimeError("Node 22+, host platform and matching Node ABI are required");
   }
-  return text(manifest2["nodeAbi"], "Node ABI");
+  return text(manifest["nodeAbi"], "Node ABI");
 }
-function sourceSnapshot(manifest2) {
-  const snapshot = record2(manifest2["sourceSnapshot"], "source snapshot");
+function sourceSnapshot(manifest) {
+  const snapshot = record2(manifest["sourceSnapshot"], "source snapshot");
   const baseCommit = text(snapshot["baseCommit"], "source base commit");
   if (!/^[a-f\d]{40}$/i.test(baseCommit) || typeof snapshot["uncommittedCandidate"] !== "boolean")
     throw new OwnedQmdRuntimeError("invalid source snapshot binding");
-  const files = Object.entries(record2(manifest2["sourceFiles"], "source files")).sort(([a], [b]) => a.localeCompare(b));
+  const files = Object.entries(record2(manifest["sourceFiles"], "source files")).sort(([a], [b]) => a.localeCompare(b));
   if (files.length === 0)
     throw new OwnedQmdRuntimeError("missing source file binding");
   for (const [, hash] of files)
@@ -37733,8 +38464,8 @@ function sourceSnapshot(manifest2) {
     sourceFilesSha256: sha256(JSON.stringify(files))
   });
 }
-function dependencyVersions(manifest2) {
-  const projection = record2(manifest2["projection"], "projection");
+function dependencyVersions(manifest) {
+  const projection = record2(manifest["projection"], "projection");
   const nodes = record2(projection["nodes"], "projected nodes");
   const node = (id, name) => {
     const key = text(id, `${name} snapshot`);
@@ -37757,10 +38488,10 @@ function dependencyVersions(manifest2) {
 }
 function inspectOwnedQmdRuntime(declaration) {
   try {
-    if (!(0, import_node_path7.isAbsolute)(declaration.root))
+    if (!(0, import_node_path12.isAbsolute)(declaration.root))
       throw new OwnedQmdRuntimeError("root must be absolute");
-    const root = (0, import_node_fs6.realpathSync)(declaration.root);
-    if (!(0, import_node_fs6.lstatSync)(root).isDirectory())
+    const root = (0, import_node_fs11.realpathSync)(declaration.root);
+    if (!(0, import_node_fs11.lstatSync)(root).isDirectory())
       throw new OwnedQmdRuntimeError("root must be a directory");
     exactDirectory(root, "bin");
     exactDirectory(root, "lib");
@@ -37769,19 +38500,19 @@ function inspectOwnedQmdRuntime(declaration) {
     if (sha256(bytes) !== expected)
       throw new OwnedQmdRuntimeError("manifest SHA256 mismatch");
     const parsed = JSON.parse(bytes.toString("utf8"));
-    const manifest2 = record2(parsed, "manifest");
-    if (manifest2["schema"] !== "bbb-qmd-runtime/v1")
+    const manifest = record2(parsed, "manifest");
+    if (manifest["schema"] !== "bbb-qmd-runtime/v1")
       throw new OwnedQmdRuntimeError("unsupported manifest schema");
-    const nodeAbi = platformIdentity(manifest2);
-    sourceIdentity(root, manifest2);
+    const nodeAbi = platformIdentity(manifest);
+    sourceIdentity(root, manifest);
     return Object.freeze({
       declaredRoot: declaration.root,
       root,
       manifestSha256: expected,
-      ...dependencyVersions(manifest2),
+      ...dependencyVersions(manifest),
       nodeAbi,
-      lockSha256: digest3(manifest2["lockSha256"], "lock SHA256"),
-      sourceSnapshot: sourceSnapshot(manifest2)
+      lockSha256: digest3(manifest["lockSha256"], "lock SHA256"),
+      sourceSnapshot: sourceSnapshot(manifest)
     });
   } catch (error) {
     if (error instanceof OwnedQmdRuntimeError)
@@ -37832,7 +38563,7 @@ function resolveQmdCommand(options = {}) {
   const declaration = declaredRuntime(options);
   if (declaration !== void 0) {
     const runtime = inspectOwnedQmdRuntime(declaration);
-    return command(process.execPath, [(0, import_node_path7.join)(runtime.root, "bin/owned-qmd.mjs")], "owned", runtime);
+    return command(process.execPath, [(0, import_node_path12.join)(runtime.root, "bin/owned-qmd.mjs")], "owned", runtime);
   }
   const selected = resolveQmdBinary(options);
   return command(selected.path, [], selected.source);
@@ -37978,10 +38709,10 @@ async function waitGroupGone(pid, ms) {
 function prepareTenantDirectories(env) {
   const indexPath = env["INDEX_PATH"];
   const configDir = env["QMD_CONFIG_DIR"];
-  if (!indexPath || !configDir || !(0, import_node_path8.isAbsolute)(indexPath) || !(0, import_node_path8.isAbsolute)(configDir))
+  if (!indexPath || !configDir || !(0, import_node_path13.isAbsolute)(indexPath) || !(0, import_node_path13.isAbsolute)(configDir))
     throw new Error("Derived tenant index and registry paths must be absolute");
-  (0, import_node_fs7.mkdirSync)((0, import_node_path8.dirname)(indexPath), { recursive: true, mode: 448 });
-  (0, import_node_fs7.mkdirSync)(configDir, { recursive: true, mode: 448 });
+  (0, import_node_fs12.mkdirSync)((0, import_node_path13.dirname)(indexPath), { recursive: true, mode: 448 });
+  (0, import_node_fs12.mkdirSync)(configDir, { recursive: true, mode: 448 });
 }
 var RealQmdExecutor = class {
   explicitBinary;
@@ -38082,8 +38813,8 @@ var RealQmdExecutor = class {
       ...this.env ?? {},
       ...tenantEnv
     };
-    if ((0, import_node_path8.isAbsolute)(target.executable)) {
-      env["PATH"] = [(0, import_node_path8.dirname)(target.executable), env["PATH"]].filter((p) => p).join(import_node_path8.delimiter);
+    if ((0, import_node_path13.isAbsolute)(target.executable)) {
+      env["PATH"] = [(0, import_node_path13.dirname)(target.executable), env["PATH"]].filter((p) => p).join(import_node_path13.delimiter);
     }
     const selectedArgs = this.tenant ? withQmdTenantSelector(args) : args;
     return this.run(target.executable, [...target.prefix, ...selectedArgs], env, remaining, startedAt, timeoutMs);
@@ -38332,74 +39063,74 @@ var import_better_sqlite37 = __toESM(require("better-sqlite3"), 1);
 var sqliteVec2 = __toESM(require("sqlite-vec"), 1);
 
 // ../bobs-big-brain-registrar/packages/qmd-adapter/dist/recovery/registry.js
-var import_node_util13 = require("node:util");
-var import_node_path10 = require("node:path");
+var import_node_util14 = require("node:util");
+var import_node_path15 = require("node:path");
 var import_better_sqlite38 = __toESM(require("better-sqlite3"), 1);
 var import_yaml = __toESM(require_dist(), 1);
 
 // ../bobs-big-brain-registrar/packages/qmd-adapter/dist/recovery/registry-files.js
-var import_node_crypto11 = require("node:crypto");
-var import_node_fs8 = require("node:fs");
-var import_node_path9 = require("node:path");
+var import_node_crypto12 = require("node:crypto");
+var import_node_fs13 = require("node:fs");
+var import_node_path14 = require("node:path");
 function existingIdentity(path, directory) {
   let info;
   try {
-    info = (0, import_node_fs8.lstatSync)(path);
+    info = (0, import_node_fs13.lstatSync)(path);
   } catch (error) {
     if (error.code === "ENOENT")
       return null;
     throw error;
   }
-  if (!(0, import_node_path9.isAbsolute)(path) || (0, import_node_path9.normalize)(path) !== path || (0, import_node_fs8.realpathSync)(path) !== path || (directory ? !info.isDirectory() : !info.isFile() || info.nlink !== 1) || info.uid !== process.getuid?.())
+  if (!(0, import_node_path14.isAbsolute)(path) || (0, import_node_path14.normalize)(path) !== path || (0, import_node_fs13.realpathSync)(path) !== path || (directory ? !info.isDirectory() : !info.isFile() || info.nlink !== 1) || info.uid !== process.getuid?.())
     throw new Error("Unsafe recovery registry path");
   return { device: info.dev, inode: info.ino };
 }
 function bindDirectory(path, bindings, privateRoot = false) {
   const identity2 = existingIdentity(path, true);
-  if (identity2 === null || privateRoot && ((0, import_node_fs8.lstatSync)(path).mode & 63) !== 0)
+  if (identity2 === null || privateRoot && ((0, import_node_fs13.lstatSync)(path).mode & 63) !== 0)
     throw new Error("Missing or nonprivate recovery registry directory");
   bindings[path] = identity2;
 }
 function bindParents(path, root, bindings) {
-  const within = (0, import_node_path9.relative)(root, path);
-  if (!within || within === ".." || within.startsWith(`..${import_node_path9.sep}`) || (0, import_node_path9.isAbsolute)(within))
+  const within = (0, import_node_path14.relative)(root, path);
+  if (!within || within === ".." || within.startsWith(`..${import_node_path14.sep}`) || (0, import_node_path14.isAbsolute)(within))
     throw new Error("Recovery registry path escapes tenant root");
-  let parent = (0, import_node_path9.dirname)(path);
+  let parent = (0, import_node_path14.dirname)(path);
   while (parent !== root) {
     const identity2 = existingIdentity(parent, true);
     if (identity2 !== null)
       bindings[parent] = identity2;
-    parent = (0, import_node_path9.dirname)(parent);
+    parent = (0, import_node_path14.dirname)(parent);
   }
 }
 function readRegistry(path, bindings) {
   const identity2 = existingIdentity(path, false);
   if (identity2 === null)
     return null;
-  const fd = (0, import_node_fs8.openSync)(path, import_node_fs8.constants.O_RDONLY | import_node_fs8.constants.O_NOFOLLOW | import_node_fs8.constants.O_NONBLOCK);
+  const fd = (0, import_node_fs13.openSync)(path, import_node_fs13.constants.O_RDONLY | import_node_fs13.constants.O_NOFOLLOW | import_node_fs13.constants.O_NONBLOCK);
   try {
-    const before = (0, import_node_fs8.fstatSync)(fd);
+    const before = (0, import_node_fs13.fstatSync)(fd);
     if (!before.isFile() || before.nlink !== 1 || before.uid !== process.getuid?.() || before.dev !== identity2.device || before.ino !== identity2.inode || before.size > 1024 * 1024)
       throw new Error("Unsafe recovery registry file");
     const bytes = Buffer.alloc(before.size + 1);
     let used = 0;
     while (used < bytes.length) {
-      const count = (0, import_node_fs8.readSync)(fd, bytes, used, bytes.length - used, null);
+      const count = (0, import_node_fs13.readSync)(fd, bytes, used, bytes.length - used, null);
       if (count === 0)
         break;
       used += count;
     }
-    const after = (0, import_node_fs8.fstatSync)(fd);
+    const after = (0, import_node_fs13.fstatSync)(fd);
     const named = existingIdentity(path, false);
     if (used !== before.size || after.size !== before.size || after.mtimeMs !== before.mtimeMs || named?.device !== identity2.device || named.inode !== identity2.inode)
       throw new Error("Recovery registry changed during read");
     bindings[path] = identity2;
     return {
       text: bytes.subarray(0, used).toString("utf8"),
-      sha256: (0, import_node_crypto11.createHash)("sha256").update(bytes.subarray(0, used)).digest("hex")
+      sha256: (0, import_node_crypto12.createHash)("sha256").update(bytes.subarray(0, used)).digest("hex")
     };
   } finally {
-    (0, import_node_fs8.closeSync)(fd);
+    (0, import_node_fs13.closeSync)(fd);
   }
 }
 
@@ -38463,12 +39194,12 @@ function inspectRecoveryQmdRegistry(options) {
   bindDirectory(root, bindings, true);
   bindParents(root, options.basePath, bindings);
   const env = getQmdTenantEnv(options.tenantId, options.basePath);
-  const registryPath = (0, import_node_path10.join)(env["QMD_CONFIG_DIR"], "index.yml");
+  const registryPath = (0, import_node_path15.join)(env["QMD_CONFIG_DIR"], "index.yml");
   const indexPath = env["INDEX_PATH"];
   bindParents(registryPath, root, bindings);
   bindParents(indexPath, root, bindings);
   const expected = new Map(getExportableCollections().map((def) => {
-    const path = (0, import_node_path10.join)(options.exportDir, def.sourceSubdir);
+    const path = (0, import_node_path15.join)(options.exportDir, def.sourceSubdir);
     bindDirectory(path, bindings);
     return [def.name, path];
   }));
@@ -38479,20 +39210,20 @@ function inspectRecoveryQmdRegistry(options) {
     bindings[indexPath] = index;
   const yamlNames = registry === null ? [] : yamlCollections(registry.text, expected);
   const sqliteNames = index === null ? [] : sqliteCollections(indexPath, expected);
-  if (!(0, import_node_util13.isDeepStrictEqual)(yamlNames, sqliteNames) || registry === null !== (index === null))
+  if (!(0, import_node_util14.isDeepStrictEqual)(yamlNames, sqliteNames) || registry === null !== (index === null))
     throw new Error("Recovery YAML and SQLite registry disagree");
   const complete = yamlNames.length === expected.size && registry !== null && index !== null;
   if (!complete && options.allowPartial !== true)
     throw new Error("Recovery registry is incomplete");
   const registryAfter = readRegistry(registryPath, {});
-  if (registry?.sha256 !== registryAfter?.sha256 || !(0, import_node_util13.isDeepStrictEqual)(index, existingIdentity(indexPath, false)))
+  if (registry?.sha256 !== registryAfter?.sha256 || !(0, import_node_util14.isDeepStrictEqual)(index, existingIdentity(indexPath, false)))
     throw new Error("Recovery registry changed during inspection");
   if (index === null && sidecars.some((identity2) => identity2 !== null))
     throw new Error("Recovery index has orphan SQLite sidecars");
   for (const path of [indexPath + "-wal", indexPath + "-shm"])
     existingIdentity(path, false);
   for (const [path, identity2] of Object.entries(bindings)) {
-    if (!(0, import_node_util13.isDeepStrictEqual)(identity2, existingIdentity(path, path !== registryPath && path !== indexPath)))
+    if (!(0, import_node_util14.isDeepStrictEqual)(identity2, existingIdentity(path, path !== registryPath && path !== indexPath)))
       throw new Error("Recovery registry path changed during inspection");
   }
   return {
@@ -38508,7 +39239,7 @@ function inspectRecoveryQmdRegistry(options) {
   };
 }
 function assertRecoveryQmdRegistryBinding(previous, current) {
-  if (!(0, import_node_util13.isDeepStrictEqual)(previous, current))
+  if (!(0, import_node_util14.isDeepStrictEqual)(previous, current))
     throw new Error("Recovery registry binding changed");
 }
 async function verifyRecoveryQmdRegistry(options, previous) {
@@ -38521,7 +39252,7 @@ async function verifyRecoveryQmdRegistry(options, previous) {
     tenant: { id: fixed.tenantId, basePath: fixed.basePath }
   });
   const result = await executor.execute(["collection", "list"]);
-  if (result.exitCode !== 0 || result.failure !== void 0 || !(0, import_node_util13.isDeepStrictEqual)(executor.commandProvenance, before.command))
+  if (result.exitCode !== 0 || result.failure !== void 0 || !(0, import_node_util14.isDeepStrictEqual)(executor.commandProvenance, before.command))
     throw new Error("Selected recovery qmd registry probe failed");
   const after = inspectRecoveryQmdRegistry(fixed);
   assertRecoveryQmdRegistryBinding(before, after);
@@ -38529,534 +39260,21 @@ async function verifyRecoveryQmdRegistry(options, previous) {
 }
 
 // src/recovery-anchor.ts
-var import_node_fs14 = require("node:fs");
-var import_node_path17 = require("node:path");
-var import_node_util14 = require("node:util");
-
-// src/recovery-export.ts
-var import_node_crypto12 = require("node:crypto");
-var import_node_fs12 = require("node:fs");
-var import_node_path14 = require("node:path");
-
-// ../bobs-big-brain-registrar/apps/git-exporter/dist/formatter/frontmatter.js
-function extractFrontmatter(memory) {
-  return {
-    id: memory.id,
-    title: memory.title,
-    category: memory.category,
-    lifecycle: memory.lifecycle,
-    trustLevel: memory.trustLevel,
-    sensitivity: memory.sensitivity,
-    tenantId: memory.tenantId,
-    contentHash: memory.contentHash,
-    author: `${memory.author.type}:${memory.author.id}`,
-    promotedAt: memory.promotedAt,
-    updatedAt: memory.updatedAt,
-    version: memory.version,
-    tags: memory.metadata.tags,
-    supersededBy: memory.supersession?.supersededBy
-  };
-}
-function renderFrontmatter(data) {
-  const lines = ["---"];
-  lines.push(`id: "${data.id}"`);
-  lines.push(`title: "${escapeYamlString(data.title)}"`);
-  lines.push(`category: "${data.category}"`);
-  lines.push(`lifecycle: "${data.lifecycle}"`);
-  lines.push(`trust_level: "${data.trustLevel}"`);
-  lines.push(`sensitivity: "${data.sensitivity}"`);
-  lines.push(`tenant_id: "${data.tenantId}"`);
-  lines.push(`content_hash: "${data.contentHash}"`);
-  lines.push(`author: "${data.author}"`);
-  lines.push(`promoted_at: "${data.promotedAt}"`);
-  lines.push(`updated_at: "${data.updatedAt}"`);
-  lines.push(`version: ${data.version}`);
-  if (data.tags.length > 0) {
-    lines.push(`tags:`);
-    for (const tag of data.tags) {
-      lines.push(`  - "${escapeYamlString(tag)}"`);
-    }
-  } else {
-    lines.push(`tags: []`);
-  }
-  if (data.supersededBy !== void 0) {
-    lines.push(`superseded_by: "${data.supersededBy}"`);
-  }
-  lines.push("---");
-  return lines.join("\n");
-}
-function escapeYamlString(s) {
-  return s.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-}
-
-// ../bobs-big-brain-registrar/apps/git-exporter/dist/formatter/markdown-formatter.js
-function formatMemoryAsMarkdown(memory, resolveLinks) {
-  const frontmatter = renderFrontmatter(extractFrontmatter(memory));
-  const content = resolveLinks ? resolveLinks(memory.content) : memory.content;
-  return `${frontmatter}
-
-# ${memory.title}
-
-${content}
-`;
-}
-
-// ../bobs-big-brain-registrar/apps/git-exporter/dist/formatter/directory-mapper.js
-var UnknownCategoryError = class extends Error {
-  category;
-  constructor(category) {
-    super(`No export-directory mapping for category "${category}"`);
-    this.category = category;
-    this.name = "UnknownCategoryError";
-  }
-};
-function getDirectory(memory) {
-  if (memory.lifecycle !== "active") {
-    return "archive";
-  }
-  return getActiveDirectory(memory);
-}
-function getActiveDirectory(memory) {
-  if (memory.source === "bulk_import") {
-    return "bulk";
-  }
-  return getCategoryDirectory(memory.category);
-}
-function getCategoryDirectory(category) {
-  switch (category) {
-    case "decision":
-      return "decisions";
-    case "pattern":
-    case "convention":
-    case "architecture":
-      return "curated";
-    case "troubleshooting":
-    case "reference":
-    case "onboarding":
-      return "guides";
-    default:
-      throw new UnknownCategoryError(category);
-  }
-}
-function getRelativePath(memory) {
-  return `${getDirectory(memory)}/${memory.id}.md`;
-}
-
-// ../bobs-big-brain-registrar/apps/git-exporter/dist/diff/change-detector.js
-var import_node_path12 = require("node:path");
-
-// ../bobs-big-brain-registrar/apps/git-exporter/dist/diff/stale-files.js
-var import_node_fs9 = require("node:fs");
-var import_node_path11 = require("node:path");
-
-// ../bobs-big-brain-registrar/apps/git-exporter/dist/sensitivity.js
-var CONFIDENTIAL_INDEX = Sensitivity.options.indexOf("confidential");
-function isSensitivityRestricted(level) {
-  const idx = Sensitivity.options.indexOf(level);
-  return idx >= CONFIDENTIAL_INDEX;
-}
-function isExportRestricted(memory) {
-  return isSensitivityRestricted(memory.sensitivity) || !isExportableAudience(memory.metadata?.audience);
-}
-
-// ../bobs-big-brain-registrar/apps/git-exporter/dist/diff/stale-files.js
-var EXPORT_DIRS = ["decisions", "curated", "guides", "archive", "bulk"];
-var MEMORY_FILE = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.md$/i;
-function readFileTenant(filePath) {
-  try {
-    const text2 = (0, import_node_fs9.readFileSync)(filePath, "utf8");
-    if (!text2.startsWith("---"))
-      return null;
-    const end = text2.indexOf("\n---", 3);
-    if (end === -1)
-      return null;
-    const m = /^tenant_id:\s*"([^"\n]*)"\s*$/m.exec(text2.slice(0, end));
-    return m?.[1] ?? null;
-  } catch {
-    return null;
-  }
-}
-function findStaleFiles(outputDir, memories, quarantinedIds, tenantId, maxOrphanRemovals) {
-  const desired = /* @__PURE__ */ new Map();
-  for (const m of memories) {
-    if (quarantinedIds.has(m.id))
-      continue;
-    if (isExportRestricted(m)) {
-      desired.set(m.id, null);
-      continue;
-    }
-    try {
-      desired.set(m.id, getRelativePath(m));
-    } catch {
-    }
-  }
-  const known = new Set(memories.map((m) => m.id));
-  const relocated = [];
-  const orphans = [];
-  for (const dir of EXPORT_DIRS) {
-    const absDir = (0, import_node_path11.join)(outputDir, dir);
-    if (!(0, import_node_fs9.existsSync)(absDir))
-      continue;
-    let names;
-    try {
-      names = (0, import_node_fs9.readdirSync)(absDir);
-    } catch {
-      continue;
-    }
-    for (const name of names.sort()) {
-      const m = MEMORY_FILE.exec(name);
-      if (m === null)
-        continue;
-      const id = m[1].toLowerCase();
-      if (quarantinedIds.has(id))
-        continue;
-      const rel = `${dir}/${name}`;
-      const abs = (0, import_node_path11.join)(absDir, name);
-      if (known.has(id)) {
-        if (!desired.has(id))
-          continue;
-        const want = desired.get(id);
-        if (want === void 0 || want !== rel) {
-          const owner = tenantId === void 0 ? null : readFileTenant(abs);
-          if (owner !== null && owner !== tenantId)
-            continue;
-          relocated.push(abs);
-        }
-        continue;
-      }
-      if (tenantId !== void 0 && readFileTenant(abs) !== tenantId)
-        continue;
-      orphans.push(abs);
-    }
-  }
-  if (orphans.length > maxOrphanRemovals) {
-    return {
-      toRemove: relocated,
-      removalBlocked: { orphans: orphans.length, limit: maxOrphanRemovals }
-    };
-  }
-  return { toRemove: [...relocated, ...orphans] };
-}
-
-// ../bobs-big-brain-registrar/apps/git-exporter/dist/diff/change-detector.js
-var DEFAULT_MAX_ORPHAN_REMOVALS = 50;
-function detectChanges(memoryRepo, exportStateRepo, config) {
-  const exportState = exportStateRepo.get(config.targetId);
-  let memories;
-  const readFailures = [];
-  if (config.tenantId !== void 0) {
-    const res = memoryRepo.findByTenantResilient(config.tenantId);
-    memories = res.memories;
-    readFailures.push(...res.failures);
-  } else {
-    const parts = ["active", "deprecated", "superseded", "archived"].map((lc) => memoryRepo.findByLifecycleResilient(lc));
-    memories = parts.flatMap((p) => p.memories);
-    readFailures.push(...parts.flatMap((p) => p.failures));
-  }
-  const allMemories = memories;
-  const reconcile = config.reconcile === true;
-  if (exportState !== null && !reconcile) {
-    memories = memories.filter((m) => m.updatedAt >= exportState.lastExportedAt);
-  }
-  const toWrite = [];
-  const toArchive = [];
-  const quarantined = readFailures.map((f) => ({
-    id: f.id,
-    category: "",
-    reason: f.reason
-  }));
-  for (const memory of memories) {
-    try {
-      if (getDirectory(memory) === "archive") {
-        const activeDir = getActiveDirectory(memory);
-        const fromPath = (0, import_node_path12.join)(config.outputDir, activeDir, `${memory.id}.md`);
-        const toPath = (0, import_node_path12.join)(config.outputDir, getRelativePath(memory));
-        toArchive.push({ memory, fromPath, toPath });
-      } else {
-        const filePath = (0, import_node_path12.join)(config.outputDir, getRelativePath(memory));
-        toWrite.push({ memory, filePath });
-      }
-    } catch (err2) {
-      quarantined.push({
-        id: memory.id,
-        category: memory.category ?? "",
-        reason: err2 instanceof Error ? err2.message : String(err2)
-      });
-    }
-  }
-  if (!reconcile) {
-    return { toWrite, toArchive, toRemove: [], quarantined };
-  }
-  const stale = findStaleFiles(config.outputDir, allMemories, new Set(quarantined.map((q) => q.id)), config.tenantId, config.maxOrphanRemovals ?? DEFAULT_MAX_ORPHAN_REMOVALS);
-  return {
-    toWrite,
-    toArchive,
-    toRemove: stale.toRemove,
-    quarantined,
-    ...stale.removalBlocked !== void 0 ? { removalBlocked: stale.removalBlocked } : {}
-  };
-}
-
-// ../bobs-big-brain-registrar/apps/git-exporter/dist/writer/file-writer.js
-var import_node_fs10 = require("node:fs");
-var import_node_path13 = require("node:path");
-function assertPathSafe(filePath, allowedRoot) {
-  if (filePath.includes("\0")) {
-    throw new Error("Unsafe file path: Path contains null byte");
-  }
-  const segments = filePath.split(/[/\\]/);
-  if (segments.includes("..")) {
-    throw new Error("Unsafe file path: Path contains directory traversal (..)");
-  }
-  if (allowedRoot !== void 0) {
-    const resolved = (0, import_node_path13.resolve)(filePath);
-    const resolvedRoot = (0, import_node_path13.resolve)(allowedRoot);
-    if (!resolved.startsWith(resolvedRoot + "/") && resolved !== resolvedRoot) {
-      throw new Error(`Path traversal rejected: ${filePath} is outside ${allowedRoot}`);
-    }
-  }
-}
-function writeFile(filePath, content, exportRoot) {
-  assertPathSafe(filePath, exportRoot);
-  (0, import_node_fs10.mkdirSync)((0, import_node_path13.dirname)(filePath), { recursive: true });
-  (0, import_node_fs10.writeFileSync)(filePath, content, "utf8");
-}
-function archiveFile(fromPath, toPath, content, exportRoot) {
-  assertPathSafe(toPath, exportRoot);
-  if (exportRoot !== void 0) {
-    assertPathSafe(fromPath, exportRoot);
-  }
-  (0, import_node_fs10.mkdirSync)((0, import_node_path13.dirname)(toPath), { recursive: true });
-  if ((0, import_node_fs10.existsSync)(fromPath)) {
-    (0, import_node_fs10.unlinkSync)(fromPath);
-  }
-  (0, import_node_fs10.writeFileSync)(toPath, content, "utf8");
-}
-function removeFile(filePath, exportRoot) {
-  if (exportRoot !== void 0) {
-    assertPathSafe(filePath, exportRoot);
-  }
-  if ((0, import_node_fs10.existsSync)(filePath)) {
-    (0, import_node_fs10.unlinkSync)(filePath);
-    return true;
-  }
-  return false;
-}
-
-// ../bobs-big-brain-registrar/apps/git-exporter/dist/exporter.js
-var import_node_fs11 = require("node:fs");
-function runExport(memoryRepo, exportStateRepo, config, nowFn = () => (/* @__PURE__ */ new Date()).toISOString()) {
-  const startedAt = nowFn();
-  const changeset = detectChanges(memoryRepo, exportStateRepo, config);
-  const written = [];
-  const archived = [];
-  const removed = [];
-  const skipped = [];
-  const quarantined = [...changeset.quarantined];
-  let unchanged = 0;
-  for (const item of changeset.toWrite) {
-    if (isExportRestricted(item.memory)) {
-      skipped.push(item.memory.id);
-      continue;
-    }
-    try {
-      const content = formatMemoryAsMarkdown(item.memory);
-      if ((0, import_node_fs11.existsSync)(item.filePath)) {
-        const existing = (0, import_node_fs11.readFileSync)(item.filePath, "utf8");
-        if (existing === content) {
-          unchanged++;
-          continue;
-        }
-      }
-      writeFile(item.filePath, content);
-      written.push(item.filePath);
-    } catch (err2) {
-      quarantined.push({
-        id: item.memory.id,
-        category: item.memory.category ?? "",
-        reason: err2 instanceof Error ? err2.message : String(err2)
-      });
-    }
-  }
-  for (const item of changeset.toArchive) {
-    if (isExportRestricted(item.memory)) {
-      skipped.push(item.memory.id);
-      continue;
-    }
-    try {
-      const content = formatMemoryAsMarkdown(item.memory);
-      if (!(0, import_node_fs11.existsSync)(item.fromPath) && (0, import_node_fs11.existsSync)(item.toPath) && (0, import_node_fs11.readFileSync)(item.toPath, "utf8") === content) {
-        unchanged++;
-        continue;
-      }
-      archiveFile(item.fromPath, item.toPath, content);
-      archived.push(item.toPath);
-    } catch (err2) {
-      quarantined.push({
-        id: item.memory.id,
-        category: item.memory.category ?? "",
-        reason: err2 instanceof Error ? err2.message : String(err2)
-      });
-    }
-  }
-  for (const filePath of changeset.toRemove) {
-    if (removeFile(filePath)) {
-      removed.push(filePath);
-    }
-  }
-  exportStateRepo.set(config.targetId, startedAt);
-  return {
-    written,
-    archived,
-    removed,
-    skipped,
-    quarantined,
-    unchanged,
-    totalProcessed: changeset.toWrite.length + changeset.toArchive.length + changeset.toRemove.length,
-    ...changeset.removalBlocked !== void 0 ? { removalBlocked: changeset.removalBlocked } : {}
-  };
-}
-
-// src/recovery-export.ts
-var DIRECTORIES = /* @__PURE__ */ new Set([
-  "decisions",
-  "curated",
-  "guides",
-  "archive",
-  "bulk"
-]);
-var MEMORY_FILE2 = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.md$/i;
-var TENANT = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
-function inspectRecoveryExportRoot(root) {
-  if (!(0, import_node_path14.isAbsolute)(root) || (0, import_node_path14.normalize)(root) !== root || (0, import_node_fs12.realpathSync)(root) !== root)
-    throw new Error("Recovery export root must be canonical");
-  const info = (0, import_node_fs12.lstatSync)(root);
-  if (!info.isDirectory() || info.uid !== process.getuid?.() || (info.mode & 63) !== 0)
-    throw new Error("Recovery export root must be owner-private");
-  return { device: info.dev, inode: info.ino };
-}
-function requireRoot(root, expected) {
-  const actual = inspectRecoveryExportRoot(root);
-  if (actual.device !== expected.device || actual.inode !== expected.inode)
-    throw new Error("Recovery export root changed");
-}
-function readDocument(path) {
-  const fd = (0, import_node_fs12.openSync)(
-    path,
-    import_node_fs12.constants.O_RDONLY | import_node_fs12.constants.O_NOFOLLOW | import_node_fs12.constants.O_NONBLOCK
-  );
-  try {
-    const info = (0, import_node_fs12.fstatSync)(fd);
-    if (!info.isFile() || info.nlink !== 1 || info.uid !== process.getuid?.() || info.size > 16 * 1024 * 1024)
-      throw new Error("Unsafe recovery export document");
-    const buffer = Buffer.alloc(info.size + 1);
-    let used = 0;
-    while (used < buffer.length) {
-      const count = (0, import_node_fs12.readSync)(fd, buffer, used, buffer.length - used, null);
-      if (count === 0) break;
-      used += count;
-    }
-    const after = (0, import_node_fs12.fstatSync)(fd);
-    const named = (0, import_node_fs12.lstatSync)(path);
-    if (used !== info.size || after.size !== info.size || after.mtimeMs !== info.mtimeMs || named.dev !== info.dev || named.ino !== info.ino || named.nlink !== 1)
-      throw new Error("Recovery export document changed during read");
-    return buffer.subarray(0, used).toString("utf8");
-  } finally {
-    (0, import_node_fs12.closeSync)(fd);
-  }
-}
-function scanTree(root, tenantId) {
-  const documents = /* @__PURE__ */ new Map();
-  for (const directory of (0, import_node_fs12.readdirSync)(root).sort()) {
-    const path = (0, import_node_path14.join)(root, directory);
-    const info = (0, import_node_fs12.lstatSync)(path);
-    if (!DIRECTORIES.has(directory) || !info.isDirectory() || info.uid !== process.getuid?.() || (0, import_node_fs12.realpathSync)(path) !== path)
-      throw new Error("Recovery export tree has an unexpected entry");
-    for (const name of (0, import_node_fs12.readdirSync)(path).sort()) {
-      if (!MEMORY_FILE2.test(name))
-        throw new Error("Unexpected recovery export filename");
-      const text2 = readDocument((0, import_node_path14.join)(path, name));
-      const end = text2.indexOf("\n---\n", 4);
-      const header = text2.slice(0, end);
-      const tenants = [...header.matchAll(/^tenant_id: "([^"\n]*)"$/gm)];
-      if (!text2.startsWith("---\n") || end < 0 || tenants.length !== 1 || tenants[0][1] !== tenantId)
-        throw new Error("Recovery export tree is not tenant-exclusive");
-      documents.set((0, import_node_path14.relative)(root, (0, import_node_path14.join)(path, name)), text2);
-    }
-  }
-  return documents;
-}
-function reconcileRecoveryExport(database, binding, assertStillBound) {
-  const { tenantId, exportDir } = binding;
-  if (!TENANT.test(tenantId))
-    throw new Error("Unsupported recovery export tenant");
-  const identity2 = inspectRecoveryExportRoot(exportDir);
-  assertStillBound();
-  scanTree(exportDir, tenantId);
-  const memories = new MemoryRepository(database);
-  const state = new ExportStateRepository(database);
-  const targetId = `recovery-${(0, import_node_crypto12.createHash)("sha256").update(JSON.stringify([tenantId, exportDir])).digest("hex")}`;
-  const result = runExport(memories, state, {
-    outputDir: exportDir,
-    tenantId,
-    targetId,
-    reconcile: true
-  });
-  assertStillBound();
-  requireRoot(exportDir, identity2);
-  const summary = {
-    written: result.written.length,
-    archived: result.archived.length,
-    removed: result.removed.length,
-    unchanged: result.unchanged,
-    quarantined: result.quarantined.length,
-    removalBlocked: result.removalBlocked !== void 0,
-    verifiedDocuments: 0,
-    complete: false
-  };
-  if (summary.quarantined > 0 || summary.removalBlocked) return summary;
-  const actual = verifyRecoveryExportDocuments(database, binding, () => {
-  });
-  assertStillBound();
-  requireRoot(exportDir, identity2);
-  return { ...summary, verifiedDocuments: actual.size, complete: true };
-}
-function verifyRecoveryExportDocuments(database, binding, assertStillBound) {
-  const { tenantId, exportDir } = binding;
-  if (!TENANT.test(tenantId))
-    throw new Error("Unsupported recovery export tenant");
-  assertStillBound();
-  const identity2 = inspectRecoveryExportRoot(exportDir);
-  const current = new MemoryRepository(database).findByTenantResilient(
-    tenantId
-  );
-  if (current.failures.length > 0)
-    throw new Error("Recovery export source cannot be read");
-  const expected = new Map(
-    current.memories.filter((memory) => !isExportRestricted(memory)).map((memory) => [
-      getRelativePath(memory),
-      formatMemoryAsMarkdown(memory)
-    ])
-  );
-  const actual = scanTree(exportDir, tenantId);
-  if (actual.size !== expected.size || [...expected].some(([path, text2]) => actual.get(path) !== text2))
-    throw new Error("Recovery export differs from canonical tenant rendering");
-  assertStillBound();
-  requireRoot(exportDir, identity2);
-  return actual;
-}
+var import_node_fs15 = require("node:fs");
+var import_node_path18 = require("node:path");
+var import_node_util15 = require("node:util");
 
 // src/recovery-anchor-git.ts
 var import_node_child_process4 = require("node:child_process");
-var import_node_path16 = require("node:path");
+var import_node_path17 = require("node:path");
 
 // src/recovery-git-profile.ts
 var import_node_crypto13 = require("node:crypto");
-var import_node_fs13 = require("node:fs");
-var import_node_path15 = require("node:path");
+var import_node_fs14 = require("node:fs");
+var import_node_path16 = require("node:path");
 function present(path) {
   try {
-    (0, import_node_fs13.lstatSync)(path);
+    (0, import_node_fs14.lstatSync)(path);
     return true;
   } catch (error) {
     if (error.code === "ENOENT") return false;
@@ -39066,31 +39284,31 @@ function present(path) {
 var recoveryGitPathPresent = present;
 var identity = (s) => `${s.dev}:${s.ino}`;
 function fileSnapshot(path) {
-  const fd = (0, import_node_fs13.openSync)(
+  const fd = (0, import_node_fs14.openSync)(
     path,
-    import_node_fs13.constants.O_RDONLY | import_node_fs13.constants.O_NOFOLLOW | import_node_fs13.constants.O_NONBLOCK
+    import_node_fs14.constants.O_RDONLY | import_node_fs14.constants.O_NOFOLLOW | import_node_fs14.constants.O_NONBLOCK
   );
   try {
-    const before = (0, import_node_fs13.fstatSync)(fd);
+    const before = (0, import_node_fs14.fstatSync)(fd);
     if (!before.isFile() || before.nlink !== 1 || before.uid !== process.getuid?.() || before.size > 65536)
       throw new Error("Unsafe recovery Git configuration or HEAD");
     const bytes = Buffer.alloc(65537);
     let size = 0;
     while (size < bytes.length) {
-      const count = (0, import_node_fs13.readSync)(fd, bytes, size, bytes.length - size, null);
+      const count = (0, import_node_fs14.readSync)(fd, bytes, size, bytes.length - size, null);
       if (!count) break;
       size += count;
     }
-    const after = (0, import_node_fs13.fstatSync)(fd);
-    if (size > 65536 || size !== before.size || after.size !== before.size || after.mtimeMs !== before.mtimeMs || after.ctimeMs !== before.ctimeMs || identity((0, import_node_fs13.lstatSync)(path)) !== identity(before))
+    const after = (0, import_node_fs14.fstatSync)(fd);
+    if (size > 65536 || size !== before.size || after.size !== before.size || after.mtimeMs !== before.mtimeMs || after.ctimeMs !== before.ctimeMs || identity((0, import_node_fs14.lstatSync)(path)) !== identity(before))
       throw new Error("Recovery Git configuration or HEAD changed during read");
     return `${identity(before)}:${before.mode}:${(0, import_node_crypto13.createHash)("sha256").update(bytes.subarray(0, size)).digest("hex")}`;
   } finally {
-    (0, import_node_fs13.closeSync)(fd);
+    (0, import_node_fs14.closeSync)(fd);
   }
 }
 function bindRecoveryGitProfile(auditDir) {
-  const gitDir = (0, import_node_path15.join)(auditDir, ".git");
+  const gitDir = (0, import_node_path16.join)(auditDir, ".git");
   const directories = /* @__PURE__ */ new Map();
   let config;
   let head;
@@ -39102,22 +39320,22 @@ function bindRecoveryGitProfile(auditDir) {
     const walk = (path, depth) => {
       if (++entries > 1e4 || depth > 24)
         throw new Error("Recovery Git metadata exceeds supported bounds");
-      const info = (0, import_node_fs13.lstatSync)(path);
+      const info = (0, import_node_fs14.lstatSync)(path);
       if (info.uid !== process.getuid?.() || info.isSymbolicLink())
         throw new Error("Unsafe recovery Git metadata link or owner");
       if (info.isDirectory()) {
-        if ((0, import_node_fs13.realpathSync)(path) !== path)
+        if ((0, import_node_fs14.realpathSync)(path) !== path)
           throw new Error("Redirected recovery Git metadata directory");
         const prior = directories.get(path);
         if (prior !== void 0 && prior !== identity(info))
           throw new Error("Recovery Git metadata directory changed");
         directories.set(path, identity(info));
         seen.add(path);
-        for (const name of (0, import_node_fs13.readdirSync)(path)) walk((0, import_node_path15.join)(path, name), depth + 1);
+        for (const name of (0, import_node_fs14.readdirSync)(path)) walk((0, import_node_path16.join)(path, name), depth + 1);
       } else {
         if (!info.isFile() || info.nlink !== 1)
           throw new Error("Unsafe recovery Git metadata file");
-        if (path.startsWith((0, import_node_path15.join)(gitDir, "refs") + "/") || path === (0, import_node_path15.join)(gitDir, "packed-refs"))
+        if (path.startsWith((0, import_node_path16.join)(gitDir, "refs") + "/") || path === (0, import_node_path16.join)(gitDir, "packed-refs"))
           refFiles.push([path, fileSnapshot(path)]);
       }
     };
@@ -39127,7 +39345,7 @@ function bindRecoveryGitProfile(auditDir) {
         throw new Error("Recovery Git metadata directory disappeared");
     }
     for (const required of ["objects", "refs"]) {
-      if (!directories.has((0, import_node_path15.join)(gitDir, required)))
+      if (!directories.has((0, import_node_path16.join)(gitDir, required)))
         throw new Error("Missing recovery Git metadata directory");
     }
     for (const name of [
@@ -39139,13 +39357,13 @@ function bindRecoveryGitProfile(auditDir) {
       "objects/info/http-alternates",
       "info/attributes"
     ]) {
-      if (present((0, import_node_path15.join)(gitDir, name)))
+      if (present((0, import_node_path16.join)(gitDir, name)))
         throw new Error("Unsupported recovery anchor Git indirection");
     }
-    if (present((0, import_node_path15.join)(auditDir, ".gitattributes")))
+    if (present((0, import_node_path16.join)(auditDir, ".gitattributes")))
       throw new Error("Recovery anchor attributes are unsupported");
-    const currentConfig = fileSnapshot((0, import_node_path15.join)(gitDir, "config"));
-    const currentHead = fileSnapshot((0, import_node_path15.join)(gitDir, "HEAD"));
+    const currentConfig = fileSnapshot((0, import_node_path16.join)(gitDir, "config"));
+    const currentHead = fileSnapshot((0, import_node_path16.join)(gitDir, "HEAD"));
     if (config !== void 0 && config !== currentConfig || head !== void 0 && head !== currentHead)
       throw new Error(
         "Recovery Git configuration or HEAD changed between commands"
@@ -39218,7 +39436,7 @@ function witnessRecoveryAnchor(auditDir, bytes, verify) {
     return output;
   };
   const text2 = (args) => git(args).toString("utf8").trim();
-  const gitDir = (0, import_node_path16.join)(auditDir, ".git");
+  const gitDir = (0, import_node_path17.join)(auditDir, ".git");
   if (!recoveryGitPathPresent(gitDir))
     git(["init", "-q", "--template=/dev/null", "--initial-branch=main"]);
   profile.verify = bindRecoveryGitProfile(auditDir);
@@ -39282,131 +39500,84 @@ function witnessRecoveryAnchor(auditDir, bytes, verify) {
 }
 
 // src/recovery-anchor.ts
-function manifest(options) {
-  if (options.exceptionManifest === void 0) return null;
-  const { path, expectedManifestHash } = options.exceptionManifest;
-  if (!/^[a-f0-9]{64}$/.test(expectedManifestHash) || (0, import_node_fs14.realpathSync)(path) !== path)
-    throw new Error("Invalid recovery exception manifest binding");
-  const fd = (0, import_node_fs14.openSync)(
-    path,
-    import_node_fs14.constants.O_RDONLY | import_node_fs14.constants.O_NOFOLLOW | import_node_fs14.constants.O_NONBLOCK
-  );
-  try {
-    const info = (0, import_node_fs14.fstatSync)(fd);
-    if (!info.isFile() || info.nlink !== 1 || info.uid !== process.getuid?.() || (info.mode & 63) !== 0 || info.size > 8 * 1024 * 1024)
-      throw new Error("Unsafe recovery exception manifest");
-    const buffer = Buffer.alloc(info.size + 1);
-    let used = 0;
-    while (used < buffer.length) {
-      const count = (0, import_node_fs14.readSync)(fd, buffer, used, buffer.length - used, null);
-      if (!count) break;
-      used += count;
-    }
-    const after = (0, import_node_fs14.fstatSync)(fd);
-    const named = (0, import_node_fs14.lstatSync)(path);
-    if (used !== info.size || after.size !== info.size || after.mtimeMs !== info.mtimeMs || after.ctimeMs !== info.ctimeMs || named.dev !== info.dev || named.ino !== info.ino || named.nlink !== 1)
-      throw new Error("Recovery exception manifest changed during read");
-    const value = ExceptionManifestSchema.parse(
-      JSON.parse(buffer.subarray(0, used).toString("utf8"))
-    );
-    const { manifestHash, ...body } = value;
-    if (value.entryCount !== value.entries.length || computeManifestHash(body) !== manifestHash)
-      throw new Error("Recovery exception manifest digest or count differs");
-    if (value.manifestHash !== expectedManifestHash || new Set(value.entries.map((entry) => entry.id)).size !== value.entries.length)
-      throw new Error("Recovery exception manifest digest or identity differs");
-    return value;
-  } finally {
-    (0, import_node_fs14.closeSync)(fd);
-  }
-}
 function anchorRecoveryHead(context, options = {}) {
   if (process.platform !== "linux")
     throw new Error("Recovery anchor requires Linux descriptor binding");
   context.assertStillBound();
-  const approved = manifest(options);
+  const approved = readRecoveryExceptionManifest(options);
   const base = context.store.basePath;
   const baseIdentity = inspectRecoveryExportRoot(base);
-  const auditDir = (0, import_node_path17.join)(base, "audit");
+  const auditDir = (0, import_node_path18.join)(base, "audit");
   try {
-    (0, import_node_fs14.lstatSync)(auditDir);
+    (0, import_node_fs15.lstatSync)(auditDir);
   } catch (error) {
     if (error.code !== "ENOENT") throw error;
-    (0, import_node_fs14.mkdirSync)(auditDir, { mode: 448 });
+    (0, import_node_fs15.mkdirSync)(auditDir, { mode: 448 });
   }
   const directoryIdentity = inspectRecoveryExportRoot(auditDir);
-  const directoryFd = (0, import_node_fs14.openSync)(
+  const directoryFd = (0, import_node_fs15.openSync)(
     auditDir,
-    import_node_fs14.constants.O_RDONLY | import_node_fs14.constants.O_DIRECTORY | import_node_fs14.constants.O_NOFOLLOW
+    import_node_fs15.constants.O_RDONLY | import_node_fs15.constants.O_DIRECTORY | import_node_fs15.constants.O_NOFOLLOW
   );
   let fd;
   try {
     const relative5 = `/proc/self/fd/${directoryFd}/anchors.jsonl`;
-    let flags = import_node_fs14.constants.O_RDWR | import_node_fs14.constants.O_NOFOLLOW | import_node_fs14.constants.O_NONBLOCK;
+    let flags = import_node_fs15.constants.O_RDWR | import_node_fs15.constants.O_NOFOLLOW | import_node_fs15.constants.O_NONBLOCK;
     try {
-      (0, import_node_fs14.lstatSync)(relative5);
+      (0, import_node_fs15.lstatSync)(relative5);
     } catch (error) {
       if (error.code !== "ENOENT") throw error;
-      flags |= import_node_fs14.constants.O_CREAT | import_node_fs14.constants.O_EXCL;
+      flags |= import_node_fs15.constants.O_CREAT | import_node_fs15.constants.O_EXCL;
     }
-    fd = (0, import_node_fs14.openSync)(relative5, flags, 384);
-    const identity2 = (0, import_node_fs14.fstatSync)(fd);
+    fd = (0, import_node_fs15.openSync)(relative5, flags, 384);
+    const identity2 = (0, import_node_fs15.fstatSync)(fd);
     if (!identity2.isFile() || identity2.nlink !== 1 || identity2.uid !== process.getuid?.() || (identity2.mode & 63) !== 0 || identity2.size > 64 * 1024 * 1024)
       throw new Error("Unsafe recovery anchor log");
     const file = `/proc/self/fd/${fd}`;
     const verify = () => {
       context.assertStillBound();
-      if (!(0, import_node_util14.isDeepStrictEqual)(baseIdentity, inspectRecoveryExportRoot(base)) || !(0, import_node_util14.isDeepStrictEqual)(
+      if (!(0, import_node_util15.isDeepStrictEqual)(baseIdentity, inspectRecoveryExportRoot(base)) || !(0, import_node_util15.isDeepStrictEqual)(
         directoryIdentity,
         inspectRecoveryExportRoot(auditDir)
       ))
         throw new Error("Recovery anchor directory changed");
-      const current = (0, import_node_fs14.lstatSync)((0, import_node_path17.join)(auditDir, "anchors.jsonl"));
+      const current = (0, import_node_fs15.lstatSync)((0, import_node_path18.join)(auditDir, "anchors.jsonl"));
       if (!current.isFile() || current.dev !== identity2.dev || current.ino !== identity2.ino || current.nlink !== 1 || current.size > 64 * 1024 * 1024)
         throw new Error("Recovery anchor log binding changed");
     };
     verify();
     const audit = new AuditRepository(context.database);
-    const tuples = /* @__PURE__ */ new Map();
-    const rows = context.database.prepare(
-      "SELECT id, tenant_id, entry_hash, prev_entry_hash, hash_version, seq FROM audit_events ORDER BY seq"
-    ).all();
-    for (const row of rows) {
-      if (!Number.isSafeInteger(row.seq) || row.seq < 1)
-        throw new Error("Recovery audit sequence is unavailable");
-      tuples.set(row.id, {
-        entry_hash: row.entry_hash,
-        prev_entry_hash: row.prev_entry_hash,
-        hash_version: row.hash_version ?? 1,
-        seq: row.seq
-      });
-    }
+    const {
+      rows,
+      verification: before,
+      classified
+    } = verifyRecoveryAuditSnapshot(
+      context.database,
+      readRecoveryAnchorSnapshot(fd),
+      approved
+    );
     const settlement = rows.find(
       (row) => row.id === context.status.auditEventId
     );
     if (settlement === void 0 || settlement.entry_hash === null || settlement.tenant_id !== context.targetTenantId)
       throw new Error("Recovery settlement is not in the chained audit head");
-    const before = verifyAnchors(audit, file);
-    const classified = classifyChainBreaks(
-      before.chain.breaks,
-      approved,
-      tuples
-    );
-    if (before.anchorBreaks.length > 0 || !classified.verified)
-      throw new Error("Recovery anchor or chain verification refused");
     const record3 = appendAnchor(audit, file, {
       tenantId: context.targetTenantId
     });
     verify();
-    const after = verifyAnchors(audit, file);
-    if (after.anchorBreaks.length > 0 || !(0, import_node_util14.isDeepStrictEqual)(before.chain, after.chain) || readAnchors(file).at(-1)?.anchorHash !== record3.anchorHash)
+    const afterRecords = parseAnchorLog(
+      readRecoveryAnchorSnapshot(fd).toString("utf8")
+    );
+    const after = verifyAnchorRecords(audit, afterRecords);
+    if (after.anchorBreaks.length > 0 || !(0, import_node_util15.isDeepStrictEqual)(before.chain, after.chain) || afterRecords.at(-1)?.anchorHash !== record3.anchorHash)
       throw new Error("Recovery anchor verification changed");
     const chained = audit.findAllChronological().filter((row) => row.entry_hash !== null);
     if (record3.chainedRows !== chained.length || record3.chainHead !== chained.at(-1)?.entry_hash)
       throw new Error("Recovery anchor does not witness the global head");
-    const bytes = (0, import_node_fs14.readFileSync)(file);
+    const bytes = readRecoveryAnchorSnapshot(fd);
     const witness = witnessRecoveryAnchor(auditDir, bytes, verify);
     verify();
-    if (!(0, import_node_fs14.readFileSync)(file).equals(bytes))
+    if (!readRecoveryAnchorSnapshot(fd).equals(bytes))
       throw new Error("Recovery anchor bytes changed after witness");
     return {
       anchorVerified: true,
@@ -39420,16 +39591,16 @@ function anchorRecoveryHead(context, options = {}) {
     };
   } finally {
     try {
-      if (fd !== void 0) (0, import_node_fs14.closeSync)(fd);
+      if (fd !== void 0) (0, import_node_fs15.closeSync)(fd);
     } finally {
-      (0, import_node_fs14.closeSync)(directoryFd);
+      (0, import_node_fs15.closeSync)(directoryFd);
     }
   }
 }
 
 // src/recovery-index.ts
-var import_node_path18 = require("node:path");
-var import_node_util15 = require("node:util");
+var import_node_path19 = require("node:path");
+var import_node_util16 = require("node:util");
 
 // src/recovery-index-documents.ts
 var import_node_crypto14 = require("node:crypto");
@@ -39516,10 +39687,10 @@ function verifyRecoveryIndexDocuments(indexPath, tenantId, expected) {
 
 // src/recovery-index.ts
 function preserveSetupBindings(before, after) {
-  if (!(0, import_node_util15.isDeepStrictEqual)(before.command, after.command))
+  if (!(0, import_node_util16.isDeepStrictEqual)(before.command, after.command))
     throw new Error("Recovery qmd command binding changed");
   for (const [path, identity2] of Object.entries(before.bindings)) {
-    if (path !== before.registryPath && !(0, import_node_util15.isDeepStrictEqual)(identity2, after.bindings[path]))
+    if (path !== before.registryPath && !(0, import_node_util16.isDeepStrictEqual)(identity2, after.bindings[path]))
       throw new Error("Recovery qmd setup path changed");
   }
 }
@@ -39538,19 +39709,19 @@ async function refreshRecoveryIndex(database, options, assertStillBound) {
     assertStillBound();
     const result = await executor.execute(args);
     assertStillBound();
-    if (result.exitCode !== 0 || result.failure !== void 0 || !(0, import_node_util15.isDeepStrictEqual)(executor.commandProvenance, registry.command))
+    if (result.exitCode !== 0 || result.failure !== void 0 || !(0, import_node_util16.isDeepStrictEqual)(executor.commandProvenance, registry.command))
       throw new Error("Selected recovery qmd maintenance failed");
   };
   for (const definition of getExportableCollections()) {
     const before = inspectRecoveryQmdRegistry({ ...fixed, allowPartial: true });
     assertRecoveryQmdRegistryBinding(registry, before);
     if (before.collections.includes(definition.name)) continue;
-    if (!(0, import_node_util15.isDeepStrictEqual)(expected, documents()))
+    if (!(0, import_node_util16.isDeepStrictEqual)(expected, documents()))
       throw new Error("Recovery export changed before indexing");
     await execute([
       "collection",
       "add",
-      (0, import_node_path18.join)(fixed.exportDir, definition.sourceSubdir),
+      (0, import_node_path19.join)(fixed.exportDir, definition.sourceSubdir),
       "--name",
       definition.name
     ]);
@@ -39562,7 +39733,7 @@ async function refreshRecoveryIndex(database, options, assertStillBound) {
   assertStillBound();
   registry = await verifyRecoveryQmdRegistry(fixed, registry);
   assertStillBound();
-  if (!(0, import_node_util15.isDeepStrictEqual)(expected, documents()))
+  if (!(0, import_node_util16.isDeepStrictEqual)(expected, documents()))
     throw new Error("Recovery export changed before update");
   await execute(["update"]);
   const after = await verifyRecoveryQmdRegistry(fixed, registry);
@@ -39572,7 +39743,7 @@ async function refreshRecoveryIndex(database, options, assertStillBound) {
     fixed.tenantId,
     expected
   );
-  if (!(0, import_node_util15.isDeepStrictEqual)(expected, documents()))
+  if (!(0, import_node_util16.isDeepStrictEqual)(expected, documents()))
     throw new Error("Recovery export changed after update");
   assertRecoveryQmdRegistryBinding(after, inspectRecoveryQmdRegistry(fixed));
   assertStillBound();
@@ -39581,8 +39752,8 @@ async function refreshRecoveryIndex(database, options, assertStillBound) {
 
 // src/recovery-maintenance.ts
 function overlaps(a, b) {
-  const within = (0, import_node_path19.relative)(a, b);
-  return within === "" || !(0, import_node_path19.isAbsolute)(within) && within !== ".." && !within.startsWith(`..${import_node_path19.sep}`);
+  const within = (0, import_node_path20.relative)(a, b);
+  return within === "" || !(0, import_node_path20.isAbsolute)(within) && within !== ".." && !within.startsWith(`..${import_node_path20.sep}`);
 }
 async function maintain(context, options) {
   const tenants = [
@@ -39596,8 +39767,8 @@ async function maintain(context, options) {
     identity: inspectRecoveryExportRoot(tenant.exportDir)
   }));
   const protectedPaths = [
-    (0, import_node_path19.join)(context.store.basePath, "audit"),
-    (0, import_node_path19.join)(context.store.basePath, "spool"),
+    (0, import_node_path20.join)(context.store.basePath, "audit"),
+    (0, import_node_path20.join)(context.store.basePath, "spool"),
     context.store.databasePath,
     options.qmdRuntime.root,
     ...tenants.map(
@@ -39617,7 +39788,7 @@ async function maintain(context, options) {
   const bound = () => {
     context.assertStillBound();
     for (const root of [...roots, ...indexRoots]) {
-      if (!(0, import_node_util16.isDeepStrictEqual)(root.identity, inspectRecoveryExportRoot(root.path)))
+      if (!(0, import_node_util17.isDeepStrictEqual)(root.identity, inspectRecoveryExportRoot(root.path)))
         throw new Error("Recovery export authority root changed");
     }
   };
@@ -39702,7 +39873,8 @@ async function executeRecoveryMaintenance(request, options) {
     throw new Error("Explicit recovery maintenance bindings required");
   const result = await executeRecoveryEnvelope(
     fixedRequest,
-    (context) => maintain(context, fixedOptions)
+    (context) => maintain(context, fixedOptions),
+    (context) => assertRecoveryAuditReadiness(context, fixedOptions)
   );
   return {
     ...result,
