@@ -36,6 +36,12 @@ installable Claude Code + Cowork plugin (a local stdio MCP server); the engines 
 
 ### Fixed
 
+- Replace deployed team connection details in public onboarding with operator-
+  supplied URL, tenant and token placeholders, and link the current product and
+  installation pages. Local setup still requires native dependency provisioning;
+  this documentation change does not alter runtime configuration or rotate any
+  credentials (`compile-then-govern-eqw.7.2`).
+
 - Seed a fresh local tenant with the Registrar's canonical recommended policy,
   covering all ten current registered rule types. Any existing tenant policy,
   including custom, disabled or older policies, remains unchanged. Real rules can
