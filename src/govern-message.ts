@@ -2,14 +2,18 @@
  * Human-facing message for one local-mode brain_govern result.
  * Pure string formatting — no DB, no qmd packages (CI-safe).
  *
- * Empty-spool / empty-inbox all-zeros used to look like a silent failure
- * ("Governed 0 inbox candidate(s)…"). Callers need to know that is the
- * healthy idle state, not a stuck pipeline. But "idle" must not hide real
- * work: a lifecycle change (batch-transition) produces no inbox activity yet
- * still moves files in the export tree, so export changes break idleness.
+ * Counters describe this pass, not an exhaustive spool/inbox census. Refusals
+ * and unavailable intake must not look like a healthy no-op. Lifecycle changes
+ * also produce no inbox activity while moving files in the export tree.
  */
 export interface GovernMessageInput {
   ingested: number;
+  /** Structural view of the canonical summary keeps this formatter CI-safe. */
+  intake: {
+    disclosureRejectedCandidates: number;
+    tamperedFiles: number;
+    admissionRejectedFiles: number;
+  } | null;
   processed: number;
   promoted: number;
   rejected: number;
@@ -40,9 +44,13 @@ export interface GovernMessageInput {
   indexError?: string;
 }
 
-/** True only when the inbox did nothing AND the export tree needed no changes. */
+/** No observed intake refusals, inbox activity or export changes in this pass. */
 export function isIdle(s: GovernMessageInput): boolean {
   return (
+    s.intake !== null &&
+    s.intake.disclosureRejectedCandidates === 0 &&
+    s.intake.tamperedFiles === 0 &&
+    s.intake.admissionRejectedFiles === 0 &&
     s.ingested === 0 &&
     s.processed === 0 &&
     s.promoted === 0 &&
@@ -55,6 +63,15 @@ export function isIdle(s: GovernMessageInput): boolean {
     (s.holdsExpired ?? 0) === 0 &&
     (s.exported ?? 0) === 0
   );
+}
+
+function intakeSentence(s: GovernMessageInput): string {
+  if (s.intake === null) {
+    return ' Spool intake failed; intake counts are unavailable. Other inbox work may still have completed.';
+  }
+  const i = s.intake;
+  if (i.disclosureRejectedCandidates + i.tamperedFiles + i.admissionRejectedFiles === 0) return '';
+  return ` Spool intake observed ${i.disclosureRejectedCandidates} disclosure-refused candidate(s), ${i.tamperedFiles} tampered file(s), and ${i.admissionRejectedFiles} admission-refused file(s). These counts are separate from inbox decisions; retained raw input may still contain refused content.`;
 }
 
 /** One sentence on the human-escalation hold queue, or '' when nothing happened. */
@@ -111,7 +128,7 @@ function indexSentence(s: GovernMessageInput): string {
 export function formatGovernMessage(s: GovernMessageInput): string {
   if (isIdle(s)) {
     return (
-      'Nothing to govern — spool and inbox are empty (not a failure). ' +
+      'No intake refusals, inbox activity or export changes were observed in this pass. ' +
       'Capture something first with /brain-save (or brain_capture), then run brain_govern again.' +
       exportSentence(s) +
       indexSentence(s)
@@ -129,6 +146,7 @@ export function formatGovernMessage(s: GovernMessageInput): string {
   if ((s.held ?? 0) > 0) parts.push(`${s.held} held`);
   return (
     `Governed ${s.processed} inbox candidate(s) (${s.ingested} newly ingested): ${parts.join(', ')}.` +
+    intakeSentence(s) +
     holdSentence(s) +
     exportSentence(s) +
     indexSentence(s)

@@ -131,6 +131,24 @@ an anchor remotely or establish which version a deployed service uses.
 
 ## What the receipt does *not* do
 
+Local `brain_govern` reports `intake`, a safe summary of the last spool call:
+inserted candidates, disclosure refusals by fixed category, tampered files and
+admission-refused files. `intake: null` means intake failed, even if existing
+inbox work completed. Unexpected intake exceptions can follow earlier inserts
+and fail the call; intake is not one atomic batch. Counts are observations,
+not a complete input ledger: malformed lines, unreadable content and existing IDs
+can be skipped. An idle result describes observed inactivity, not an empty spool.
+
+Pre-intake disclosure refusals create neither candidate/memory rows nor audit
+events. Inbox governance decisions retain their existing receipt behavior.
+Best-effort archiving moves raw spool files to `<base>/spool/ingested`, including
+refused content; the source can also remain when archiving fails. Sidecar moves
+are independent. Re-reading retained source can count the same refusal again,
+while existing IDs prevent duplicate candidate inserts. Nothing here purges raw
+input or sets a retention deadline. Existing archives remain under operator
+control. The new summary contains counts only; other tool diagnostics and
+governance fields retain their existing contracts.
+
 Honesty is the point of a receipt. The chain gives you **tamper-*detection*** — integrity + ordering,
 so an edited or reordered record is caught by `verify`. It is **not** tamper-proof: on your own machine
 a writer with access can edit an event *and* re-hash the chain forward. `brain_govern` checkpoints

@@ -2,6 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { formatGovernMessage, isIdle } from './govern-message.js';
 
 const zeros = {
+  intake: {
+    disclosureRejectedCandidates: 0,
+    tamperedFiles: 0,
+    admissionRejectedFiles: 0,
+  },
   ingested: 0,
   processed: 0,
   promoted: 0,
@@ -14,10 +19,10 @@ const zeros = {
 };
 
 describe('formatGovernMessage', () => {
-  it('idle all-zeros is not a failure — names empty spool/inbox and next step', () => {
+  it('idle describes observed activity without claiming an empty spool', () => {
     const msg = formatGovernMessage(zeros);
-    expect(msg).toMatch(/not a failure/i);
-    expect(msg).toMatch(/empty/i);
+    expect(msg).toMatch(/observed in this pass/i);
+    expect(msg).not.toMatch(/empty|not a failure/i);
     expect(msg).toMatch(/brain_capture|\/brain-save/);
     expect(msg).not.toMatch(/^Governed 0 inbox/);
   });
@@ -29,6 +34,7 @@ describe('formatGovernMessage', () => {
 
   it('non-idle keeps the counts summary', () => {
     const msg = formatGovernMessage({
+      ...zeros,
       ingested: 2,
       processed: 3,
       promoted: 1,
@@ -48,6 +54,7 @@ describe('formatGovernMessage', () => {
 
   it('includes skipped when > 0', () => {
     const msg = formatGovernMessage({
+      ...zeros,
       ingested: 0,
       processed: 1,
       promoted: 0,
@@ -63,8 +70,40 @@ describe('formatGovernMessage', () => {
   });
 });
 
+describe('formatGovernMessage — spool observations', () => {
+  it.each(['disclosureRejectedCandidates', 'tamperedFiles', 'admissionRejectedFiles'] as const)(
+    '%s alone prevents a healthy idle result',
+    (field) => {
+      const summary = { ...zeros, intake: { ...zeros.intake, [field]: 1 } };
+      expect(isIdle(summary)).toBe(false);
+      const message = formatGovernMessage(summary);
+      expect(message).toContain('Spool intake observed');
+      expect(message).toContain('separate from inbox decisions');
+      expect(message).toContain('retained raw input');
+      expect(message).not.toMatch(/empty|not a failure/);
+    },
+  );
+
+  it('unavailable intake remains visible alongside completed inbox work', () => {
+    for (const processed of [0, 2]) {
+      const summary = { ...zeros, processed, intake: null };
+      expect(isIdle(summary)).toBe(false);
+      expect(formatGovernMessage(summary)).toContain(
+        'Spool intake failed; intake counts are unavailable.',
+      );
+      expect(formatGovernMessage(summary)).toContain(`Governed ${processed} inbox`);
+    }
+  });
+});
+
 describe('formatGovernMessage — export reconcile + index reason', () => {
-  const exp = { written: 0, archived: 3, removed: 1, unchanged: 40, quarantined: 0 };
+  const exp = {
+    written: 0,
+    archived: 3,
+    removed: 1,
+    unchanged: 40,
+    quarantined: 0,
+  };
 
   it('a lifecycle-only run (no inbox activity) is NOT reported as idle', () => {
     const s = { ...zeros, exported: 4, export: exp };
@@ -75,7 +114,11 @@ describe('formatGovernMessage — export reconcile + index reason', () => {
   });
 
   it('idle with a clean, unchanged export stays idle and adds no export noise', () => {
-    const s = { ...zeros, exported: 0, export: { ...exp, archived: 0, removed: 0 } };
+    const s = {
+      ...zeros,
+      exported: 0,
+      export: { ...exp, archived: 0, removed: 0 },
+    };
     expect(isIdle(s)).toBe(true);
     expect(formatGovernMessage(s)).not.toMatch(/Export reconciled/);
   });
@@ -96,13 +139,20 @@ describe('formatGovernMessage — export reconcile + index reason', () => {
   });
 
   it('an export failure is loud, even when otherwise idle', () => {
-    const msg = formatGovernMessage({ ...zeros, exportError: 'EACCES: permission denied' });
+    const msg = formatGovernMessage({
+      ...zeros,
+      exportError: 'EACCES: permission denied',
+    });
     expect(msg).toContain('Export FAILED: EACCES: permission denied');
   });
 
   it('surfaces the actionable index error verbatim instead of a generic hint', () => {
     const reason = 'qmd binary not found (searched: PATH, /h/.bun/bin/qmd). Set TEAMKB_QMD_BIN=...';
-    const msg = formatGovernMessage({ ...zeros, indexUpdated: false, indexError: reason });
+    const msg = formatGovernMessage({
+      ...zeros,
+      indexUpdated: false,
+      indexError: reason,
+    });
     expect(msg).toContain(`Search index NOT refreshed: ${reason}`);
   });
 
@@ -119,7 +169,12 @@ describe('formatGovernMessage — export reconcile + index reason', () => {
 
 describe('formatGovernMessage — human-escalation holds (K6)', () => {
   it('reports held candidates as neither promoted nor dropped', () => {
-    const msg = formatGovernMessage({ ...zeros, processed: 2, promoted: 1, held: 1 });
+    const msg = formatGovernMessage({
+      ...zeros,
+      processed: 2,
+      promoted: 1,
+      held: 1,
+    });
     expect(msg).toContain('1 held');
     expect(msg).toMatch(/on hold for a person to resolve/);
     expect(msg).toMatch(/neither promoted nor dropped/);

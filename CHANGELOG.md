@@ -8,6 +8,14 @@ installable Claude Code + Cowork plugin (a local stdio MCP server); the engines 
 
 ## [Unreleased]
 
+### Fixed
+
+- Local `brain_govern` now exposes canonical safe spool-intake counts, including
+  disclosure refusals and unavailable intake, instead of silently dropping those
+  outcomes. Idle messages describe observed inactivity without asserting an empty
+  spool. Document raw archive retention, repeated refusal observations and the
+  absence of audit receipts for pre-intake refusals (`compile-then-govern-eqw.9`).
+
 ### Added
 
 - Separate `governed-second-brain-recovery apply|repair` command for reviewed

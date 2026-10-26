@@ -6,8 +6,8 @@
  */
 import assert from 'node:assert/strict';
 import { after, before, test, mock } from 'node:test';
-import { randomUUID } from 'node:crypto';
-import { mkdtempSync, mkdirSync, rmSync } from 'node:fs';
+import { createHash, randomUUID } from 'node:crypto';
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
@@ -118,6 +118,163 @@ function assertClean(audit) {
   assert.equal(result.cleanRows, audit.findAllChronological().length);
 }
 
+function rawSpool(f, contents) {
+  const candidates = contents.map((content) =>
+    MemoryCandidate.parse({
+      id: randomUUID(),
+      status: 'inbox',
+      source: 'claude_session',
+      content,
+      title: 'Synthetic spool note',
+      category: 'reference',
+      trustLevel: 'low',
+      author: { type: 'ai', id: 'fixture' },
+      tenantId,
+      capturedAt: new Date().toISOString(),
+    }),
+  );
+  const source = join(f.config.spoolPath, 'spool-mixed.jsonl');
+  const bytes = Buffer.from(
+    candidates.map((candidate) => JSON.stringify(candidate)).join('\n') + '\n',
+  );
+  const manifest = Buffer.from(
+    JSON.stringify({
+      schemaVersion: '1',
+      spoolFileSha256: createHash('sha256').update(bytes).digest('hex'),
+    }),
+  );
+  writeFileSync(source, bytes);
+  writeFileSync(`${source}.manifest.json`, manifest);
+  return { candidates, source, bytes, manifest };
+}
+
+const refusalMarkers = [
+  'Synthetic disclosure fixture: SSN marker only; no identifying number.',
+  'Synthetic disclosure fixture: salary keyword only; no person or amount.',
+  'Synthetic disclosure fixture: -----BEGIN PRIVATE KEY----- marker only; no key material.',
+];
+
+test('mixed spool reports safe refusals, governs clean input and retains exact raw archive bytes', async () => {
+  const f = fixture();
+  try {
+    const raw = rawSpool(f, [
+      'Use bounded retry backoff for transient cache failures.',
+      ...refusalMarkers,
+    ]);
+    const result = await runGovern(f.config);
+    assert.deepEqual(result.intake, {
+      ingestedCandidates: 1,
+      disclosureRejectedCandidates: 3,
+      disclosureCategories: { pii: 1, compensation: 1, secret: 1, other: 0 },
+      tamperedFiles: 0,
+      admissionRejectedFiles: 0,
+    });
+    assert.equal(result.ingested, 1);
+    assert.equal(result.processed, 1);
+    assert.equal(result.promoted, 1);
+    for (const candidate of raw.candidates.slice(1)) {
+      assert.equal(f.candidates.findById(candidate.id), null);
+      assert.equal(
+        f.db.prepare('SELECT COUNT(*) AS n FROM curated_memories WHERE id = ?').get(candidate.id).n,
+        0,
+      );
+      assert.deepEqual(f.audit.findByMemory(candidate.id), []);
+      assert.ok(!JSON.stringify(result).includes(candidate.id));
+      assert.ok(!JSON.stringify(result).includes(candidate.content));
+    }
+    const archived = join(f.config.spoolPath, 'ingested', 'spool-mixed.jsonl');
+    assert.deepEqual(readFileSync(archived), raw.bytes);
+    assert.deepEqual(readFileSync(`${archived}.manifest.json`), raw.manifest);
+    assert.equal(existsSync(raw.source), false);
+    const before = f.audit.findAllChronological();
+    const again = await runGovern(f.config);
+    assert.equal(again.intake.ingestedCandidates, 0);
+    assert.equal(again.intake.disclosureRejectedCandidates, 0);
+    assert.equal(again.processed, 0);
+    assert.deepEqual(f.audit.findAllChronological(), before);
+    assertClean(f.audit);
+  } finally {
+    f.close();
+  }
+});
+
+test('refusal-only spool produces counts without candidate, memory or audit rows', async () => {
+  const f = fixture();
+  try {
+    rawSpool(f, refusalMarkers);
+    const result = await runGovern(f.config);
+    assert.equal(result.intake.disclosureRejectedCandidates, 3);
+    assert.equal(result.ingested, 0);
+    assert.equal(result.processed, 0);
+    assert.equal(f.candidates.count(), 0);
+    assert.equal(f.db.prepare('SELECT COUNT(*) AS n FROM curated_memories').get().n, 0);
+    assert.deepEqual(f.audit.findAllChronological(), []);
+  } finally {
+    f.close();
+  }
+});
+
+test('failed archive retains raw source and repeated refusals while inserted IDs stay deduplicated', async () => {
+  const f = fixture();
+  try {
+    writeFileSync(join(f.config.spoolPath, 'ingested'), 'fixture: blocked archive directory');
+    const raw = rawSpool(f, [
+      'Use bounded retry backoff for transient cache failures.',
+      ...refusalMarkers,
+    ]);
+    const first = await runGovern(f.config);
+    const again = await runGovern(f.config);
+    assert.equal(first.ingested, 1);
+    assert.equal(again.ingested, 0);
+    assert.equal(again.processed, 0);
+    assert.equal(again.intake.disclosureRejectedCandidates, 3);
+    assert.equal(f.candidates.count(), 1);
+    assert.deepEqual(readFileSync(raw.source), raw.bytes);
+    assert.deepEqual(readFileSync(`${raw.source}.manifest.json`), raw.manifest);
+  } finally {
+    f.close();
+  }
+});
+
+test('failed intake has unavailable counts while existing inbox work still completes', async () => {
+  const f = fixture();
+  try {
+    f.insert('Use bounded retry backoff for transient cache failures.');
+    const blocked = join(f.config.basePath, 'not-a-spool-directory');
+    writeFileSync(blocked, 'fixture');
+    const result = await runGovern({ ...f.config, spoolPath: blocked });
+    assert.equal(result.intake, null);
+    assert.equal(result.ingested, 0);
+    assert.equal(result.processed, 1);
+    assert.equal(result.promoted, 1);
+  } finally {
+    f.close();
+  }
+});
+
+test('unexpected insert failure propagates after earlier inserts instead of returning healthy zero counts', async () => {
+  const f = fixture();
+  try {
+    const raw = rawSpool(f, [
+      'Use bounded retry backoff for transient cache failures.',
+      'Use bounded connection pools for storage operations.',
+    ]);
+    const original = CandidateRepository.prototype.insert;
+    let calls = 0;
+    mock.method(CandidateRepository.prototype, 'insert', function (...args) {
+      if (++calls === 2) throw new Error('fixture-partial-intake-failure');
+      return original.apply(this, args);
+    });
+    await assert.rejects(runGovern(f.config), /fixture-partial-intake-failure/);
+    assert.equal(f.candidates.count(), 1);
+    assert.ok(f.candidates.findById(raw.candidates[0].id));
+    assert.deepEqual(readFileSync(raw.source), raw.bytes);
+    assert.deepEqual(f.audit.findAllChronological(), []);
+  } finally {
+    f.close();
+  }
+});
+
 function policy(f) {
   const now = new Date().toISOString();
   f.policies.insert(
@@ -130,7 +287,12 @@ function policy(f) {
       createdAt: now,
       updatedAt: now,
       rules: [
-        { id: 'length', type: 'content_length', action: 'reject', parameters: { min: 25 } },
+        {
+          id: 'length',
+          type: 'content_length',
+          action: 'reject',
+          parameters: { min: 25 },
+        },
         // A synthetic internal path gives a benign, deterministic hold trigger.
         // The canonical disclosure gate admits paths; this fixture policy flags
         // the classifier's internal tier without storing email/PII/credentials.
@@ -140,8 +302,18 @@ function policy(f) {
           action: 'flag',
           parameters: { blockedLevels: ['internal'] },
         },
-        { id: 'audience', type: 'audience_narrowing', action: 'flag', parameters: {} },
-        { id: 'sanitization', type: 'content_sanitization', action: 'flag', parameters: {} },
+        {
+          id: 'audience',
+          type: 'audience_narrowing',
+          action: 'flag',
+          parameters: {},
+        },
+        {
+          id: 'sanitization',
+          type: 'content_sanitization',
+          action: 'flag',
+          parameters: {},
+        },
         {
           id: 'relevance',
           type: 'relevance_score',

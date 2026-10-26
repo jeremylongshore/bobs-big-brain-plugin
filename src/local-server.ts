@@ -503,7 +503,7 @@ server.tool(
 
 server.tool(
   'brain_govern',
-  'Run the deterministic govern pipeline once, in-process: drain the spool → dedupe → policy/secret-detection → promote, append a SHA-256 hash-chained audit event per decision, then refresh the search index. This is the deterministic system DISPOSING of the model\'s proposals.',
+  "Run the deterministic govern pipeline once, in-process: ingest spool → dedupe → policy/secret-detection → promote, then refresh the search index. Durable inbox settlements write SHA-256 hash-chained audit events; review-only flags can remain without a new receipt. Pre-intake disclosure refusals are reported as safe counts, without candidate or audit rows; raw spool archives can retain refused content. This is the deterministic system DISPOSING of the model's proposals.",
   async () => {
     let s;
     try {
@@ -516,8 +516,7 @@ server.tool(
       if (isMissingNativeDep(e)) return jsonResult({ ok: false, error: 'native-store-unavailable', message: NATIVE_DEP_HINT });
       throw e;
     }
-    // Empty-spool all-zeros is the healthy idle state — say so explicitly so
-    // operators do not misread "Governed 0…" as a stuck pipeline (dogfood 2026-07).
+    // Report observed inactivity without claiming an exhaustive empty-spool census.
     const message = formatGovernMessage(s);
     const idle = isIdle(s);
     return jsonResult({ ok: true, ...s, idle, message });
