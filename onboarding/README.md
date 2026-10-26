@@ -1,6 +1,6 @@
 # Onboarding — Bob's Big Brain
 
-The brain runs as a **plugin** in Claude Code or Cowork. The public website explains
+This repository targets **plugin** setup in Claude Code or Cowork. The public website explains
 the product; it does not host your personal brain.
 
 **Product and beta limits:** [Bob’s Big Brain](https://intentsolutions.io/bbb/).
@@ -13,11 +13,11 @@ The prompts below describe this repository’s source; check the
 | **Team**           | Invited teammates | Operator-provided network access, API URL, tenant and personal token + desktop Claude | Remote team brain via `~/.teamkb/team.json`                          |
 | **Local (public)** | Anyone            | Desktop Claude plus one-time native dependency setup                                  | In-process personal brain on your machine — no team network or token |
 
-| Where you run Claude          | Works?                                                        |
-| ----------------------------- | ------------------------------------------------------------- |
-| **Claude Code** or **Cowork** | Yes — recommended. Same paste prompts on Mac, Windows, Linux. |
-| **Claude Desktop**            | Manual MCP configuration; follow your client’s documentation. |
-| **claude.ai web / phone**     | No.                                                           |
+| Where you run Claude          | Works?                                                                                              |
+| ----------------------------- | --------------------------------------------------------------------------------------------------- |
+| **Claude Code** or **Cowork** | Documented setup targets; this guide does not establish a tested client or operating-system matrix. |
+| **Claude Desktop**            | Requires separate client validation and manual MCP configuration.                                   |
+| **claude.ai web / phone**     | No.                                                                                                 |
 
 Team path only: obtain the API URL, exact tenant, personal token and network-access
 instructions privately from your team operator. If your team uses Tailscale, use
@@ -39,7 +39,7 @@ cannot supply your team’s connection values.
 ```
 Install and connect me to my team's Bob's Big Brain. Run these steps in order. Stop and tell me if any step errors.
 
-1) Add and install the plugin from the public marketplace (no GitHub login needed):
+1) Add and install the plugin from the repository’s public marketplace:
    claude plugin marketplace add jeremylongshore/bobs-big-brain-plugin
    claude plugin marketplace update governed-second-brain
    claude plugin install governed-second-brain@governed-second-brain
@@ -73,7 +73,7 @@ machine. Local mode needs one-time native dependency provisioning; see the
 ```
 Install Bob's Big Brain (Governed Second Brain) for me as a LOCAL personal brain on this machine. Run these steps in order. Stop and tell me if any step errors.
 
-1) Add and install the plugin from the public marketplace (no GitHub login needed):
+1) Add and install the plugin from the repository’s public marketplace:
    claude plugin marketplace add jeremylongshore/bobs-big-brain-plugin
    claude plugin marketplace update governed-second-brain
    claude plugin install governed-second-brain@governed-second-brain
@@ -140,7 +140,8 @@ real environment variable  →  ~/.teamkb/team.json  →  (absent → local mode
 ```
 
 The JSON above is a template, not a working connection. Supply the operator’s exact
-values, including `tenantId`; omitting the tenant can select a runtime default
+values, including `tenantId`. This setup procedure requires an explicit tenant even though
+the runtime can select a default when it is omitted
 that does not match your team. A present-but-malformed `team.json` refuses to
 start instead of silently falling back to local. Valid JSON containing incorrect
 connection values can still fail authentication or search.
@@ -163,6 +164,6 @@ operator’s private instructions. Common team-mode causes:
 
 - Public marketplace: `jeremylongshore/bobs-big-brain-plugin` → no org membership / `gh` login required
 - Give teammates their API URL, exact tenant, personal token and network instructions privately. Keep tokens out of public pages and scripts.
-- Token only in `team.json` mode `600` — never `~/.claude.json` / shell history / chat if avoidable
+- For file-based configuration, keep the token in `team.json` with mode `600`. Avoid copying it into client manifests, shell history or chat.
 - Public product and setup pages live at https://intentsolutions.io/bbb/. Keep deployment-specific instructions in your team’s private documentation.
 - The legacy macOS `.command` remains in-tree; it is not the public installation entry point.
