@@ -1,5 +1,20 @@
 {
   "name": "governed-second-brain",
+  "version": "1.2.0",
+  "description": "Marketplace catalog for Bob's Big Brain.",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/jeremylongshore/bobs-big-brain-plugin",
+  "keywords": [
+    "memory",
+    "knowledge",
+    "governance",
+    "qmd",
+    "citations",
+    "local-first",
+    "team",
+    "tailnet",
+    "second-brain"
+  ],
   "owner": {
     "name": "Jeremy Longshore",
     "email": "jeremy@intentsolutions.io"
