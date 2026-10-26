@@ -7,6 +7,7 @@
  */
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
+import { createHash, randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
 import {
   existsSync,
@@ -82,12 +83,15 @@ async function main() {
   let session;
   let activeCli = 0;
   let projection;
+  let registrarMcpProjection;
   const inspectedColumns = {
     governance_policies: ['id', 'tenant_id', 'rules_json', 'enabled', 'created_at', 'updated_at'],
     candidates: [
       'id',
       'tenant_id',
       'status',
+      'source',
+      'author_json',
       'category',
       'content',
       'content_hash',
@@ -314,6 +318,119 @@ async function main() {
     ensure((await call('brain_govern')).promoted === 1, 'Clean promotion missing');
     const cleanMemory = view().curated_memories.find((row) => row.candidate_id === cleanId);
     ensure(cleanMemory?.lifecycle === 'active', 'Clean memory missing');
+    complete();
+
+    phase = 'registrar-mcp-envelope-refusal-and-person-rejection';
+    // Seed the current Registrar MCP classification envelope into this private
+    // store. The Registrar owns producer/spool compatibility tests; this fixture
+    // tests the actual committed consumer bundle, not a live/producer capture.
+    const proposalIds = {};
+    const proposalDb = new Database(join(base, 'teamkb.db'), {
+      fileMustExist: true,
+    });
+    try {
+      for (const [kind, author, content] of [
+        [
+          'ai',
+          { type: 'ai', id: 'mcp-server' },
+          'When the synthetic fixture service retries a transient request, keep the retry limit in configuration and record the final outcome in a private diagnostic log.',
+        ],
+        [
+          'operator',
+          { type: 'human', id: 'fixture-person' },
+          'The synthetic fixture service uses a separate verification queue for dependency updates so operators can inspect a change before enabling it.',
+        ],
+      ]) {
+        const id = randomUUID();
+        proposalIds[kind] = id;
+        proposalDb
+          .prepare(
+            `INSERT INTO candidates (
+          id, status, source, content, title, category, trust_level,
+          author_json, tenant_id, metadata_json, pre_policy_flags_json,
+          content_hash, captured_at
+        ) VALUES (@id, 'inbox', 'mcp', @content, @title, 'reference', 'medium',
+          @author, @tenant, @metadata, '{}', @hash, @at)`,
+          )
+          .run({
+            id,
+            content,
+            title: `Synthetic ${kind} proposal`,
+            author: JSON.stringify(author),
+            tenant,
+            metadata: JSON.stringify({ filePaths: [], tags: [] }),
+            hash: createHash('sha256').update(content, 'utf8').digest('hex'),
+            at: new Date().toISOString(),
+          });
+      }
+    } finally {
+      proposalDb.close();
+    }
+    const proposalGovern = await call('brain_govern');
+    const proposalState = view();
+    registrarMcpProjection = {
+      promoted: proposalGovern.promoted,
+      flagged: proposalGovern.flagged,
+      aiStatus: candidate(proposalState, proposalIds.ai).status,
+      aiMemoryPresent: proposalState.curated_memories.some(
+        (row) => row.candidate_id === proposalIds.ai,
+      ),
+      operatorStatus: candidate(proposalState, proposalIds.operator).status,
+      captureScope:
+        'seeded equivalent envelope; no actual Registrar producer invocation',
+    };
+    ensure(
+      registrarMcpProjection.aiStatus === 'inbox' &&
+        !registrarMcpProjection.aiMemoryPresent,
+      'Registrar MCP AI proposal was automatically admitted by the committed bundle',
+    );
+    ensure(
+      proposalGovern.flagged === 1 &&
+        proposalGovern.promoted === 1 &&
+        registrarMcpProjection.operatorStatus === 'promoted',
+      'MCP classification or operator control mismatch',
+    );
+    const beforeRetry = view();
+    const retried = await call('brain_govern');
+    ensure(
+      retried.flagged === 1 && retried.promoted === 0,
+      'Retry admitted review-pending proposal',
+    );
+    assert.deepEqual(
+      view(),
+      beforeRetry,
+      'Review-only retry changed inspected rows or receipts',
+    );
+    const proposalList = await cli(['list']);
+    ensure(
+      proposalList.pending.some(
+        (row) => row.candidateId === proposalIds.ai && row.status === 'inbox',
+      ),
+      'Review-pending MCP proposal missing from local person queue',
+    );
+    const rejectedProposal = await cli(writeArgs('reject', proposalIds.ai));
+    ensure(
+      rejectedProposal.ok &&
+        rejectedProposal.committed &&
+        rejectedProposal.disposition === 'rejected',
+      'Person rejection of MCP proposal failed',
+    );
+    const rejectedProposalState = view();
+    ensure(
+      candidate(rejectedProposalState, proposalIds.ai).status === 'rejected' &&
+        !rejectedProposalState.curated_memories.some(
+          (row) => row.candidate_id === proposalIds.ai,
+        ),
+      'Rejected MCP proposal was admitted',
+    );
+    personReceipt(
+      events(rejectedProposalState, proposalIds.ai).find(
+        (event) => event.id === rejectedProposal.auditEventId,
+      ),
+      proposalIds.ai,
+      'deleted',
+    );
+    registrarMcpProjection.personRejectionReceipted = true;
     complete();
 
     phase = 'pending-and-three-independent-human-holds';
@@ -587,6 +704,7 @@ async function main() {
         scratchRemoved: !existsSync(work),
         retainedScratch: cleanupSafe ? undefined : work,
         finalProjection: projection,
+        registrarMcpProjection,
       }),
     );
   }

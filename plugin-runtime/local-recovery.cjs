@@ -33487,6 +33487,11 @@ function placeHold(candidate, decision, repos, options = {}) {
   return repos.memoryRepo.connection.transaction(attempt).immediate();
 }
 
+// ../bobs-big-brain-registrar/apps/curator/dist/review/registrar-mcp-review.js
+function requiresRegistrarMcpReview(candidate) {
+  return candidate.source === "mcp" && candidate.author.type === "ai" && candidate.author.id === "mcp-server";
+}
+
 // ../bobs-big-brain-registrar/apps/curator/dist/curator.js
 var DEFAULT_MAX_SUPERSEDES_PER_RUN = 200;
 var Curator = class {
@@ -33565,6 +33570,19 @@ var Curator = class {
         outcome: "rejected",
         pipelineResult: importGate.pipelineResult,
         reason
+      };
+    }
+    if (requiresRegistrarMcpReview(candidate) && (release === void 0 || release.promotedBy.type !== "human")) {
+      return {
+        candidateId: candidate.id,
+        outcome: "flagged",
+        reason: "Registrar MCP proposals require explicit review before admission.",
+        pipelineResult: {
+          candidateId: candidate.id,
+          outcome: "flagged",
+          evaluations: [],
+          flaggedBy: ["registrar_mcp_review_required"]
+        }
       };
     }
     const policies = this.deps.policyRepo.findByTenant(this.config.tenantId);
@@ -36350,7 +36368,7 @@ function verifyPromotion(candidate, memoryId, deps, tenantId) {
     throw new Error("Selected promotion or its canonical receipt was not persisted");
 }
 function settleCandidate(candidate, deps, config, curator, hashes) {
-  if (candidate.metadata.proposedByRole === "member") {
+  if (candidate.metadata.proposedByRole === "member" || requiresRegistrarMcpReview(candidate)) {
     setSelectedStatus(deps.candidateRepo, config.tenantId, candidate, "quarantined");
     return { candidateId: candidate.id, outcome: "quarantined" };
   }

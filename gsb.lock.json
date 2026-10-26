@@ -8,7 +8,7 @@
       "name": "governed-second-brain",
       "version": "1.2.0",
       "registry": "npm",
-      "role": "Claude Code + Cowork plugin \u2014 ONE plugin, two modes (local in-process stdio MCP read+write; team remote proxy over the tailnet, read+propose). Dispatched by TEAMKB_API_URL. Plus the npx installer."
+      "role": "Claude Code plugin \u2014 ONE plugin, two modes (local in-process stdio MCP read+write; team remote proxy over the tailnet, read+propose). Dispatched by TEAMKB_API_URL. Plus the npx installer."
     },
     "compile": {
       "name": "bobs-big-brain-compiler",
@@ -21,13 +21,13 @@
     "govern": {
       "name": "bobs-big-brain-registrar",
       "version": "0.8.0",
-      "commit": "1b59883748eb53c17984ee7bdf14c1d93f0de6c9",
+      "commit": "d87acb024ddf4fb6b472752c58d04417ec87e58b",
       "registry": "bundled",
       "role": "INTKB \u2014 deterministic dedupe -> policy -> promote + the SHA-256 hash-chained audit + external anchor; dense retrieval default-on (#328/#334). Public monorepo; compiled into plugin-runtime/governed-brain.cjs, never published to a registry.",
-      "bundleSha256": "3d8086c91d94939d7e5641481e8b6942ed24020ea494dd3ced709e2c0c7ca056",
+      "bundleSha256": "545eae2b1ab629583ddadd6ad6c33e6843c25cbead54b27613b55dc2da04879a",
       "qmdCommandHelperSha256": "771df31dd88cbcd31ed1ab0b8f41f8236238241891edc3d23b0616e921be1583",
-      "localReviewHelperSha256": "fef85f797150be516de9676e81ae11f031979c933064fcdba7c5dad7bcc32df5",
-      "localRecoveryHelperSha256": "ca07c62b711530cd2a200bfc974ab6b7ccefe6a6657fe674a75d3f60c61216d6"
+      "localReviewHelperSha256": "c0e39f81f0723c3f51461e73c5b995ecf5debef3893982ee1c306a2f07024bdb",
+      "localRecoveryHelperSha256": "f36527fadd6c76989dd4f665ea10ab9bd38d9a50becc806ea7051ecb0276777a"
     },
     "retrieve": {
       "name": "qmd",
