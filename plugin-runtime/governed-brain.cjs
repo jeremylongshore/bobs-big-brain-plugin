@@ -45789,6 +45789,7 @@ var init_memory_repository = __esm({
       hasFts5;
       stmtInsert;
       stmtFindById;
+      stmtExistsForCandidate;
       stmtFindByTenant;
       stmtFindByHash;
       stmtFindByHashAndTenant;
@@ -45831,6 +45832,9 @@ var init_memory_repository = __esm({
     `);
         this.stmtFindById = db.prepare(`
       SELECT * FROM curated_memories WHERE id = ?
+    `);
+        this.stmtExistsForCandidate = db.prepare(`
+      SELECT 1 FROM curated_memories WHERE candidate_id = ? AND tenant_id = ? LIMIT 1
     `);
         this.stmtFindByTenant = db.prepare(`
       SELECT * FROM curated_memories WHERE tenant_id = ?
@@ -45948,6 +45952,10 @@ var init_memory_repository = __esm({
       findById(id) {
         const row = this.stmtFindById.get(id);
         return row !== void 0 ? rowToMemory(row) : null;
+      }
+      /** Whether this tenant has ever admitted the candidate, in any memory lifecycle. */
+      existsForCandidate(candidateId, tenantId) {
+        return this.stmtExistsForCandidate.get(candidateId, tenantId) !== void 0;
       }
       /** Return all curated memories belonging to the given tenant. */
       findByTenant(tenantId) {
@@ -54475,6 +54483,17 @@ var init_spool_intake = __esm({
   }
 });
 
+// ../bobs-big-brain-registrar/apps/curator/dist/rejection/reviewed-rejection.js
+var init_reviewed_rejection = __esm({
+  "../bobs-big-brain-registrar/apps/curator/dist/rejection/reviewed-rejection.js"() {
+    "use strict";
+    init_dist2();
+    init_dist();
+    init_dist3();
+    init_hold();
+  }
+});
+
 // ../bobs-big-brain-registrar/apps/curator/dist/import-exclusion/load-brainignore.js
 var init_load_brainignore = __esm({
   "../bobs-big-brain-registrar/apps/curator/dist/import-exclusion/load-brainignore.js"() {
@@ -54594,6 +54613,7 @@ var init_dist8 = __esm({
     init_supersession_detector2();
     init_promoter();
     init_rejector();
+    init_reviewed_rejection();
     init_origin_gate();
     init_import_exclusion_gate();
     init_brainignore();
@@ -55065,6 +55085,79 @@ var init_dist9 = __esm({
   }
 });
 
+// src/derived-state.ts
+function describeQmdError(error) {
+  const tail = error.stderr?.trim().split("\n").slice(-3).join(" | ");
+  return tail !== void 0 && tail !== "" && error.code !== "not_available" ? `${error.message}: ${tail}` : error.message;
+}
+async function refreshDerivedState(config2, deps) {
+  const { memoryRepo, exportStateRepo } = deps;
+  let exported = 0;
+  let exportSummary;
+  let exportError;
+  try {
+    const ex = await runExport(
+      memoryRepo,
+      exportStateRepo,
+      {
+        outputDir: config2.exportDir,
+        targetId: "kb-export-default",
+        tenantId: config2.tenantId,
+        reconcile: true
+      },
+      () => (/* @__PURE__ */ new Date()).toISOString()
+    );
+    exportSummary = {
+      written: ex.written.length,
+      archived: ex.archived.length,
+      removed: ex.removed.length,
+      unchanged: ex.unchanged,
+      quarantined: ex.quarantined.length,
+      ...ex.removalBlocked !== void 0 ? { removalBlocked: ex.removalBlocked } : {}
+    };
+    exported = exportSummary.written + exportSummary.archived + exportSummary.removed;
+  } catch (e) {
+    exportError = e instanceof Error ? e.message : String(e);
+    process.stderr.write(`[govern] export failed: ${exportError}
+`);
+  }
+  let indexUpdated = false;
+  let indexError;
+  let qmdCommand;
+  let qmdBinary;
+  try {
+    const binding = await createLocalQmdBinding(config2);
+    try {
+      const ensure = await binding.adapter.ensureCollections();
+      if (!ensure.ok) throw new Error(describeQmdError(ensure.error));
+      const upd = await binding.adapter.update();
+      if (!upd.ok) throw new Error(describeQmdError(upd.error));
+      indexUpdated = true;
+    } finally {
+      qmdCommand = binding.provenance() ?? void 0;
+      qmdBinary = legacyQmdBinary(qmdCommand ?? null);
+    }
+  } catch (e) {
+    indexError = e instanceof Error ? e.message : String(e);
+  }
+  return {
+    exported,
+    ...exportSummary !== void 0 ? { export: exportSummary } : {},
+    ...exportError !== void 0 ? { exportError } : {},
+    indexUpdated,
+    indexError,
+    ...qmdBinary !== void 0 ? { qmdBinary } : {},
+    ...qmdCommand !== void 0 ? { qmdCommand } : {}
+  };
+}
+var init_derived_state = __esm({
+  "src/derived-state.ts"() {
+    "use strict";
+    init_dist9();
+    init_qmd_command();
+  }
+});
+
 // src/seed-policy.ts
 function seedDefaultPolicy(policyRepo, tenantId) {
   const existing = policyRepo.findByTenant(tenantId);
@@ -55203,10 +55296,6 @@ var init_write_lock = __esm({
 });
 
 // src/govern.ts
-function describeQmdError(error) {
-  const tail = error.stderr?.trim().split("\n").slice(-3).join(" | ");
-  return tail !== void 0 && tail !== "" && error.code !== "not_available" ? `${error.message}: ${tail}` : error.message;
-}
 async function runGovern(config2) {
   const lock = await acquireWriteLock(config2.basePath);
   try {
@@ -55236,54 +55325,7 @@ async function runGovernLocked(config2) {
     });
     const ingested = ingestResult.ok ? ingestResult.value.length : 0;
     const curation = sweepInbox(config2, { candidateRepo, memoryRepo, policyRepo, auditRepo });
-    let exported = 0;
-    let exportSummary;
-    let exportError;
-    try {
-      const ex = await runExport(
-        memoryRepo,
-        exportStateRepo,
-        {
-          outputDir: config2.exportDir,
-          targetId: "kb-export-default",
-          tenantId: config2.tenantId,
-          reconcile: true
-        },
-        () => (/* @__PURE__ */ new Date()).toISOString()
-      );
-      exportSummary = {
-        written: ex.written.length,
-        archived: ex.archived.length,
-        removed: ex.removed.length,
-        unchanged: ex.unchanged,
-        quarantined: ex.quarantined.length,
-        ...ex.removalBlocked !== void 0 ? { removalBlocked: ex.removalBlocked } : {}
-      };
-      exported = exportSummary.written + exportSummary.archived + exportSummary.removed;
-    } catch (e) {
-      exportError = e instanceof Error ? e.message : String(e);
-      process.stderr.write(`[govern] export failed: ${exportError}
-`);
-    }
-    let indexUpdated = false;
-    let indexError;
-    let qmdCommand;
-    let qmdBinary;
-    try {
-      const binding = await createLocalQmdBinding(config2);
-      try {
-        const ensure = await binding.adapter.ensureCollections();
-        if (!ensure.ok) throw new Error(describeQmdError(ensure.error));
-        const upd = await binding.adapter.update();
-        if (!upd.ok) throw new Error(describeQmdError(upd.error));
-        indexUpdated = true;
-      } finally {
-        qmdCommand = binding.provenance() ?? void 0;
-        qmdBinary = legacyQmdBinary(qmdCommand ?? null);
-      }
-    } catch (e) {
-      indexError = e instanceof Error ? e.message : String(e);
-    }
+    const derived = await refreshDerivedState(config2, { memoryRepo, exportStateRepo });
     const anchored = anchorChainHead(auditRepo, config2.basePath, config2.tenantId);
     if (!anchored) {
       process.stderr.write("[govern] anchor failed (best-effort; govern pass unaffected)\n");
@@ -55300,13 +55342,7 @@ async function runGovernLocked(config2) {
       held: curation.held,
       holdCapBlocked: curation.holdCapBlocked,
       holdsExpired: curation.holdsExpired,
-      exported,
-      ...exportSummary !== void 0 ? { export: exportSummary } : {},
-      ...exportError !== void 0 ? { exportError } : {},
-      indexUpdated,
-      indexError,
-      ...qmdBinary !== void 0 ? { qmdBinary } : {},
-      ...qmdCommand !== void 0 ? { qmdCommand } : {},
+      ...derived,
       anchored
     };
   } finally {
@@ -55466,11 +55502,10 @@ var init_govern = __esm({
     import_node_path30 = require("node:path");
     import_node_util2 = require("node:util");
     init_dist8();
-    init_dist9();
     init_dist2();
     init_dist();
     init_dist3();
-    init_qmd_command();
+    init_derived_state();
     init_seed_policy();
     init_anchor();
     init_write_lock();

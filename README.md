@@ -63,10 +63,42 @@ existing policies are preserved. The current template enables ten registered rul
 with decisions depending on the candidate and evaluation context. A capture may be promoted,
 rejected, left in the inbox for review, or placed on a human hold.
 
-The six local MCP tools do not yet provide a general review or hold-resolution interface.
-Flagged and held items remain unpromoted; an installed-user, person-operated route is tracked
-under `compile-then-govern-eqw.10` in the [public outsider-proof work](https://github.com/intent-solutions-io/bobs-big-brain-umbrella/issues/122).
-This policy change adds no automatic approval or migration of existing policy rows.
+### Review your local inbox
+
+After local setup has provisioned the native dependencies, use the separate
+person-operated command against an existing brain:
+
+```bash
+governed-second-brain-review list --base /path/to/brain --tenant local --limit 25
+governed-second-brain-review reject --base /path/to/brain --tenant local \
+  --candidate UUID --actor your-name --reason "Reviewed and declined"
+governed-second-brain-review resolve-hold --base /path/to/brain --tenant local \
+  --candidate UUID --actor your-name --reason "Reviewed audience" \
+  --resolution release --audience owner
+```
+
+Use `--resolution reject` to decline a held candidate. Release requires an explicit
+`tenant`, `admins` or `owner` audience; a wider audience than the recommendation
+also requires `--acknowledge-wider`. Current policy, origin and disclosure gates
+still apply. This command provides no general approval override for policy flags.
+The six MCP tools remain unchanged; none resolves holds.
+
+Listing returns bounded metadata for each queue, without titles, bodies or
+recommendation prose. The command refuses effective team configuration and missing
+stores, and performs no setup or schema migration. Local actor and role declarations
+share the machine's trust domain; they do not prove a physical person issued the command.
+Reasons enter the audit trail, so keep private content out of them.
+
+A committed disposition retains the candidate and writes its canonical receipt,
+then attempts a local git-backed anchor and export/index reconciliation. Check the
+JSON `committed` field separately from `ok`: requesting release of an expired hold
+can return a refusal while committing its expired disposition. Anchor or derived
+refresh failure does not undo a committed decision. Repeating a settled command is
+a no-op and does not retry refresh. A normal `brain_govern` can refresh derived
+state, but also processes other queued candidates; review that queue first.
+Unexpected failures report `committed: null` when the outcome is unknown; inspect
+candidate state and the audit trail before retrying. Local anchors do not establish
+remote durability. Existing policies are preserved without automatic approval.
 
 ## What the receipt does *not* do
 

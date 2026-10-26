@@ -30,6 +30,7 @@
     "plugin-runtime/bootstrap.cjs",
     "plugin-runtime/governed-brain.cjs",
     "plugin-runtime/qmd-command.cjs",
+    "plugin-runtime/local-review.cjs",
     "plugin-runtime/package.json",
     "plugin-runtime/package-lock.json",
     "gsb.lock.json",
@@ -41,7 +42,8 @@
     "CLAUDE.md"
   ],
   "bin": {
-    "governed-second-brain": "bin/init.mjs"
+    "governed-second-brain": "bin/init.mjs",
+    "governed-second-brain-review": "bin/review.mjs"
   },
   "scripts": {
     "build": "node build.mjs",

@@ -168,3 +168,42 @@ Product-shaped packs over the hermetic suite. Prefer this before a dogfood push 
 | D skills | `smoke/skill-contract.test.mjs` | `/brain` + `/brain-save` frontmatter + write-never-auto |
 
 Human acceptance: [`onboarding/DOGFOOD.md`](../onboarding/DOGFOOD.md).
+
+## Local review command
+
+`node --test scripts/local-review-cli.test.mjs` exercises the actual thin CLI with
+private HOME/base and a module-load guard: help/invalid requests, effective team
+configuration and malformed requested team files, unrelated default team files,
+missing stores and native-unavailable guidance. These boundary cases do not execute
+the real helper or establish a process sandbox.
+
+`node smoke/local-review.mjs` separately runs the committed MCP bundle and actual
+CLI/helper on the same private SQLite store. Nine phases cover fresh policy and
+promotion, distinct pending/held candidates, bounded sanitized tenant-scoped listing,
+pending rejection with retained content, audience refusals, eligible release and
+held rejection, repeated no-ops, and committed expiry using a CLI-only future clock.
+It verifies selected candidate/memory/policy/audit columns, a clean decision export,
+and the real audit chain with nonempty anchors. It does not snapshot all database
+or filesystem state. Explicit qmd is missing and dense is disabled; there is no
+actual qmd/model, live corpus, physical-person authentication or clean-install proof.
+The optional first argument selects the payload directory; the second selects the
+external smoke client's SDK checkout. Server/helper dependencies resolve from the
+selected payload. Transport and CLI child closure precede scratch removal.
+
+`LOCAL_REVIEW_TEST_ROOT="$PWD" node --test scripts/local-review-transactions.test.mjs`
+uses public canonical APIs for fixture creation and the actual generated helper for
+writes. Schema initialization closes before reopening with the helper's runtime
+SQLite library, avoiding simultaneous independent SQLite libraries on one WAL file.
+SQL triggers inject ignored/aborted receipt writes and ignored status changes for
+pending rejection and hold release/rejection. Each failure must preserve selected
+complete table rows and the chain; dropping only the trigger must allow the same
+request to commit. Further cases cover an ignored promotion receipt, canonical
+actor/role/reason/audience refusals, tenant isolation, and committed dispositions
+surviving anchor/derived-repository failure. These are deterministic faults, not concurrent
+writer or native portability tests. The provisioned sibling CI lane enforces zero skips.
+
+A separate local offline `npm pack --ignore-scripts` check extracted the actual
+27-file package, copied its existing native closure and reran the nine MCP/CLI
+phases with no package-root node_modules or sibling sources. The SDK remained in
+the external test driver. This verifies copied payload execution for the tested
+native ABI; it does not verify clean dependency installation or other platforms.

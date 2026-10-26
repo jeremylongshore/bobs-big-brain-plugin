@@ -68,6 +68,10 @@ jobs:
       - name: Smoke — recommended fresh local policy and review outcomes
         run: node smoke/recommended-policy.mjs
 
+      # eqw.10.2: actual local person command and MCP share a private store.
+      - name: Smoke — local inbox review, hold resolution and committed expiry
+        run: node smoke/local-review.mjs
+
       # Team-mode proxy (stub API on loopback): tool surface + bearer + tenant + 403 clarity.
       - name: Smoke — team-mode stub (search / capture / transition)
         run: node smoke-team.mjs

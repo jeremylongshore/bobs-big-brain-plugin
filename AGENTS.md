@@ -64,14 +64,33 @@ behavior at runtime; a stray native import will break a marketplace install.
   has no policy rows. Existing custom, disabled and older policies remain unchanged. Enabled rules
   can reject, flag for review or create a human hold; ten enabled types does not mean ten decisions
   on every capture. `runGovern` retains best-effort seed error handling, so insertion failure is
-  not a fail-closed bootstrap guarantee. Local review/resolution availability remains separate
-  work (`compile-then-govern-eqw.10`); do not auto-promote flags or expose hold release through MCP.
+  not a fail-closed bootstrap guarantee. Local person-operated review uses the separate command
+  described below; do not auto-promote flags or expose hold release through MCP.
 - `src/remote-server.ts` — team server (dependency-free); proxies search/capture/transition. Tenant
   from `TEAMKB_TENANT_ID` (default `intent-solutions`). `errorResult()` maps 401/403/422 to clear
   member/admin messages.
 - `src/config.ts` — local config; `tenantId` defaults to `local`.
 - `plugin-runtime/governed-brain.cjs` — the built bundle (esbuild). **Committed** (a file-copy
   `/plugin install` runs it without a build). Rebuild + commit it with any `src/` change.
+
+### Local person-operated review
+
+`bin/review.mjs` exposes `governed-second-brain-review list|reject|resolve-hold`.
+Its builtin-only guard refuses effective team configuration before helper/native
+loading. It requires an existing regular SQLite file and existing native closure;
+never add implicit provisioning or migration. `src/local-review.ts` is bundled to
+`plugin-runtime/local-review.cjs`, independently hash-bound in `gsb.lock.json`.
+Rebuild all three helpers from the same clean Registrar revision.
+
+Listing is read-only and returns sanitized metadata, with output limits per queue;
+repository reads can still materialize the tenant queue. Writes take the shared
+flock and use one immediate transaction around canonical Registrar rejection or
+hold resolution, verifying the disposition and receipts before commit. Expiry can
+commit even when release is refused. Anchor first, then refresh through
+`src/derived-state.ts`; do not invoke `runGovern` to settle one reviewed candidate,
+as that sweeps unrelated inbox items. Post-commit failure must retain a truthful
+committed result. Local declared actor/role are not physical-person authentication.
+No MCP review tool or general policy-flag approval override is added.
 
 ### Team-mode server contract (the Registrar's `apps/api`)
 - `POST /api/candidates` — member-allowed; body = a full `MemoryCandidate` built client-side (the
@@ -157,7 +176,7 @@ Build hard-facts:
   after success; relative explicit-config binaries cannot be persisted.
 - **Headless helper**: `src/qmd-command.ts` builds separately to
   `plugin-runtime/qmd-command.cjs` for installer availability without starting MCP.
-  Both generated bundles and their `gsb.lock.json` digests must come from the same
+  All three generated helpers and their `gsb.lock.json` digests must come from the same
   clean Registrar build. Native provisioning uses bootstrap's existing exports.
 - **Govern reconciles the export tree** (`runExport({ reconcile: true })`), not just new
   promotions: lifecycle changes made by `curator batch-transition` / `brain_transition` land in
