@@ -1,65 +1,72 @@
 # Onboarding — Bob's Big Brain
 
-The brain is a **plugin** inside a **desktop** Claude (Claude Code or Cowork) — never a website.
+The brain runs as a **plugin** in Claude Code or Cowork. The public website explains
+the product; it does not host your personal brain.
 
-**Live walkthrough (copy-paste prompts, dual path):** https://demos.intentsolutions.io/bbb/
+**Product and beta limits:** [Bob’s Big Brain](https://intentsolutions.io/bbb/).
+**Setup:** [installation guide](https://intentsolutions.io/bbb/install/).
+The prompts below describe this repository’s source; check the
+[status page](https://intentsolutions.io/bbb/status/) for distribution limits.
 
-| Path | Who | Needs | Mode |
-|---|---|---|---|
-| **Team** | Intent Solutions teammates | Tailscale (team invite, any login) + personal token from Jeremy + desktop Claude | Remote team brain via `~/.teamkb/team.json` |
-| **Local (public)** | Anyone | Desktop Claude only | In-process personal brain on your machine — no Tailscale, no token |
+| Path               | Who               | Needs                                                                                 | Mode                                                                 |
+| ------------------ | ----------------- | ------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| **Team**           | Invited teammates | Operator-provided network access, API URL, tenant and personal token + desktop Claude | Remote team brain via `~/.teamkb/team.json`                          |
+| **Local (public)** | Anyone            | Desktop Claude plus one-time native dependency setup                                  | In-process personal brain on your machine — no team network or token |
 
-| Where you run Claude | Works? |
-|---|---|
+| Where you run Claude          | Works?                                                        |
+| ----------------------------- | ------------------------------------------------------------- |
 | **Claude Code** or **Cowork** | Yes — recommended. Same paste prompts on Mac, Windows, Linux. |
-| **Claude Desktop** | Manual MCP config (see live page Advanced). |
-| **claude.ai web / phone** | No. |
+| **Claude Desktop**            | Manual MCP configuration; follow your client’s documentation. |
+| **claude.ai web / phone**     | No.                                                           |
 
-Team path only: join Tailscale from the **one-time team invite** before pasting the team prompt. Open
-the invite in a private browser window and sign in with a passkey or your current identity provider;
-your login does not need to end in `@intentsolutions.io`. In the Tailscale app, select the team
-tailnet labeled `intentsolutions.io` (`tail70fc2c`).
+Team path only: obtain the API URL, exact tenant, personal token and network-access
+instructions privately from your team operator. If your team uses Tailscale, use
+the operator’s invitation and confirm the assigned tailnet. A public example
+cannot supply your team’s connection values.
 
 ---
 
 ## Team path (invite-only)
 
-1. Tailscale, joined from the team invite and set to the `intentsolutions.io` tailnet
+1. Team network access, verified using the operator’s instructions
 2. Desktop Claude
-3. **One paste** — full install + `team.json` (token + **required** `tenantId: intent-solutions`)
-4. Proof: `/brain shipped this week` → `qmd://` citations
+3. Plugin install plus `team.json` with the operator-provided URL, token and exact tenant
+4. Search a known team topic with `/brain <keywords>` and inspect its returned citations
 5. Optional: standing order in `~/.claude/CLAUDE.md` / `AGENTS.md` so Claude searches first
 
 ### Paste to Claude (team)
 
 ```
-Install and connect me to Bob's Big Brain (the Intent Solutions team brain). Run these steps in order. Stop and tell me if any step errors.
+Install and connect me to my team's Bob's Big Brain. Run these steps in order. Stop and tell me if any step errors.
 
 1) Add and install the plugin from the public marketplace (no GitHub login needed):
    claude plugin marketplace add jeremylongshore/bobs-big-brain-plugin
    claude plugin marketplace update governed-second-brain
    claude plugin install governed-second-brain@governed-second-brain
 
-2) Write my team connection file at ~/.teamkb/team.json (Windows: %USERPROFILE%\.teamkb\team.json · Linux: ~/.teamkb/team.json) with restrictive permissions (mode 600). Use exactly this JSON. Replace PASTE-YOUR-TOKEN-HERE with the token I give you — or ask me for the token if I have not pasted it yet. Do NOT invent or change a token. Keep tenantId exactly as written; without it, searches return empty results even with a good token:
+2) Write my team connection file at ~/.teamkb/team.json (Windows: %USERPROFILE%\.teamkb\team.json · Linux: ~/.teamkb/team.json) with restrictive permissions (mode 600). Use this shape, replacing ALL three placeholders with values supplied privately by my team operator. If any value is missing, stop and ask for it. Do not infer a URL or tenant, invent a token, or write a placeholder as configuration. Handle the token without echoing it into chat or command history:
 
 {
-  "apiUrl": "http://100.109.119.103:3847",
+  "apiUrl": "PASTE-OPERATOR-API-URL",
   "apiToken": "PASTE-YOUR-TOKEN-HERE",
-  "tenantId": "intent-solutions"
+  "tenantId": "PASTE-OPERATOR-TENANT"
 }
 
-3) Tell me to fully quit and reopen Claude Code or Cowork. After I restart I will run: /brain shipped this week and I should get an answer with qmd:// citations.
+3) Tell me to fully quit and reopen Claude Code or Cowork. After restart, help me search for a known team topic using keywords and inspect the returned citations. Empty results require investigation; do not treat them as proof of a successful connection.
 
-Prereqs: Tailscale joined to the intentsolutions.io team tailnet (via the team invite), desktop Claude. Do not rewrite the plugin manifest. Public marketplace only.
+Prereqs: operator-provided team network access and connection values, plus desktop Claude. Do not rewrite the plugin manifest. Public marketplace only.
 ```
 
-**Health check (optional):** `curl -sS -m 8 http://100.109.119.103:3847/api/health` → `"status":"healthy"`.
+For connectivity troubleshooting, use the operator’s health-check instructions. A
+healthy service alone does not verify your token, tenant or access to team knowledge.
 
 ---
 
 ## Local path (public / personal)
 
-No Tailscale. No token. Same plugin, in-process over `~/.teamkb` on your machine.
+No team network or token. The plugin runs in-process over `~/.teamkb` on your
+machine. Local mode needs one-time native dependency provisioning; see the
+[installation guide](https://intentsolutions.io/bbb/install/) and current beta limits.
 
 ### Paste to Claude (local)
 
@@ -110,7 +117,9 @@ configuration before grounding `/brain` on the fork's own corpus.
 - **`/brain …`** — read (keywords, not full sentences)
 - **`/brain-save …`** — write (team: governed for everyone; local: stays on your machine)
 
-Installing the plugin **connects** the brain. A short standing order in `~/.claude/CLAUDE.md` / `AGENTS.md` / `~/.grok/AGENTS.md` is what makes Claude **look there first** without being asked. Copy-paste blocks for both team and local standing orders are on the live page (Step 5 / Step 4).
+Installing and configuring the plugin makes the tools available. A standing
+order in your client’s instructions can ask it to search first; installation
+alone does not establish that behavior. See the [brain skill](../skills/brain/SKILL.md).
 
 ---
 
@@ -124,31 +133,36 @@ real environment variable  →  ~/.teamkb/team.json  →  (absent → local mode
 
 ```json
 {
-  "apiUrl": "http://100.109.119.103:3847",
-  "apiToken": "<per-user bearer token>",
-  "tenantId": "intent-solutions"
+  "apiUrl": "PASTE-OPERATOR-API-URL",
+  "apiToken": "PASTE-YOUR-TOKEN-HERE",
+  "tenantId": "PASTE-OPERATOR-TENANT"
 }
 ```
 
-**Fail-closed:** present-but-broken `team.json` refuses to start — it does not silently fall back to local.
+The JSON above is a template, not a working connection. Supply the operator’s exact
+values, including `tenantId`; omitting the tenant can select a runtime default
+that does not match your team. A present-but-malformed `team.json` refuses to
+start instead of silently falling back to local. Valid JSON containing incorrect
+connection values can still fail authentication or search.
 
 ---
 
 ## Troubleshooting (paste to Claude)
 
-Team and local diagnostic prompts live on the live page under **Troubleshooting**. Real team-mode causes we have already hit:
+Check the [installation guide](https://intentsolutions.io/bbb/install/) and your
+operator’s private instructions. Common team-mode causes:
 
-- **Rotated token** → ask Jeremy for reissue
-- **Missing `tenantId`** → empty search results with a “valid” token
-- **Off Tailscale** → API unreachable
-- **Full-sentence queries** → 0 hits; use keywords
+- **Rotated token** → ask your operator for reissue
+- **Wrong or missing `tenantId`** → verify the exact tenant with your operator
+- **Missing team network access** → API unreachable
+- **Unhelpful search results** → try distinctive topic keywords and inspect the citations
 
 ---
 
-## Admin notes (Jeremy)
+## Team operator notes
 
 - Public marketplace: `jeremylongshore/bobs-big-brain-plugin` → no org membership / `gh` login required
-- Hand teammates: **token + page link** (or the team paste block). Prefer token not embedded in scripts
+- Give teammates their API URL, exact tenant, personal token and network instructions privately. Keep tokens out of public pages and scripts.
 - Token only in `team.json` mode `600` — never `~/.claude.json` / shell history / chat if avoidable
-- Live page source: `~/demos/bbb/index.html` → https://demos.intentsolutions.io/bbb/
-- Legacy macOS `.command` kept in-tree; page no longer leads with OS installers
+- Public product and setup pages live at https://intentsolutions.io/bbb/. Keep deployment-specific instructions in your team’s private documentation.
+- The legacy macOS `.command` remains in-tree; it is not the public installation entry point.
