@@ -21,13 +21,13 @@
     "govern": {
       "name": "bobs-big-brain-registrar",
       "version": "0.8.0",
-      "commit": "8ea12e6ecfc2e74a16a29e87b242df589e77ba63",
+      "commit": "50250e05027f0f9433b5a3ea7775f461f113ccdf",
       "registry": "bundled",
       "role": "INTKB \u2014 deterministic dedupe -> policy -> promote + the SHA-256 hash-chained audit + external anchor; dense retrieval default-on (#328/#334). Private monorepo; compiled into plugin-runtime/governed-brain.cjs, never published to a registry.",
-      "bundleSha256": "e6dc18134d2b3ca893c11e48bfb86076fb41d53ef71cd17c7054b2aee706a350",
-      "qmdCommandHelperSha256": "6460bbf127ec89c7a7c08f1706728590155f37e71b042e440bed6727b67e741b",
-      "localReviewHelperSha256": "956a6fae51fae5c934d68f0eced1d1a3e015e950e7435306268881d7d1bac44a",
-      "localRecoveryHelperSha256": "496f9354e43e691da7ba3142e2a5963a4f2dcd42630c8ed6f25b9eff81de5c40"
+      "bundleSha256": "6e1fc98ff838a39877a0b10593c0f5f3e95902949f9b3dda65803401a86aa7e1",
+      "qmdCommandHelperSha256": "771df31dd88cbcd31ed1ab0b8f41f8236238241891edc3d23b0616e921be1583",
+      "localReviewHelperSha256": "fef85f797150be516de9676e81ae11f031979c933064fcdba7c5dad7bcc32df5",
+      "localRecoveryHelperSha256": "ca07c62b711530cd2a200bfc974ab6b7ccefe6a6657fe674a75d3f60c61216d6"
     },
     "retrieve": {
       "name": "qmd",

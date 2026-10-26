@@ -47680,7 +47680,7 @@ function install() {
   installed = true;
   process.on("exit", onExit);
   for (const s of FORWARDED)
-    process.on(s, onSignal);
+    process.prependListener(s, onSignal);
 }
 function uninstall() {
   if (!installed)
@@ -61974,12 +61974,6 @@ function validateBatchReceipt(receipt, manifest, candidates) {
   }
   return null;
 }
-async function ingestFromSpool(candidateRepo, spoolDir, opts) {
-  const detailed = await ingestFromSpoolDetailed(candidateRepo, spoolDir, opts);
-  if (!detailed.ok)
-    return detailed;
-  return { ok: true, value: detailed.value.ingested };
-}
 async function ingestFromSpoolDetailed(candidateRepo, spoolDir, opts) {
   const verifyManifest = opts?.verifyManifest ?? true;
   const filesResult = await listSpoolFiles(spoolDir);
@@ -62163,6 +62157,30 @@ var init_spool_intake = __esm({
     init_dist6();
     init_dist2();
     DEFAULT_BROAD_IMPORT_CANDIDATE_LIMIT = 100;
+  }
+});
+
+// ../bobs-big-brain-registrar/apps/curator/dist/intake/spool-intake-summary.js
+function summarizeSpoolIntake(result) {
+  const disclosureCategories = { pii: 0, compensation: 0, secret: 0, other: 0 };
+  for (const { category } of result.rejected) {
+    if (category === "pii" || category === "compensation" || category === "secret") {
+      disclosureCategories[category]++;
+    } else {
+      disclosureCategories.other++;
+    }
+  }
+  return {
+    ingestedCandidates: result.ingested.length,
+    disclosureRejectedCandidates: result.rejected.length,
+    disclosureCategories,
+    tamperedFiles: result.tampered.length,
+    admissionRejectedFiles: result.admissionRejected.length
+  };
+}
+var init_spool_intake_summary = __esm({
+  "../bobs-big-brain-registrar/apps/curator/dist/intake/spool-intake-summary.js"() {
+    "use strict";
   }
 });
 
@@ -62386,6 +62404,7 @@ var init_dist8 = __esm({
     init_curator();
     init_selected_governance();
     init_spool_intake();
+    init_spool_intake_summary();
     init_dedup_checker();
     init_supersession_detector2();
     init_promoter();
@@ -63104,10 +63123,11 @@ async function runGovernLocked(config2) {
 `
       );
     }
-    const ingestResult = await ingestFromSpool(candidateRepo, config2.spoolPath, {
+    const ingestResult = await ingestFromSpoolDetailed(candidateRepo, config2.spoolPath, {
       archiveIngestedDir: (0, import_node_path32.join)(config2.spoolPath, "ingested")
     });
-    const ingested = ingestResult.ok ? ingestResult.value.length : 0;
+    const intake = ingestResult.ok ? summarizeSpoolIntake(ingestResult.value) : null;
+    const ingested = intake?.ingestedCandidates ?? 0;
     const curation = sweepInbox(config2, { candidateRepo, memoryRepo, policyRepo, auditRepo });
     const derived = await refreshDerivedState(config2, { memoryRepo, exportStateRepo });
     const anchored = anchorChainHead(auditRepo, config2.basePath, config2.tenantId);
@@ -63116,6 +63136,7 @@ async function runGovernLocked(config2) {
     }
     return {
       ingested,
+      intake,
       processed: curation.processed,
       promoted: curation.promoted,
       rejected: curation.rejected,
@@ -63299,7 +63320,15 @@ var init_govern = __esm({
 
 // src/govern-message.ts
 function isIdle(s) {
-  return s.ingested === 0 && s.processed === 0 && s.promoted === 0 && s.rejected === 0 && s.flagged === 0 && s.duplicates === 0 && s.quarantined === 0 && s.skipped === 0 && (s.held ?? 0) === 0 && (s.holdsExpired ?? 0) === 0 && (s.exported ?? 0) === 0;
+  return s.intake !== null && s.intake.disclosureRejectedCandidates === 0 && s.intake.tamperedFiles === 0 && s.intake.admissionRejectedFiles === 0 && s.ingested === 0 && s.processed === 0 && s.promoted === 0 && s.rejected === 0 && s.flagged === 0 && s.duplicates === 0 && s.quarantined === 0 && s.skipped === 0 && (s.held ?? 0) === 0 && (s.holdsExpired ?? 0) === 0 && (s.exported ?? 0) === 0;
+}
+function intakeSentence(s) {
+  if (s.intake === null) {
+    return " Spool intake failed; intake counts are unavailable. Other inbox work may still have completed.";
+  }
+  const i = s.intake;
+  if (i.disclosureRejectedCandidates + i.tamperedFiles + i.admissionRejectedFiles === 0) return "";
+  return ` Spool intake observed ${i.disclosureRejectedCandidates} disclosure-refused candidate(s), ${i.tamperedFiles} tampered file(s), and ${i.admissionRejectedFiles} admission-refused file(s). These counts are separate from inbox decisions; retained raw input may still contain refused content.`;
 }
 function holdSentence(s) {
   const parts = [];
@@ -63346,7 +63375,7 @@ function indexSentence(s) {
 }
 function formatGovernMessage(s) {
   if (isIdle(s)) {
-    return "Nothing to govern \u2014 spool and inbox are empty (not a failure). Capture something first with /brain-save (or brain_capture), then run brain_govern again." + exportSentence(s) + indexSentence(s);
+    return "No intake refusals, inbox activity or export changes were observed in this pass. Capture something first with /brain-save (or brain_capture), then run brain_govern again." + exportSentence(s) + indexSentence(s);
   }
   const parts = [
     `${s.promoted} promoted`,
@@ -63357,7 +63386,7 @@ function formatGovernMessage(s) {
   ];
   if (s.skipped > 0) parts.push(`${s.skipped} skipped`);
   if ((s.held ?? 0) > 0) parts.push(`${s.held} held`);
-  return `Governed ${s.processed} inbox candidate(s) (${s.ingested} newly ingested): ${parts.join(", ")}.` + holdSentence(s) + exportSentence(s) + indexSentence(s);
+  return `Governed ${s.processed} inbox candidate(s) (${s.ingested} newly ingested): ${parts.join(", ")}.` + intakeSentence(s) + holdSentence(s) + exportSentence(s) + indexSentence(s);
 }
 var init_govern_message = __esm({
   "src/govern-message.ts"() {
@@ -63721,7 +63750,7 @@ var init_local_server = __esm({
     );
     server2.tool(
       "brain_govern",
-      "Run the deterministic govern pipeline once, in-process: drain the spool \u2192 dedupe \u2192 policy/secret-detection \u2192 promote, append a SHA-256 hash-chained audit event per decision, then refresh the search index. This is the deterministic system DISPOSING of the model's proposals.",
+      "Run the deterministic govern pipeline once, in-process: ingest spool \u2192 dedupe \u2192 policy/secret-detection \u2192 promote, then refresh the search index. Durable inbox settlements write SHA-256 hash-chained audit events; review-only flags can remain without a new receipt. Pre-intake disclosure refusals are reported as safe counts, without candidate or audit rows; raw spool archives can retain refused content. This is the deterministic system DISPOSING of the model's proposals.",
       async () => {
         let s;
         try {

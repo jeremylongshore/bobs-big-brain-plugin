@@ -2,7 +2,9 @@ import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import {
-  ingestFromSpool,
+  ingestFromSpoolDetailed,
+  summarizeSpoolIntake,
+  type SpoolIntakeSummary,
   Curator,
   reject,
   type CurationResult,
@@ -58,6 +60,8 @@ interface SweepOutcome {
  */
 export interface GovernSummary {
   ingested: number;
+  /** Safe observations from successful intake; null means intake failed. */
+  intake: SpoolIntakeSummary | null;
   /** Number of inbox candidates the sweep examined this run. */
   processed: number;
   promoted: number;
@@ -155,13 +159,14 @@ async function runGovernLocked(config: BrainConfig): Promise<GovernSummary> {
       );
     }
 
-    // 1. Ingest the spool → inbox candidates in SQLite. Archive each file after
-    //    it is ingested (B1 idempotency): a re-run over unchanged input re-reads
-    //    nothing, and the candidate findById dedup already blocks re-inserts.
-    const ingestResult = await ingestFromSpool(candidateRepo, config.spoolPath, {
+    // 1. Ingest the spool → inbox candidates in SQLite. Best-effort archiving
+    // retains the raw file, including refused content. If a source remains,
+    // refusals may be observed again; existing candidate IDs prevent re-inserts.
+    const ingestResult = await ingestFromSpoolDetailed(candidateRepo, config.spoolPath, {
       archiveIngestedDir: join(config.spoolPath, 'ingested'),
     });
-    const ingested = ingestResult.ok ? ingestResult.value.length : 0;
+    const intake = ingestResult.ok ? summarizeSpoolIntake(ingestResult.value) : null;
+    const ingested = intake?.ingestedCandidates ?? 0;
 
     // 2. Sweep the WHOLE inbox → govern it (B1, bead compile-then-govern-jfv.2.1).
     //    This is the marquee capture feature: freshly-spooled candidates AND remote
@@ -183,6 +188,7 @@ async function runGovernLocked(config: BrainConfig): Promise<GovernSummary> {
 
     return {
       ingested,
+      intake,
       processed: curation.processed,
       promoted: curation.promoted,
       rejected: curation.rejected,

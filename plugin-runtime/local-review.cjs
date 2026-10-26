@@ -27042,7 +27042,7 @@ function install() {
   installed = true;
   process.on("exit", onExit);
   for (const s of FORWARDED)
-    process.on(s, onSignal);
+    process.prependListener(s, onSignal);
 }
 function uninstall() {
   if (!installed)

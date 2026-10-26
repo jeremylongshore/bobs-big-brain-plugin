@@ -7,7 +7,7 @@
  * External SDK imports belong to this test client, not the delivered server.
  */
 import assert from 'node:assert/strict';
-import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
+import { createHash, createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
 import { createRequire } from 'node:module';
 import {
   existsSync,
@@ -17,8 +17,10 @@ import {
   readFileSync,
   readdirSync,
   realpathSync,
+  renameSync,
   rmSync,
   symlinkSync,
+  writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { isAbsolute, join, resolve } from 'node:path';
@@ -227,7 +229,9 @@ async function main() {
   }
   async function call(session, name, args = {}) {
     const result = await bounded(
-      session.client.callTool({ name, arguments: args }, undefined, { timeout: budget() }),
+      session.client.callTool({ name, arguments: args }, undefined, {
+        timeout: budget(),
+      }),
       budget(),
     );
     ensure(!result.isError, 'Unexpected MCP protocol error');
@@ -386,6 +390,88 @@ async function main() {
     cases.push({ name: phase, passed: true });
     for (const [name, args, category] of negatives)
       await refuse(session, `settled-${name}`, args, category);
+
+    phase = 'raw-spool-intake-refusals-and-retention';
+    const rawCandidates = [
+      'Synthetic disclosure fixture: SSN marker only; no identifying number.',
+      'Synthetic disclosure fixture: salary keyword only; no person or amount.',
+      'Synthetic disclosure fixture: -----BEGIN PRIVATE KEY----- marker only; no key material.',
+    ].map((content) => ({
+      ...candidate,
+      id: randomUUID(),
+      content,
+      origin: undefined,
+    }));
+    const rawBytes = Buffer.from(
+      rawCandidates.map((item) => JSON.stringify(item)).join('\n') + '\n',
+    );
+    const rawPath = join(session.base, 'spool', 'spool-refusal-markers.jsonl');
+    const manifestBytes = Buffer.from(
+      JSON.stringify({
+        schemaVersion: '1',
+        spoolFileSha256: createHash('sha256').update(rawBytes).digest('hex'),
+      }),
+    );
+    writeFileSync(rawPath, rawBytes, { mode: 0o600 });
+    writeFileSync(`${rawPath}.manifest.json`, manifestBytes, { mode: 0o600 });
+    const beforeRaw = inspectDb(session.base);
+    const refused = await call(session, 'brain_govern');
+    ensure(
+      refused.value.ok === true && refused.value.idle === false,
+      'Refusal intake incorrectly idle',
+    );
+    assert.deepEqual(
+      refused.value.intake,
+      {
+        ingestedCandidates: 0,
+        disclosureRejectedCandidates: 3,
+        disclosureCategories: { pii: 1, compensation: 1, secret: 1, other: 0 },
+        tamperedFiles: 0,
+        admissionRejectedFiles: 0,
+      },
+      'Safe intake count mismatch',
+    );
+    ensure(
+      refused.value.message.includes('3 disclosure-refused candidate(s)'),
+      'Refusal message missing',
+    );
+    for (const item of rawCandidates) {
+      ensure(
+        !refused.text.includes(item.id) && !refused.text.includes(item.content),
+        'Intake reply exposed raw candidate',
+      );
+    }
+    assert.deepEqual(inspectDb(session.base), beforeRaw, 'Refusal created stored rows or receipts');
+    const archivedRaw = join(session.base, 'spool', 'ingested', 'spool-refusal-markers.jsonl');
+    ensure(readFileSync(archivedRaw).equals(rawBytes), 'Raw archive byte mismatch');
+    ensure(
+      readFileSync(`${archivedRaw}.manifest.json`).equals(manifestBytes),
+      'Raw sidecar byte mismatch',
+    );
+    ensure(!existsSync(rawPath), 'Raw source unexpectedly remains after successful archive');
+    const observedAgain = (await call(session, 'brain_govern')).value;
+    ensure(
+      observedAgain.intake.disclosureRejectedCandidates === 0 && observedAgain.idle === true,
+      'Archived input re-counted',
+    );
+    ensure(!observedAgain.message.includes('empty'), 'Idle claimed empty spool census');
+    cases.push({ name: phase, passed: true });
+
+    phase = 'unavailable-intake-is-not-idle';
+    const spool = join(session.base, 'spool');
+    renameSync(spool, join(session.base, 'retained-fixture-spool'));
+    writeFileSync(spool, 'fixture: not a directory', { mode: 0o600 });
+    const unavailable = (await call(session, 'brain_govern')).value;
+    ensure(
+      unavailable.ok === true && unavailable.intake === null && unavailable.idle === false,
+      'Failed intake hidden as idle',
+    );
+    ensure(
+      unavailable.message.includes('intake counts are unavailable'),
+      'Unavailable intake message missing',
+    );
+    assert.deepEqual(inspectDb(session.base), beforeRaw, 'Failed intake changed stored rows');
+    cases.push({ name: phase, passed: true });
 
     const tenantSession = await start('tenant-refusal', aws);
     await refuse(tenantSession, 'configured-tenant-secret', clean, 'secret');
