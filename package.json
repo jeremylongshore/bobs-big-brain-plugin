@@ -95,7 +95,7 @@
     ]
   },
   "devDependencies": {
-    "@intentsolutions/audit-harness": "^1.4.0",
+    "@intentsolutions/audit-harness": "^1.5.1",
     "@qmd-team-intent-kb/claude-runtime": "link:../bobs-big-brain-registrar/packages/claude-runtime",
     "@qmd-team-intent-kb/common": "link:../bobs-big-brain-registrar/packages/common",
     "@qmd-team-intent-kb/curator": "link:../bobs-big-brain-registrar/apps/curator",
