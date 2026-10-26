@@ -61621,6 +61621,16 @@ var init_hold = __esm({
   }
 });
 
+// ../bobs-big-brain-registrar/apps/curator/dist/review/registrar-mcp-review.js
+function requiresRegistrarMcpReview(candidate) {
+  return candidate.source === "mcp" && candidate.author.type === "ai" && candidate.author.id === "mcp-server";
+}
+var init_registrar_mcp_review = __esm({
+  "../bobs-big-brain-registrar/apps/curator/dist/review/registrar-mcp-review.js"() {
+    "use strict";
+  }
+});
+
 // ../bobs-big-brain-registrar/apps/curator/dist/curator.js
 var DEFAULT_MAX_SUPERSEDES_PER_RUN, Curator;
 var init_curator = __esm({
@@ -61636,6 +61646,7 @@ var init_curator = __esm({
     init_origin_gate();
     init_import_exclusion_gate();
     init_hold();
+    init_registrar_mcp_review();
     DEFAULT_MAX_SUPERSEDES_PER_RUN = 200;
     Curator = class {
       deps;
@@ -61713,6 +61724,19 @@ var init_curator = __esm({
             outcome: "rejected",
             pipelineResult: importGate.pipelineResult,
             reason
+          };
+        }
+        if (requiresRegistrarMcpReview(candidate) && (release === void 0 || release.promotedBy.type !== "human")) {
+          return {
+            candidateId: candidate.id,
+            outcome: "flagged",
+            reason: "Registrar MCP proposals require explicit review before admission.",
+            pipelineResult: {
+              candidateId: candidate.id,
+              outcome: "flagged",
+              evaluations: [],
+              flaggedBy: ["registrar_mcp_review_required"]
+            }
           };
         }
         const policies = this.deps.policyRepo.findByTenant(this.config.tenantId);
@@ -61931,6 +61955,7 @@ var init_selected_governance = __esm({
     init_curator();
     init_sensitivity_constraint2();
     init_hold();
+    init_registrar_mcp_review();
   }
 });
 

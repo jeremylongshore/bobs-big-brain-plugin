@@ -40244,6 +40244,11 @@ function expireHold(hold, repos, now) {
   }).immediate();
 }
 
+// ../bobs-big-brain-registrar/apps/curator/dist/review/registrar-mcp-review.js
+function requiresRegistrarMcpReview(candidate) {
+  return candidate.source === "mcp" && candidate.author.type === "ai" && candidate.author.id === "mcp-server";
+}
+
 // ../bobs-big-brain-registrar/apps/curator/dist/curator.js
 var DEFAULT_MAX_SUPERSEDES_PER_RUN = 200;
 var Curator = class {
@@ -40322,6 +40327,19 @@ var Curator = class {
         outcome: "rejected",
         pipelineResult: importGate.pipelineResult,
         reason
+      };
+    }
+    if (requiresRegistrarMcpReview(candidate) && (release2 === void 0 || release2.promotedBy.type !== "human")) {
+      return {
+        candidateId: candidate.id,
+        outcome: "flagged",
+        reason: "Registrar MCP proposals require explicit review before admission.",
+        pipelineResult: {
+          candidateId: candidate.id,
+          outcome: "flagged",
+          evaluations: [],
+          flaggedBy: ["registrar_mcp_review_required"]
+        }
       };
     }
     const policies = this.deps.policyRepo.findByTenant(this.config.tenantId);
