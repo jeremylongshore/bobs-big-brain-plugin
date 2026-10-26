@@ -17,7 +17,7 @@ pnpm test:plugin --live          # needs Tailscale + TEAMKB_API_TOKEN for full P
 - [ ] On Tailscale as `@intentsolutions.io`
 - [ ] `curl -sS -m 8 http://100.109.119.103:3847/api/health` → `"status":"healthy"`
 - [ ] Open https://demos.intentsolutions.io/bbb/ → **Team** tab
-- [ ] Copy install prompt → paste into Claude Code / Cowork with real token
+- [ ] Copy install prompt → paste into Claude Code with real token
 - [ ] Fully quit + reopen Claude
 - [ ] `/brain shipped this week` → answer with **`qmd://`** citations
 - [ ] `/brain backup` → hits (keywords work)

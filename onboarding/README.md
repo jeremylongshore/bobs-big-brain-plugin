@@ -1,6 +1,6 @@
 # Onboarding — Bob's Big Brain
 
-This repository targets **plugin** setup in Claude Code or Cowork. The public website explains
+This repository targets **plugin** setup in Claude Code. The public website explains
 the product; it does not host your personal brain.
 
 **Product and beta limits:** [Bob’s Big Brain](https://intentsolutions.io/bbb/).
@@ -15,9 +15,14 @@ The prompts below describe this repository’s source; check the
 
 | Where you run Claude          | Works?                                                                                              |
 | ----------------------------- | --------------------------------------------------------------------------------------------------- |
-| **Claude Code** or **Cowork** | Documented setup targets; this guide does not establish a tested client or operating-system matrix. |
+| **Claude Code** | Documented setup target; this guide does not establish a tested client or operating-system matrix. |
+| **Cowork** | Unsupported by this distribution: it contains `bin/`, excluded by the current host documentation. |
 | **Claude Desktop**            | Requires separate client validation and manual MCP configuration.                                   |
 | **claude.ai web / phone**     | No.                                                                                                 |
+
+This source distribution includes `bin/`; [Anthropic's plugin reference](https://code.claude.com/docs/en/plugins-reference#standard-layout)
+states that Cowork and claude.ai do not install plugins with that directory. A
+manual Desktop MCP configuration is a separate integration requiring validation.
 
 Team path only: obtain the API URL, exact tenant, personal token and network-access
 instructions privately from your team operator. If your team uses Tailscale, use
@@ -52,7 +57,7 @@ Install and connect me to my team's Bob's Big Brain. Run these steps in order. S
   "tenantId": "PASTE-OPERATOR-TENANT"
 }
 
-3) Tell me to fully quit and reopen Claude Code or Cowork. After restart, help me search for a known team topic using keywords and inspect the returned citations. Empty results require investigation; do not treat them as proof of a successful connection.
+3) Tell me to fully quit and reopen Claude Code. After restart, help me search for a known team topic using keywords and inspect the returned citations. Empty results require investigation; do not treat them as proof of a successful connection.
 
 Prereqs: operator-provided team network access and connection values, plus desktop Claude. Do not rewrite the plugin manifest. Public marketplace only.
 ```
@@ -83,7 +88,7 @@ Install Bob's Big Brain (Governed Second Brain) for me as a LOCAL personal brain
    - Do NOT set TEAMKB_API_URL, TEAMKB_API_TOKEN, or TEAMKB_TENANT_ID
    - If team.json already exists and I want local-only, tell me how to rename or remove it (do not delete without my confirmation)
 
-3) Tell me to fully quit and reopen Claude Code or Cowork.
+3) Tell me to fully quit and reopen Claude Code.
 
 4) After restart, help me verify the governed-brain tools are available (brain_status or /brain). An empty local brain is normal on first install — I will feed it with /brain-save.
 
