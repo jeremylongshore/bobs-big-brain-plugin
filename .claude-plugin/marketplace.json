@@ -20,7 +20,7 @@
     "email": "jeremy@intentsolutions.io"
   },
   "metadata": {
-    "description": "Bob's Big Brain — the installable governed second brain for Claude Code and Cowork. Cited (qmd://) recall + governed capture with a tamper-evident SHA-256 hash-chained audit trail. One plugin, two modes: local (in-process over your own files) or team (your team's single governed brain over the tailnet).",
+    "description": "Bob's Big Brain — the installable governed second brain for Claude Code. Cited (qmd://) recall + governed capture with a tamper-evident SHA-256 hash-chained audit trail. One plugin, two modes: local (in-process over your own files) or team (your team's single governed brain over the tailnet).",
     "version": "1.2.0"
   },
   "plugins": [

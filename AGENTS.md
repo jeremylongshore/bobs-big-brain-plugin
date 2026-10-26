@@ -4,7 +4,7 @@ Agent + developer guidance for the **Bob's Big Brain plugin** repo. Tool-agnosti
 
 ## What this is
 
-The **unified, public Bob's Big Brain plugin** — a Claude Code + Cowork plugin that runs as a
+The **unified, public Bob's Big Brain plugin** — a Claude Code plugin that runs as a
 single stdio MCP server in **two modes**:
 
 - **local** (default): an in-process governed brain over your own files (`~/.teamkb`). First-start native provisioning can use npm/network; optional dense retrieval uses a separate loopback embedder. Lexical retrieval needs no generative-model API key.
@@ -41,6 +41,14 @@ now ONE plugin for both local and team — do not resurrect a second one.
   only — see below); and
   `brain_transition` admin lifecycle changes. **No `brain_govern`** (govern runs server-side), and
   `brain_audit_verify` remains local-only.
+
+### Host compatibility scope
+
+The current distribution contains `bin/`. Anthropic's [plugin reference](https://code.claude.com/docs/en/plugins-reference#standard-layout)
+excludes plugins with that directory from Cowork and claude.ai installation.
+Do not describe this tree as a supported Cowork plugin or infer host compatibility
+from native Claude Code validation. A compatible packaging change and actual host
+validation would be separate work; preserve the existing executable layout here.
 
 ### ⚠️ CRITICAL constraint — team mode is dependency-free
 

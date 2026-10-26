@@ -1,7 +1,7 @@
 <h1 align="center">Bob's Big Brain — the plugin</h1>
 
 <p align="center">
-  The governed team brain — cited recall, hash-chained receipts. A local-first Claude Code + Cowork
+  The governed team brain — cited recall, hash-chained receipts. A local-first Claude Code
   plugin: turn <em>your own</em> files into a governed, <code>qmd://</code>-cited brain with a
   tamper-evident, SHA-256 hash-chained audit trail.<br>
   <strong>Compile, then govern.</strong> One plugin, two modes: <strong>local</strong> (default — in-process lexical retrieval after provisioning, with an optional separate local embedding service) or <strong>team</strong> (proxy to a shared governed brain over your network).
@@ -308,12 +308,17 @@ You need network reachability to that API — typically a private network / VPN 
 
 #### Install it as a team member
 
-The plugin runs in **Claude Code** or **Cowork** — the same install in both. It **cannot** run in
-claude.ai in a web browser or the phone apps (a browser tab can't reach a local plugin or a private
-network); **Claude Desktop** can, via a manual `mcpServers` config (see below). On macOS **or** Windows:
+This repository's plugin setup targets **Claude Code**. It includes a `bin/` directory;
+[Anthropic's current plugin reference](https://code.claude.com/docs/en/plugins-reference#standard-layout)
+states that Cowork and claude.ai do not install plugins containing that directory.
+This distribution therefore does not offer a supported Cowork installation path.
+A different compatible package and host validation would be needed before claiming support.
+**Claude Desktop** manual MCP configuration is a separate path requiring client validation
+(see [`onboarding/`](onboarding/README.md)); it is not evidence of Cowork plugin compatibility.
+The instructions below describe Claude Code setup, not a tested operating-system matrix:
 
 1. **Join the team network** (Tailscale) so your machine can reach the brain's API.
-2. **Add the plugin** — in Claude Code or Cowork. It's a public repo, so no org membership or `gh`
+2. **Add the plugin** — in Claude Code. It's a public repo, so no org membership or `gh`
    login is needed:
    ```
    /plugin marketplace add jeremylongshore/bobs-big-brain-plugin
@@ -362,7 +367,7 @@ capture → govern → audit smoke. The optional compiler can resolve from a loc
 or the installer's `^1.14.0` fallback; qmd is an external prerequisite. These are compatibility
 baselines, not proof of the exact compiler or qmd version installed on a user's machine.
 
-**Coming:** automatic Cowork MCP registration.
+**Cowork status:** unsupported by this distribution layout; no compatible package or host installation is established here.
 
 ## License
 
