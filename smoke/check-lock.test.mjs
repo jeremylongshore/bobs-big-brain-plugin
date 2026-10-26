@@ -10,6 +10,7 @@ function checkFixture(change = () => {}) {
   const root = mkdtempSync(join(tmpdir(), 'gsb-artifact-lock-'));
   const bundle = '/* fixture runtime */\n';
   const helper = '/* fixture headless helper */\n';
+  const recovery = '/* fixture local recovery helper */\n';
   const review = '/* fixture local review helper */\n';
   const identity = { name: 'governed-second-brain', version: '1.2.0' };
   const lock = {
@@ -19,6 +20,7 @@ function checkFixture(change = () => {}) {
         commit: 'a'.repeat(40),
         bundleSha256: createHash('sha256').update(bundle).digest('hex'),
         qmdCommandHelperSha256: createHash('sha256').update(helper).digest('hex'),
+        localRecoveryHelperSha256: createHash('sha256').update(recovery).digest('hex'),
         localReviewHelperSha256: createHash('sha256').update(review).digest('hex'),
       },
     },
@@ -32,6 +34,7 @@ function checkFixture(change = () => {}) {
     writeFileSync(join(root, 'plugin-runtime/governed-brain.cjs'), bundle);
     writeFileSync(join(root, 'plugin-runtime/qmd-command.cjs'), helper);
     writeFileSync(join(root, 'plugin-runtime/local-review.cjs'), review);
+    writeFileSync(join(root, 'plugin-runtime/local-recovery.cjs'), recovery);
     json('package.json', identity);
     json('.claude-plugin/plugin.json', identity);
     json('.claude-plugin/marketplace.json', { plugins: [identity] });
@@ -62,6 +65,9 @@ for (const [name, change] of [
   ['missing helper hash', ({ lock }) => delete lock.stack.govern.qmdCommandHelperSha256],
   ['changed review helper', ({ root }) => writeFileSync(join(root, 'plugin-runtime/local-review.cjs'), 'changed')],
   ['missing review helper', ({ root }) => rmSync(join(root, 'plugin-runtime/local-review.cjs'))],
+  ['changed recovery helper', ({ root }) => writeFileSync(join(root, 'plugin-runtime/local-recovery.cjs'), 'changed')],
+  ['missing recovery helper', ({ root }) => rmSync(join(root, 'plugin-runtime/local-recovery.cjs'))],
+  ['missing recovery hash', ({ lock }) => delete lock.stack.govern.localRecoveryHelperSha256],
   ['missing review hash', ({ lock }) => delete lock.stack.govern.localReviewHelperSha256],
   ['missing bundle hash', ({ lock }) => delete lock.stack.govern.bundleSha256],
   ['missing registrar revision', ({ lock }) => delete lock.stack.govern.commit],

@@ -100,6 +100,27 @@ Unexpected failures report `committed: null` when the outcome is unknown; inspec
 candidate state and the audit trail before retrying. Local anchors do not establish
 remote durability. Existing policies are preserved without automatic approval.
 
+### Complete reviewed local recovery
+
+`governed-second-brain-recovery apply|repair` completes maintenance for an
+explicitly reviewed Registrar recovery plan. Use `--help` for required paths and
+independent digest pins. This separate command requires Linux Node22, existing
+native setup, an owned qmd2.5.3 runtime, and separate existing private export and
+index roots for the source and target tenants. Each export root must contain
+`curated`, `decisions`, `guides`, `archive`, and `bulk` directories.
+
+The command holds the Brain write lock through local Git anchoring, both exports,
+and verification of both selected indexes against canonical document bytes.
+It refuses effective team configuration and installs nothing. `committed: true`
+can accompany a maintenance failure: the database settlement remains committed.
+Use `repair` with the same plan and digest to retry maintenance without repeating
+governance or source archival. An apply replay does not reverify maintenance.
+
+Exit 0 means verified local completion; exit 2 means settled but incomplete,
+including replay or partial governance; exit 1 means refusal or failure. Inspect
+`committed` and `recoveryComplete` separately. Local verification does not publish
+an anchor remotely or establish which version a deployed service uses.
+
 ## What the receipt does *not* do
 
 Honesty is the point of a receipt. The chain gives you **tamper-*detection*** — integrity + ordering,

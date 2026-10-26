@@ -23,6 +23,7 @@ const runtimeFiles = [
   'plugin-runtime/governed-brain.cjs',
   'plugin-runtime/qmd-command.cjs',
   'plugin-runtime/local-review.cjs',
+  'plugin-runtime/local-recovery.cjs',
   'plugin-runtime/package.json',
   'plugin-runtime/package-lock.json',
 ];
@@ -42,6 +43,7 @@ test('npm pack includes the runtime entry files without provisioned dependencies
       readFileSync(join(source, 'package.json'), 'utf8'),
     );
     assert.equal(manifest.bin['governed-second-brain-review'], 'bin/review.mjs');
+    assert.equal(manifest.bin['governed-second-brain-recovery'], 'bin/recovery.mjs');
     const commandFiles = Object.values(manifest.bin);
     write(
       join(fixture, 'package.json'),

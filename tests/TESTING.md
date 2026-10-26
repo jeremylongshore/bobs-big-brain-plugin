@@ -207,3 +207,32 @@ A separate local offline `npm pack --ignore-scripts` check extracted the actual
 phases with no package-root node_modules or sibling sources. The SDK remained in
 the external test driver. This verifies copied payload execution for the tested
 native ABI; it does not verify clean dependency installation or other platforms.
+
+## Reviewed local recovery
+
+`node --test scripts/recovery-cli.test.mjs smoke/check-lock.test.mjs` exercises
+actual builtin refusal paths and all four helper digest bindings. Module-load
+canaries prove team URLs and the plan brain's `team.json` refuse before native or
+recovery-helper loading; unrelated environment brains do not replace that base.
+FIFO/malformed plans, repair keys and unsupported runtimes fail without setup.
+
+The source lane needs the built clean sibling Registrar, its tsx loader, and an
+explicit private owned runtime. Run `scripts/recovery-export.test.mjs`,
+`recovery-anchor.test.mjs`, `recovery-index-owned.test.mjs` and
+`recovery-maintenance-owned.test.mjs` with Node's test runner and that loader.
+`RECOVERY_OWNED_RUNTIME_ROOT`, `RECOVERY_OWNED_RUNTIME_SHA256` and
+`RECOVERY_FIXTURE_PROOF` are mandatory; absence fails instead of skipping.
+Fixtures use private stores and source roots, verify the actual runtime inventory
+before and after, and record created/removed roots in the proof file.
+
+The real index cases cover both tenants, canonical active document sets and exact
+bytes, retained content hashes/tenant headers, pinned qmd title extraction, CJK FTS
+projection and negative controls for missing rows, corrupt projections, coordinated
+title drift and foreign retained payloads. Recovery integration uses an independent
+Python `fcntl` contender at anchor/export/index phases, verifies explicit repair
+without new governance receipts, and preserves unrelated inbox, holds, exclusions
+and spool. Obstruction and partial-outcome controls distinguish durable settlement
+from local maintenance completion. These are private synthetic proofs; they do not
+authorize live migration or prove other platforms or remote anchor publication.
+Set `RECOVERY_HELPER_BUNDLE` to the generated helper's absolute path to exercise
+that packaged implementation with the same integration fixtures.
