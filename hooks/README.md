@@ -11,8 +11,7 @@ remembers to save.
 This is **not** a plugin-declared hook. Installing the `governed-second-brain` plugin
 does **not** turn it on. It runs only when *you* deliberately enable it — and the
 enable flow makes you read exactly what it does, and does **not** do, and consent
-first. (Design decision: `governed-second-brain` `000-docs/014-AT-DECR` +
-`015-AT-RNBK`; bead `compile-then-govern-jfv.7`.)
+first. (Design and rollout records live in the [umbrella documentation](https://github.com/intent-solutions-io/bobs-big-brain-umbrella/tree/main/000-docs), not this plugin: `014-AT-DECR-agent-reviewed-capture-inbox-and-r8-evolution.md` and `015-AT-RNBK-team-autocapture-consent-and-rollout.md`; bead `compile-then-govern-jfv.7`.)
 
 ## Files
 
@@ -37,11 +36,7 @@ it no-ops otherwise.
 
 - It does **not** send your raw transcript anywhere — only the distilled, durable
   learnings the model judges worth keeping.
-- It **never** captures secrets/tokens/credentials/PII (the distiller strips them;
-  the server's deterministic gate blocks them as a backstop).
-- It writes **nothing** durable — every proposal lands **quarantined** and is governed
-  by deterministic code + reviewed by an agent (with a hash-chained receipt) before
-  anything is remembered.
+- The distiller and deterministic server filters reduce secret/PII disclosure risk; they cannot guarantee detection of arbitrary sensitive content. Review the disclosure before enabling it.
+- It proposes to the team inbox; intake and local logs/outbox can be durable before promotion. Member-authored proposals follow server quarantine/governance rules. A proposal is not an approved memory.
 
-Full change-management + rollout doc: `governed-second-brain`
-`000-docs/015-AT-RNBK-team-autocapture-consent-and-rollout.md`.
+Full change-management and rollout record: [umbrella015](https://github.com/intent-solutions-io/bobs-big-brain-umbrella/blob/main/000-docs/015-AT-RNBK-team-autocapture-consent-and-rollout.md). These optional hook scripts require the source checkout; they are not in the npm file list.

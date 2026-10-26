@@ -16,15 +16,15 @@
       "version": "1.14.0",
       "registry": "npm",
       "optional": true,
-      "role": "ICO \u2014 corpus -> governance spool (DeepSeek- or Anthropic-capable). The installer's --index-only mode skips it for a zero-egress build."
+      "role": "ICO optional corpus -> governance spool. Installer full mode explicitly selects DeepSeek; --index-only skips compilation. Version is a compatibility baseline for the ^1.14.0 fallback range, not a measured installed version."
     },
     "govern": {
       "name": "bobs-big-brain-registrar",
       "version": "0.8.0",
-      "commit": "50250e05027f0f9433b5a3ea7775f461f113ccdf",
+      "commit": "1b59883748eb53c17984ee7bdf14c1d93f0de6c9",
       "registry": "bundled",
-      "role": "INTKB \u2014 deterministic dedupe -> policy -> promote + the SHA-256 hash-chained audit + external anchor; dense retrieval default-on (#328/#334). Private monorepo; compiled into plugin-runtime/governed-brain.cjs, never published to a registry.",
-      "bundleSha256": "6e1fc98ff838a39877a0b10593c0f5f3e95902949f9b3dda65803401a86aa7e1",
+      "role": "INTKB \u2014 deterministic dedupe -> policy -> promote + the SHA-256 hash-chained audit + external anchor; dense retrieval default-on (#328/#334). Public monorepo; compiled into plugin-runtime/governed-brain.cjs, never published to a registry.",
+      "bundleSha256": "3d8086c91d94939d7e5641481e8b6942ed24020ea494dd3ced709e2c0c7ca056",
       "qmdCommandHelperSha256": "771df31dd88cbcd31ed1ab0b8f41f8236238241891edc3d23b0616e921be1583",
       "localReviewHelperSha256": "fef85f797150be516de9676e81ae11f031979c933064fcdba7c5dad7bcc32df5",
       "localRecoveryHelperSha256": "ca07c62b711530cd2a200bfc974ab6b7ccefe6a6657fe674a75d3f60c61216d6"

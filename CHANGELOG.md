@@ -10,6 +10,14 @@ installable Claude Code + Cowork plugin (a local stdio MCP server); the engines 
 
 ### Fixed
 
+- Align team MCP initialization with the declared plugin version, ship the guidance and
+  standalone anchor verifier referenced by the npm package, and reconcile current source,
+  build, retrieval and distribution documentation (`compile-then-govern-eqw.6.4`).
+  Existing version labels do not imply a new release or installed-channel upgrade.
+
+
+### Fixed
+
 - Local `brain_govern` now exposes canonical safe spool-intake counts, including
   disclosure refusals and unavailable intake, instead of silently dropping those
   outcomes. Idle messages describe observed inactivity without asserting an empty

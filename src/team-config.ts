@@ -25,7 +25,7 @@
  *
  * CI-safe by construction: imports ONLY node builtins (+ the shared predicate from
  * mode.ts) — never @qmd-team-intent-kb/* — so it typechecks and unit-tests in plain
- * CI, which has no private sibling monorepo. The base-path precedence is replicated
+ * CI, which has no provisioned sibling monorepo. The base-path precedence is replicated
  * verbatim from @qmd-team-intent-kb/common `getTeamKbBasePath` (TEAMKB_BASE_PATH →
  * TEAMKB_HOME → ~/.teamkb) — the same "copy the small contract, don't import the big
  * dep" pattern remote-server.ts uses for its category enum.

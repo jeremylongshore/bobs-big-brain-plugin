@@ -7,8 +7,7 @@ Agent + developer guidance for the **Bob's Big Brain plugin** repo. Tool-agnosti
 The **unified, public Bob's Big Brain plugin** — a Claude Code + Cowork plugin that runs as a
 single stdio MCP server in **two modes**:
 
-- **local** (default): an in-process governed brain over your own files (`~/.teamkb`) — no daemon, no
-  network, no API key.
+- **local** (default): an in-process governed brain over your own files (`~/.teamkb`). First-start native provisioning can use npm/network; optional dense retrieval uses a separate loopback embedder. Lexical retrieval needs no generative-model API key.
 - **team** (when `TEAMKB_API_URL` is set): a remote proxy to a shared governed-brain HTTP API over your
   network.
 
@@ -19,7 +18,7 @@ This is the *installable code*; the *landing/thesis* lives in the company umbrel
 | **This repo** | `jeremylongshore/bobs-big-brain-plugin` (personal, public) | the plugin: MCP runtime (local + team) + skills |
 | **Umbrella** | `intent-solutions-io/bobs-big-brain-umbrella` (company) | landing page, thesis, competitive teardown — points here |
 | **Engines** | `jeremylongshore/{bobs-big-brain-compiler, bobs-big-brain-registrar}` | Bob's Big Brain Compiler (compile) + Bob's Big Brain Registrar (govern) — separate repos |
-| **Team marketplace** | `intent-solutions-io/team-intent-claude-plugins` (private) | publishes **this** plugin (team mode) for the internal team |
+| **Retired marketplace** | `intent-solutions-io/team-intent-claude-plugins` | historical distribution; current public marketplace is this repository |
 
 **The old standalone `intent-brain` plugin is RETIRED.** It used to live in
 `qmd-team-intent-kb/.claude-plugin/` as a separate team-only plugin; it has been folded into **this**
@@ -45,7 +44,7 @@ now ONE plugin for both local and team — do not resurrect a second one.
 
 ### ⚠️ CRITICAL constraint — team mode is dependency-free
 
-`src/remote-server.ts` may import **only** `node:crypto`, `fetch` (global), `zod`, and the MCP SDK —
+The team path uses Node built-ins, dependency-free local contract helpers, `fetch` (global), `zod`, and the MCP SDK —
 **never** `@qmd-team-intent-kb/*` or anything pulling `better-sqlite3`. The team bundle must run from a
 marketplace clone with **zero install/build** and never touch the native module. (Local-mode's native
 imports are dynamically `import()`ed only on the local path, so they don't load in team mode.) If you
@@ -152,11 +151,11 @@ The local MCP runtime is **bundled from the sibling `../bobs-big-brain-registrar
 assume `../bobs-big-brain-registrar` is a sibling checkout.
 
 ```bash
-pnpm -C ../bobs-big-brain-registrar build   # refresh the Registrar dist/ FIRST — the bundle inlines compiled JS; stale dist = stale bundle
-pnpm install                          # links the Registrar packages + zod/sdk/better-sqlite3
-pnpm typecheck                        # tsc --noEmit
-node build.mjs                        # → plugin-runtime/governed-brain.cjs (commit it)
-node smoke.mjs                        # LOCAL: capture→govern→search over MCP (isolated ~/.gsb-smoke); also asserts the seeded policy rejects a too-short capture
+pnpm -C ../bobs-big-brain-registrar install --frozen-lockfile
+pnpm install --frozen-lockfile        # links the sibling workspace
+pnpm typecheck                        # full local tsc --noEmit
+node build.mjs                        # rebuilds clean Registrar + all four committed helpers
+node smoke/smoke.mjs                  # LOCAL: private HOME required; never use a live brain
 node smoke-team.mjs                   # TEAM: dispatch→proxy against a stub API; asserts the surface, bearer, tenant, the Author-object, and the admin 403
 ```
 
@@ -167,8 +166,7 @@ not verify native compatibility; check the native closure and run the appropriat
 isolated runtime smoke separately. The default build still provisions natives.
 
 Build hard-facts:
-- **Single native dep**: `better-sqlite3` is `--external` + needs `bindings`; the installer provisions
-  `plugin-runtime/node_modules/better-sqlite3` per-platform (NOT committed). `ajv`/`ajv-formats` stay
+- **Three native modules**: `better-sqlite3`, `fs-ext`, and `sqlite-vec` are externalized, with the `bindings` loader. Bootstrap provisions the lockfile-pinned runtime closure per platform (NOT committed). `ajv`/`ajv-formats` stay
   **bundled** (the SDK validates every tool call with ajv — externalizing them makes the runtime inert).
 - **Single zod**: `build.mjs` aliases `zod` to one copy (cross-instance `instanceof` otherwise breaks
   tool registration).
@@ -233,8 +231,7 @@ Local mode is the sovereignty path: keep `TEAMKB_API_URL` unset, set
 tenant-scoped registry/cache at `<base>/qmd-index/<tenant>` and the runtime
 reports that resolved path through `brain_status` and the local boot receipt.
 `TEAMKB_EXPORT_DIR` is optional and points to the governed Markdown source tree
-(default `<base>/kb-export`), not to the qmd index. No API key or network is
-needed for local grounding. Changes to this contract require config tests and
+(default `<base>/kb-export`), not to the qmd index. After first-start provisioning, lexical grounding needs no generative-model API key or remote brain API; optional dense retrieval uses the configured loopback service. Changes to this contract require config tests and
 an isolated local smoke; never test against the operator's real `~/.teamkb`.
 Existing derived indexes created under a different base are not moved by this
 source change. Reconcile/rebuild the chosen brain's derived indexes through its
@@ -248,7 +245,7 @@ can edit an event *and* re-hash forward. Keep the "What the receipt does *not* d
 
 ## Write-time provenance (origin tokens) — what they do and do NOT prove
 
-Every `brain_capture` mints an **origin token**: HMAC-SHA256 over `(candidateId, tenantId, capturedAt)`
+A local `brain_capture` mints an **origin token**; team capture does so only when its administrator supplied the origin secret. The token is HMAC-SHA256 over `(candidateId, tenantId, capturedAt)`
 keyed by a per-installation secret; the Registrar's govern path verifies it BEFORE promotion and
 rejects a forged claim with a receipted `origin_token_invalid`. Missing origin = accepted, receipted
 as channel `unattested` (backward compatibility with every pre-H1 capture/spool). Wiring:
@@ -296,6 +293,14 @@ Historical baseline: `bobs-big-brain-registrar/000-docs/038-AT-DECR`; owning
 code: `packages/qmd-adapter/src/config.ts`, `adapter.ts` and the production
 entrypoint configuration. The package scope and bead prefix remain unchanged by
 the repository rename.
+
+## Checkout, CI and installed-package contexts
+
+The source checkout links a sibling Registrar. CI quality deliberately trims those build-only links, uses npm, and runs `typecheck:ci` plus coverage; it does not prove a full source rebuild. `smoke.yml` checks committed helper digests and exercises the committed bundle. A source/runtime change must still rebuild all four helpers locally and test their actual protocol behavior.
+
+Use Node22 for the maintained local/owned-runtime and reviewed-recovery path. The team-only CI lane still tests Node20; package.json has no engines constraint. Do not infer a new global Node requirement from a documentation change.
+
+npm ships this guidance, `CLAUDE.md`, and the standalone anchor verifier. Source rebuilds, tests, opt-in autocapture hooks, and source-only development commands require a repository checkout. `gsb.lock.json` records build provenance and compatibility baselines; its version fields are not proof of an installed channel or an instruction to publish a release. Current source can include changes after the v1.2.0 tag while retaining that manifest version.
 
 ## Tracking
 Program-level beads + the GitHub tracking issue live on the **umbrella** repo
