@@ -15,7 +15,14 @@ import {
   lstatSync,
   openSync,
   closeSync,
+  chmodSync,
+  linkSync,
+  ftruncateSync,
+  readlinkSync,
 } from "node:fs";
+import fs from "node:fs";
+import { syncBuiltinESMExports } from "node:module";
+import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
@@ -24,9 +31,14 @@ import {
   AuditRepository,
   verifyAuditChain,
   computeManifestHash,
+  computeEntryHash,
 } from "@qmd-team-intent-kb/store";
 import { makeAuditEvent } from "../../bobs-big-brain-registrar/packages/test-fixtures/dist/index.js";
 import { anchorRecoveryHead } from "../src/recovery-anchor.ts";
+import {
+  assertRecoveryAuditReadiness,
+  readRecoveryAnchorSnapshot,
+} from "../src/recovery-audit.ts";
 
 if (!process.env.RECOVERY_FIXTURE_PROOF)
   throw new Error("Private fixture proof required");
@@ -400,6 +412,289 @@ test("refuses a branch ref swapped after capturing the witness commit", () => {
     assert.notEqual(first.gitHead, second.gitHead);
   } finally {
     if (indexFd !== undefined) closeSync(indexFd);
+    f.db.close();
+  }
+});
+
+function readinessFixture() {
+  const f = fixture();
+  f.db.pragma("wal_checkpoint(TRUNCATE)");
+  f.db.pragma("journal_mode = DELETE");
+  return f;
+}
+function readiness(f, options) {
+  // A fresh readiness context deliberately contains no settlement receipt.
+  const context = {
+    database: f.db,
+    store: { basePath: f.base },
+    assertStillBound: () => f.context.assertStillBound(),
+  };
+  return f.db
+    .transaction(() => assertRecoveryAuditReadiness(context, options))
+    .immediate();
+}
+function filesystemSnapshot(root) {
+  const result = [];
+  const walk = (path) => {
+    const info = lstatSync(path);
+    const type = info.isSymbolicLink()
+      ? "link"
+      : info.isDirectory()
+        ? "directory"
+        : info.isFile()
+          ? "file"
+          : "special";
+    result.push({
+      path: path.slice(root.length),
+      type,
+      mode: info.mode,
+      uid: info.uid,
+      inode: info.ino,
+      device: info.dev,
+      links: info.nlink,
+      size: info.size,
+      mtime: info.mtimeMs,
+      ctime: info.ctimeMs,
+      ...(type === "file"
+        ? {
+            sha256: createHash("sha256")
+              .update(readFileSync(path))
+              .digest("hex"),
+          }
+        : {}),
+      ...(type === "link" ? { target: readlinkSync(path) } : {}),
+    });
+    if (type === "directory")
+      for (const name of readdirSync(path).sort()) walk(join(path, name));
+  };
+  walk(root);
+  return result;
+}
+for (const state of ["absent-directory", "absent-log", "existing-log"])
+  test(`readiness accepts clean ${state} without creating files, changing data or requiring settlement`, () => {
+    const f = readinessFixture();
+    try {
+      if (state === "absent-log")
+        mkdirSync(join(f.base, "audit"), { mode: 0o700 });
+      if (state === "existing-log") anchorRecoveryHead(f.context);
+      const before = filesystemSnapshot(f.base);
+      assert.equal(readiness(f), undefined);
+      assert.deepEqual(filesystemSnapshot(f.base), before);
+      assert.equal(f.audit.findAllChronological().length, 2);
+    } finally {
+      f.db.close();
+    }
+  });
+test("readiness refuses a genuine ordering fork and never treats a fork manifest as amnesty", () => {
+  const f = readinessFixture();
+  try {
+    const third = makeAuditEvent({ tenantId: "source-fixture" });
+    f.audit.insert(third);
+    const first = f.db
+      .prepare("SELECT entry_hash FROM audit_events WHERE id=?")
+      .get(f.source.id);
+    const row = f.db
+      .prepare("SELECT * FROM audit_events WHERE id=?")
+      .get(third.id);
+    const changed = { ...row, prev_entry_hash: first.entry_hash };
+    f.db
+      .prepare(
+        "UPDATE audit_events SET prev_entry_hash=?,entry_hash=? WHERE id=?",
+      )
+      .run(
+        first.entry_hash,
+        computeEntryHash(changed, row.hash_version ?? 1),
+        third.id,
+      );
+    assert.ok(
+      verifyAuditChain(f.audit).breaks.some((b) => b.reason === "CHAIN_FORK"),
+    );
+    const before = filesystemSnapshot(f.base);
+    assert.throws(() => readiness(f), /verification refused/);
+    assert.deepEqual(filesystemSnapshot(f.base), before);
+    const options = approveCurrentBreaks(f);
+    const pinned = filesystemSnapshot(f.base);
+    assert.throws(() => readiness(f, options));
+    assert.deepEqual(filesystemSnapshot(f.base), pinned);
+    assert.equal(existsSync(join(f.base, "audit")), false);
+  } finally {
+    f.db.close();
+  }
+});
+test("readiness accepts only exact eligible exceptions and refuses pin or current tuple drift", () => {
+  const f = readinessFixture();
+  try {
+    f.db
+      .prepare("UPDATE audit_events SET entry_hash=? WHERE id=?")
+      .run("a".repeat(64), f.source.id);
+    assert.throws(() => readiness(f), /verification refused/);
+    const options = approveCurrentBreaks(f);
+    const before = filesystemSnapshot(f.base);
+    assert.equal(readiness(f, options), undefined);
+    assert.deepEqual(filesystemSnapshot(f.base), before);
+    assert.throws(
+      () =>
+        readiness(f, {
+          exceptionManifest: {
+            ...options.exceptionManifest,
+            expectedManifestHash: "0".repeat(64),
+          },
+        }),
+      /manifest digest/,
+    );
+    assert.deepEqual(filesystemSnapshot(f.base), before);
+    f.db
+      .prepare("UPDATE audit_events SET entry_hash=? WHERE id=?")
+      .run("b".repeat(64), f.source.id);
+    const changed = filesystemSnapshot(f.base);
+    assert.throws(() => readiness(f, options), /verification refused/);
+    assert.deepEqual(filesystemSnapshot(f.base), changed);
+  } finally {
+    f.db.close();
+  }
+});
+test("readiness refuses edited anchors without touching audit, Git or database files", () => {
+  const f = readinessFixture();
+  try {
+    anchorRecoveryHead(f.context);
+    const path = join(f.base, "audit/anchors.jsonl");
+    const record = JSON.parse(readFileSync(path, "utf8").trim());
+    record.chainHead = "forged";
+    writeFileSync(path, JSON.stringify(record) + "\n");
+    const before = filesystemSnapshot(f.base);
+    assert.throws(() => readiness(f), /verification refused/);
+    assert.deepEqual(filesystemSnapshot(f.base), before);
+  } finally {
+    f.db.close();
+  }
+});
+for (const kind of [
+  "audit-link",
+  "audit-dangling-link",
+  "file-link",
+  "file-dangling-link",
+  "hardlink",
+  "fifo",
+  "directory",
+  "permissive",
+  "oversized",
+  "malformed",
+])
+  test(`readiness refuses unsafe ${kind} without repairing or changing it`, () => {
+    const f = readinessFixture();
+    try {
+      const audit = join(f.base, "audit"),
+        path = join(audit, "anchors.jsonl");
+      if (kind.startsWith("audit-")) {
+        const outside = join(f.base, "outside");
+        if (kind === "audit-link") mkdirSync(outside, { mode: 0o700 });
+        symlinkSync(outside, audit);
+      } else {
+        mkdirSync(audit, { mode: 0o700 });
+        if (kind.startsWith("file-")) {
+          const outside = join(f.base, "outside-log");
+          if (kind === "file-link") writeFileSync(outside, "", { mode: 0o600 });
+          symlinkSync(outside, path);
+        } else if (kind === "fifo") execFileSync("/usr/bin/mkfifo", [path]);
+        else if (kind === "directory") mkdirSync(path, { mode: 0o700 });
+        else {
+          writeFileSync(path, kind === "malformed" ? "{not-json" : "", {
+            mode: kind === "permissive" ? 0o644 : 0o600,
+          });
+          if (kind === "hardlink") linkSync(path, join(f.base, "alias"));
+          if (kind === "oversized") {
+            const fd = openSync(path, "r+");
+            try {
+              ftruncateSync(fd, 64 * 1024 * 1024 + 1);
+            } finally {
+              closeSync(fd);
+            }
+          }
+        }
+      }
+      const before = filesystemSnapshot(f.base);
+      assert.throws(() => readiness(f));
+      assert.deepEqual(filesystemSnapshot(f.base), before);
+    } finally {
+      f.db.close();
+    }
+  });
+test("readiness refuses an unreadable audit directory without permission repair", () => {
+  const f = readinessFixture();
+  const path = join(f.base, "audit");
+  try {
+    mkdirSync(path, { mode: 0o700 });
+    chmodSync(path, 0);
+    assert.throws(() => readiness(f));
+    assert.equal(lstatSync(path).mode & 0o777, 0);
+  } finally {
+    chmodSync(path, 0o700);
+    f.db.close();
+  }
+});
+for (const kind of ["directory-appeared", "log-appeared", "log-replaced"])
+  test(`readiness centrally refuses ${kind} during its binding checks`, () => {
+    const f = readinessFixture();
+    try {
+      const audit = join(f.base, "audit"),
+        path = join(audit, "anchors.jsonl");
+      if (kind === "log-appeared") mkdirSync(audit, { mode: 0o700 });
+      if (kind === "log-replaced") anchorRecoveryHead(f.context);
+      const databaseBefore = readFileSync(join(f.base, "teamkb.db"));
+      const bound = f.context.assertStillBound;
+      let calls = 0,
+        changed = false;
+      f.context.assertStillBound = () => {
+        bound();
+        calls++;
+        if (!changed && calls === (kind === "directory-appeared" ? 3 : 4)) {
+          changed = true;
+          if (kind === "directory-appeared") mkdirSync(audit, { mode: 0o700 });
+          else {
+            if (kind === "log-replaced") renameSync(path, path + ".original");
+            writeFileSync(path, "external-writer-sentinel", { mode: 0o600 });
+          }
+        }
+      };
+      assert.throws(() => readiness(f), /changed|appeared/);
+      assert.equal(changed, true);
+      assert.deepEqual(readFileSync(join(f.base, "teamkb.db")), databaseBefore);
+      if (kind !== "directory-appeared")
+        assert.equal(readFileSync(path, "utf8"), "external-writer-sentinel");
+    } finally {
+      f.db.close();
+    }
+  });
+test("bounded snapshot reading refuses concurrent growth within its original allocation", async (t) => {
+  const f = readinessFixture();
+  let fd;
+  try {
+    const path = join(f.base, "bounded.jsonl");
+    writeFileSync(path, "x", { mode: 0o600 });
+    fd = openSync(path, "r");
+    const original = fs.readSync;
+    let grown = false,
+      maxBuffer = 0;
+    t.mock.method(
+      fs,
+      "readSync",
+      function (handle, buffer, offset, length, position) {
+        maxBuffer = Math.max(maxBuffer, buffer.length);
+        if (!grown) {
+          grown = true;
+          appendFileSync(path, "y".repeat(1024 * 1024));
+        }
+        return original.call(this, handle, buffer, offset, length, position);
+      },
+    );
+    syncBuiltinESMExports();
+    assert.throws(() => readRecoveryAnchorSnapshot(fd), /changed during read/);
+    assert.equal(grown, true);
+    assert.equal(maxBuffer, 2);
+  } finally {
+    t.mock.restoreAll();
+    syncBuiltinESMExports();
+    if (fd !== undefined) closeSync(fd);
     f.db.close();
   }
 });

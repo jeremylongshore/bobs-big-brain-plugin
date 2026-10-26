@@ -46888,7 +46888,10 @@ function chainedRowsOf(repo) {
 function readAnchors(anchorPath) {
   if (!(0, import_node_fs6.existsSync)(anchorPath))
     return [];
-  return (0, import_node_fs6.readFileSync)(anchorPath, "utf8").split("\n").filter((l) => l.trim().length > 0).map((l) => JSON.parse(l));
+  return parseAnchorLog((0, import_node_fs6.readFileSync)(anchorPath, "utf8"));
+}
+function parseAnchorLog(snapshot) {
+  return snapshot.split("\n").filter((l) => l.trim().length > 0).map((l) => JSON.parse(l));
 }
 function appendAnchor(repo, anchorPath, opts) {
   const now = opts.nowFn ?? (() => (/* @__PURE__ */ new Date()).toISOString());
@@ -46915,6 +46918,9 @@ function appendAnchor(repo, anchorPath, opts) {
 function verifyAnchors(repo, anchorPath) {
   const chain = verifyAuditChain(repo);
   const anchors = readAnchors(anchorPath);
+  return verifyCapturedAnchors(repo, chain, anchors);
+}
+function verifyCapturedAnchors(repo, chain, anchors) {
   const rows = chainedRowsOf(repo);
   const anchorBreaks = [];
   let expectedPrev = null;

@@ -6,9 +6,6 @@ import {
   lstatSync,
   mkdirSync,
   openSync,
-  readFileSync,
-  readSync,
-  realpathSync,
 } from "node:fs";
 import { join } from "node:path";
 import { isDeepStrictEqual } from "node:util";
@@ -16,16 +13,17 @@ import type { RecoveryPostcommitContext } from "@qmd-team-intent-kb/curator";
 import {
   AuditRepository,
   appendAnchor,
-  verifyAnchors,
-  readAnchors,
-  ExceptionManifestSchema,
-  computeManifestHash,
-  classifyChainBreaks,
-  type ExceptionManifest,
-  type StoredRowTuple,
+  verifyAnchorRecords,
+  parseAnchorLog,
 } from "@qmd-team-intent-kb/store";
 import { inspectRecoveryExportRoot } from "./recovery-export.js";
 import { witnessRecoveryAnchor } from "./recovery-anchor-git.js";
+import {
+  readRecoveryExceptionManifest,
+  readRecoveryAnchorSnapshot,
+  verifyRecoveryAuditSnapshot,
+  type RecoveryAnchorOptions,
+} from "./recovery-audit.js";
 
 export interface RecoveryAnchorSummary {
   anchorVerified: true;
@@ -38,71 +36,7 @@ export interface RecoveryAnchorSummary {
   gitHead: string;
   remotePublication: "not-attempted";
 }
-export interface RecoveryAnchorOptions {
-  exceptionManifest?: { path: string; expectedManifestHash: string };
-}
-
-function manifest(options: RecoveryAnchorOptions): ExceptionManifest | null {
-  if (options.exceptionManifest === undefined) return null;
-  const { path, expectedManifestHash } = options.exceptionManifest;
-  if (
-    !/^[a-f0-9]{64}$/.test(expectedManifestHash) ||
-    realpathSync(path) !== path
-  )
-    throw new Error("Invalid recovery exception manifest binding");
-  const fd = openSync(
-    path,
-    constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
-  );
-  try {
-    const info = fstatSync(fd);
-    if (
-      !info.isFile() ||
-      info.nlink !== 1 ||
-      info.uid !== process.getuid?.() ||
-      (info.mode & 0o077) !== 0 ||
-      info.size > 8 * 1024 * 1024
-    )
-      throw new Error("Unsafe recovery exception manifest");
-    const buffer = Buffer.alloc(info.size + 1);
-    let used = 0;
-    while (used < buffer.length) {
-      const count = readSync(fd, buffer, used, buffer.length - used, null);
-      if (!count) break;
-      used += count;
-    }
-    const after = fstatSync(fd);
-    const named = lstatSync(path);
-    if (
-      used !== info.size ||
-      after.size !== info.size ||
-      after.mtimeMs !== info.mtimeMs ||
-      after.ctimeMs !== info.ctimeMs ||
-      named.dev !== info.dev ||
-      named.ino !== info.ino ||
-      named.nlink !== 1
-    )
-      throw new Error("Recovery exception manifest changed during read");
-    const value = ExceptionManifestSchema.parse(
-      JSON.parse(buffer.subarray(0, used).toString("utf8")),
-    );
-    const { manifestHash, ...body } = value;
-    if (
-      value.entryCount !== value.entries.length ||
-      computeManifestHash(body) !== manifestHash
-    )
-      throw new Error("Recovery exception manifest digest or count differs");
-    if (
-      value.manifestHash !== expectedManifestHash ||
-      new Set(value.entries.map((entry) => entry.id)).size !==
-        value.entries.length
-    )
-      throw new Error("Recovery exception manifest digest or identity differs");
-    return value;
-  } finally {
-    closeSync(fd);
-  }
-}
+export type { RecoveryAnchorOptions } from "./recovery-audit.js";
 
 export function anchorRecoveryHead(
   context: RecoveryPostcommitContext,
@@ -111,7 +45,7 @@ export function anchorRecoveryHead(
   if (process.platform !== "linux")
     throw new Error("Recovery anchor requires Linux descriptor binding");
   context.assertStillBound();
-  const approved = manifest(options);
+  const approved = readRecoveryExceptionManifest(options);
   const base = context.store.basePath;
   const baseIdentity = inspectRecoveryExportRoot(base);
   const auditDir = join(base, "audit");
@@ -169,29 +103,15 @@ export function anchorRecoveryHead(
     };
     verify();
     const audit = new AuditRepository(context.database);
-    const tuples = new Map<string, StoredRowTuple>();
-    const rows = context.database
-      .prepare(
-        "SELECT id, tenant_id, entry_hash, prev_entry_hash, hash_version, seq FROM audit_events ORDER BY seq",
-      )
-      .all() as Array<{
-      id: string;
-      tenant_id: string;
-      entry_hash: string | null;
-      prev_entry_hash: string | null;
-      hash_version: number | null;
-      seq: number;
-    }>;
-    for (const row of rows) {
-      if (!Number.isSafeInteger(row.seq) || row.seq < 1)
-        throw new Error("Recovery audit sequence is unavailable");
-      tuples.set(row.id, {
-        entry_hash: row.entry_hash,
-        prev_entry_hash: row.prev_entry_hash,
-        hash_version: row.hash_version ?? 1,
-        seq: row.seq,
-      });
-    }
+    const {
+      rows,
+      verification: before,
+      classified,
+    } = verifyRecoveryAuditSnapshot(
+      context.database,
+      readRecoveryAnchorSnapshot(fd),
+      approved,
+    );
     const settlement = rows.find(
       (row) => row.id === context.status.auditEventId,
     );
@@ -201,23 +121,18 @@ export function anchorRecoveryHead(
       settlement.tenant_id !== context.targetTenantId
     )
       throw new Error("Recovery settlement is not in the chained audit head");
-    const before = verifyAnchors(audit, file);
-    const classified = classifyChainBreaks(
-      before.chain.breaks,
-      approved,
-      tuples,
-    );
-    if (before.anchorBreaks.length > 0 || !classified.verified)
-      throw new Error("Recovery anchor or chain verification refused");
     const record = appendAnchor(audit, file, {
       tenantId: context.targetTenantId,
     });
     verify();
-    const after = verifyAnchors(audit, file);
+    const afterRecords = parseAnchorLog(
+      readRecoveryAnchorSnapshot(fd).toString("utf8"),
+    );
+    const after = verifyAnchorRecords(audit, afterRecords);
     if (
       after.anchorBreaks.length > 0 ||
       !isDeepStrictEqual(before.chain, after.chain) ||
-      readAnchors(file).at(-1)?.anchorHash !== record.anchorHash
+      afterRecords.at(-1)?.anchorHash !== record.anchorHash
     )
       throw new Error("Recovery anchor verification changed");
     const chained = audit
@@ -228,10 +143,10 @@ export function anchorRecoveryHead(
       record.chainHead !== chained.at(-1)?.entry_hash
     )
       throw new Error("Recovery anchor does not witness the global head");
-    const bytes = readFileSync(file);
+    const bytes = readRecoveryAnchorSnapshot(fd);
     const witness = witnessRecoveryAnchor(auditDir, bytes, verify);
     verify();
-    if (!readFileSync(file).equals(bytes))
+    if (!readRecoveryAnchorSnapshot(fd).equals(bytes))
       throw new Error("Recovery anchor bytes changed after witness");
     return {
       anchorVerified: true,

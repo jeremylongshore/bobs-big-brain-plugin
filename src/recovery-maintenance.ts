@@ -8,6 +8,7 @@ import {
   type RecoveryPostcommitContext,
 } from "@qmd-team-intent-kb/curator";
 import { AuditRepository } from "@qmd-team-intent-kb/store";
+import { assertRecoveryAuditReadiness } from "./recovery-audit.js";
 import {
   getQmdTenantIndexPath,
   inspectRecoveryQmdRegistry,
@@ -207,8 +208,10 @@ export async function executeRecoveryMaintenance(
     fixedOptions.qmdRuntime === undefined
   )
     throw new Error("Explicit recovery maintenance bindings required");
-  const result = await executeRecoveryEnvelope(fixedRequest, (context) =>
-    maintain(context, fixedOptions),
+  const result = await executeRecoveryEnvelope(
+    fixedRequest,
+    (context) => maintain(context, fixedOptions),
+    (context) => assertRecoveryAuditReadiness(context, fixedOptions),
   );
   return {
     ...result,

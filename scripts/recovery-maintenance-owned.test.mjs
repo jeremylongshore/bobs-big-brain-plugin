@@ -10,6 +10,8 @@ import {
   lstatSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
+  readlinkSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -24,6 +26,9 @@ import {
   CandidateRepository,
   PolicyRepository,
   AuditRepository,
+  appendAnchor,
+  computeEntryHash,
+  computeManifestHash,
 } from "@qmd-team-intent-kb/store";
 import {
   runRecoveryCommand,
@@ -39,6 +44,7 @@ import {
   makeMemory,
   makeCandidate,
   makePolicy,
+  makeAuditEvent,
 } from "../../bobs-big-brain-registrar/packages/test-fixtures/dist/index.js";
 import { verifyRuntime } from "../../bobs-big-brain-registrar/packages/qmd-runtime/lib/runtime-inventory.mjs";
 import { createRequire } from "node:module";
@@ -574,3 +580,130 @@ test(
     assert.equal(unlocked(f), true);
   },
 );
+
+function completeFilesystem(root) {
+  const rows = [];
+  function walk(path) {
+    const s = lstatSync(path),
+      relative = path.slice(root.length);
+    const type = s.isSymbolicLink()
+      ? "link"
+      : s.isDirectory()
+        ? "directory"
+        : s.isFile()
+          ? "file"
+          : "special";
+    rows.push({
+      path: relative,
+      type,
+      inode: s.ino,
+      device: s.dev,
+      mode: s.mode,
+      uid: s.uid,
+      links: s.nlink,
+      bytes: s.size,
+      mtime: s.mtimeMs,
+      ctime: s.ctimeMs,
+      ...(type === "file" ? { sha256: hash(readFileSync(path)) } : {}),
+      ...(type === "link" ? { target: readlinkSync(path) } : {}),
+    });
+    if (type === "directory")
+      for (const name of readdirSync(path).sort()) walk(join(path, name));
+  }
+  walk(root);
+  return rows;
+}
+for (const kind of ["fork", "anchor-mismatch", "manifest-pin"])
+  test(
+    `fixed readiness refuses ${kind} before any database or maintenance mutation`,
+    { timeout: 10000 },
+    async () => {
+      const f = fixture();
+      const db = openExistingDatabase({
+        path: f.databasePath,
+        readonly: false,
+      });
+      try {
+        db.pragma("journal_mode = DELETE");
+        const audit = new AuditRepository(db);
+        if (kind === "fork") {
+          audit.insert(makeAuditEvent({ tenantId: targetTenant }));
+          const event = makeAuditEvent({ tenantId: targetTenant });
+          audit.insert(event);
+          const first = db
+            .prepare("SELECT entry_hash FROM audit_events ORDER BY seq LIMIT 1")
+            .get();
+          const row = db
+            .prepare("SELECT * FROM audit_events WHERE id=?")
+            .get(event.id);
+          const changed = { ...row, prev_entry_hash: first.entry_hash };
+          db.prepare(
+            "UPDATE audit_events SET prev_entry_hash=?,entry_hash=? WHERE id=?",
+          ).run(
+            first.entry_hash,
+            computeEntryHash(changed, row.hash_version ?? 1),
+            event.id,
+          );
+        }
+        if (kind === "anchor-mismatch") {
+          const directory = join(f.base, "audit"),
+            path = join(directory, "anchors.jsonl");
+          mkdirSync(directory, { mode: 0o700 });
+          writeFileSync(path, "", { mode: 0o600 });
+          appendAnchor(audit, path, { tenantId: targetTenant });
+          const record = JSON.parse(readFileSync(path, "utf8").trim());
+          record.chainHead = "forged";
+          writeFileSync(path, JSON.stringify(record) + "\n");
+        }
+        if (kind === "manifest-pin") {
+          const body = {
+            schemaVersion: 1,
+            brainId: "private-fixture",
+            generatedAt: "2026-10-26T00:00:00.000Z",
+            entryCount: 0,
+            entries: [],
+          };
+          const path = join(f.root, "exceptions.json");
+          writeFileSync(
+            path,
+            JSON.stringify({
+              ...body,
+              manifestHash: computeManifestHash(body),
+            }),
+            { mode: 0o600 },
+          );
+          f.options.exceptionManifest = {
+            path,
+            expectedManifestHash: "0".repeat(64),
+          };
+        }
+      } finally {
+        db.close();
+      }
+      writeFileSync(join(f.base, ".write.lock"), "", { mode: 0o600 });
+      const before = snapshot(f),
+        files = completeFilesystem(f.root);
+      const result = await executeRecoveryMaintenance(f.request, f.options);
+      assert.deepEqual(
+        {
+          ok: result.ok,
+          committed: result.committed,
+          appliedNow: result.appliedNow,
+          stage: result.failedStage,
+          postcommit: result.postcommit,
+          recoveryComplete: result.recoveryComplete,
+        },
+        {
+          ok: false,
+          committed: false,
+          appliedNow: false,
+          stage: "preflight",
+          postcommit: { state: "not_run" },
+          recoveryComplete: false,
+        },
+      );
+      assert.deepEqual(snapshot(f), before);
+      assert.deepEqual(completeFilesystem(f.root), files);
+      assert.equal(unlocked(f), true);
+    },
+  );
