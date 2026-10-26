@@ -173,3 +173,17 @@ jobs:
           out=$(node --test scripts/seed-policy.test.mjs 2>&1) || { echo "$out"; exit 1; }
           echo "$out" | tail -12
           echo "$out" | grep -q '# skipped 0' || { echo "::error::seed policy cases SKIPPED"; exit 1; }
+
+      - name: Local review CLI boundaries (no native execution, zero skips)
+        working-directory: bobs-big-brain-plugin
+        run: |
+          out=$(node --test scripts/local-review-cli.test.mjs 2>&1) || { echo "$out"; exit 1; }
+          echo "$out" | tail -12
+          echo "$out" | grep -q '# skipped 0' || { echo "::error::local review CLI cases SKIPPED"; exit 1; }
+
+      - name: Local review transaction contracts (bundled helper, real store, zero skips)
+        working-directory: bobs-big-brain-plugin
+        run: |
+          out=$(LOCAL_REVIEW_TEST_ROOT="$PWD" node --test scripts/local-review-transactions.test.mjs 2>&1) || { echo "$out"; exit 1; }
+          echo "$out" | tail -12
+          echo "$out" | grep -q '# skipped 0' || { echo "::error::local review transaction cases SKIPPED"; exit 1; }

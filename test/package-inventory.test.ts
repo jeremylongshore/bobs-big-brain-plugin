@@ -22,6 +22,7 @@ const runtimeFiles = [
   'plugin-runtime/bootstrap.cjs',
   'plugin-runtime/governed-brain.cjs',
   'plugin-runtime/qmd-command.cjs',
+  'plugin-runtime/local-review.cjs',
   'plugin-runtime/package.json',
   'plugin-runtime/package-lock.json',
 ];
@@ -37,15 +38,18 @@ test('npm pack includes the runtime entry files without provisioned dependencies
     for (const dir of ['package', 'home', 'cache', 'tmp', 'output']) {
       mkdirSync(join(scratch, dir));
     }
-    const manifest: { files: string[] } = JSON.parse(
+    const manifest: { files: string[]; bin: Record<string, string> } = JSON.parse(
       readFileSync(join(source, 'package.json'), 'utf8'),
     );
+    assert.equal(manifest.bin['governed-second-brain-review'], 'bin/review.mjs');
+    const commandFiles = Object.values(manifest.bin);
     write(
       join(fixture, 'package.json'),
       JSON.stringify({
         name: 'bbb-private-pack-fixture',
         version: '0.0.0',
         files: manifest.files,
+        bin: manifest.bin,
       }),
     );
     for (const path of manifest.files) {
@@ -55,7 +59,7 @@ test('npm pack includes the runtime entry files without provisioned dependencies
         write(join(fixture, path), 'public fixture\n');
       }
     }
-    for (const path of [...runtimeFiles, ...cleanupFiles]) {
+    for (const path of [...runtimeFiles, ...cleanupFiles, ...commandFiles]) {
       write(join(fixture, path), path.endsWith('.json') ? '{}\n' : '// synthetic runtime\n');
     }
     write(
@@ -106,6 +110,7 @@ test('npm pack includes the runtime entry files without provisioned dependencies
       [...runtimeFiles].sort(),
     );
     for (const path of cleanupFiles) assert.ok(paths.includes(path));
+    for (const path of commandFiles) assert.ok(paths.includes(path));
     assert.ok(paths.includes('package.json'));
     assert.ok(paths.includes('gsb.lock.json'));
     assert.ok(paths.includes('README.md'));

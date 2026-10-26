@@ -36,6 +36,7 @@ eq(
 for (const [file, digest, label] of [
   ['governed-brain.cjs', lock.stack.govern.bundleSha256, 'runtime bundle'],
   ['qmd-command.cjs', lock.stack.govern.qmdCommandHelperSha256, 'qmd command helper'],
+  ['local-review.cjs', lock.stack.govern.localReviewHelperSha256, 'local review helper'],
 ]) {
   try {
     const hash = createHash('sha256')

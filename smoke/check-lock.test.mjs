@@ -10,6 +10,7 @@ function checkFixture(change = () => {}) {
   const root = mkdtempSync(join(tmpdir(), 'gsb-artifact-lock-'));
   const bundle = '/* fixture runtime */\n';
   const helper = '/* fixture headless helper */\n';
+  const review = '/* fixture local review helper */\n';
   const identity = { name: 'governed-second-brain', version: '1.2.0' };
   const lock = {
     stack: {
@@ -18,6 +19,7 @@ function checkFixture(change = () => {}) {
         commit: 'a'.repeat(40),
         bundleSha256: createHash('sha256').update(bundle).digest('hex'),
         qmdCommandHelperSha256: createHash('sha256').update(helper).digest('hex'),
+        localReviewHelperSha256: createHash('sha256').update(review).digest('hex'),
       },
     },
   };
@@ -29,6 +31,7 @@ function checkFixture(change = () => {}) {
     copyFileSync(new URL('./check-lock.mjs', import.meta.url), join(root, 'smoke/check-lock.mjs'));
     writeFileSync(join(root, 'plugin-runtime/governed-brain.cjs'), bundle);
     writeFileSync(join(root, 'plugin-runtime/qmd-command.cjs'), helper);
+    writeFileSync(join(root, 'plugin-runtime/local-review.cjs'), review);
     json('package.json', identity);
     json('.claude-plugin/plugin.json', identity);
     json('.claude-plugin/marketplace.json', { plugins: [identity] });
@@ -57,6 +60,9 @@ for (const [name, change] of [
   ['changed helper bytes', ({ root }) => writeFileSync(join(root, 'plugin-runtime/qmd-command.cjs'), 'changed')],
   ['missing helper', ({ root }) => rmSync(join(root, 'plugin-runtime/qmd-command.cjs'))],
   ['missing helper hash', ({ lock }) => delete lock.stack.govern.qmdCommandHelperSha256],
+  ['changed review helper', ({ root }) => writeFileSync(join(root, 'plugin-runtime/local-review.cjs'), 'changed')],
+  ['missing review helper', ({ root }) => rmSync(join(root, 'plugin-runtime/local-review.cjs'))],
+  ['missing review hash', ({ lock }) => delete lock.stack.govern.localReviewHelperSha256],
   ['missing bundle hash', ({ lock }) => delete lock.stack.govern.bundleSha256],
   ['missing registrar revision', ({ lock }) => delete lock.stack.govern.commit],
   ['abbreviated registrar revision', ({ lock }) => {
