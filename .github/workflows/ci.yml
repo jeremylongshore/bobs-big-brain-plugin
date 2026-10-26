@@ -34,13 +34,13 @@ jobs:
         with:
           node-version: 20
 
-      # Strip ONLY the private-sibling workspace links, then install the rest
+      # Strip ONLY the sibling workspace links, then install the rest
       # (vitest, eslint, typescript, the MCP SDK, better-sqlite3, …). The tested
       # modules (src/mode.ts, src/remote-server.ts), the lint scope, and the
       # typecheck:ci scope all deliberately avoid every @qmd-team-intent-kb import,
       # so this partial install is sufficient. npm (not pnpm --frozen-lockfile)
       # because package.json is mutated first — mirrors smoke.yml's proven pattern.
-      - name: Drop the private-sibling workspace links
+      - name: Drop the sibling workspace links
         run: |
           node -e "const p=require('./package.json'); for (const k of Object.keys(p.devDependencies||{})) if (k.startsWith('@qmd-team-intent-kb/')) delete p.devDependencies[k]; require('fs').writeFileSync('package.json', JSON.stringify(p,null,2))"
 

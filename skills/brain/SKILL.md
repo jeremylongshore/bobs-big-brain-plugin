@@ -9,7 +9,7 @@ allowed-tools: "mcp__governed-brain__brain_search"
 version: 1.2.1
 author: Jeremy Longshore <jeremy@intentsolutions.io>
 license: Apache-2.0
-compatibility: "Designed for Claude Code; ships with the bobs-big-brain (governed-brain) plugin, which auto-wires the governed-brain MCP server. Works in both modes: local (in-process, needs qmd on PATH) and team (proxies to your team brain when TEAMKB_API_URL is set). Same brain_search either way."
+compatibility: "Designed for Claude Code; ships with the governed-second-brain plugin (governed-brain MCP server), which auto-wires the governed-brain MCP server. Works in both modes: local (in-process, needs qmd on PATH) and team (proxies to your team brain when TEAMKB_API_URL is set). Same brain_search either way."
 tags: [brain, knowledge, search, citations, governance, local-first, team]
 argument-hint: "[question]"
 model: inherit
@@ -138,7 +138,7 @@ Sources:
 | -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
 | `brain_search` returns empty `results` | Run the empty-result ladder (keywords → scope all); only then refuse. Do not fabricate.                                          |
 | `qmd` missing / index empty            | Retrieval degrades to empty. Tell operator: install `@tobilu/qmd`, run INTKB `pnpm search-canary -- --heal` or `bbb-qmd status`. |
-| MCP tool unavailable                   | Plugin not enabled; install/enable bobs-big-brain / governed-brain.                                                              |
+| MCP tool unavailable                   | Plugin not enabled; install/enable governed-second-brain (governed-brain MCP server).                                                              |
 | User asks to write/capture             | Out of scope here — direct them to `/brain-save`.                                                                                |
 
 ## Guardrails

@@ -43458,7 +43458,7 @@ var init_remote_server = __esm({
     init_stdio2();
     import_zod3 = __toESM(require_zod(), 1);
     init_subjects();
-    VERSION = "1.1.0";
+    VERSION = "1.2.0";
     API_URL = process.env["TEAMKB_API_URL"];
     API_TOKEN = process.env["TEAMKB_API_TOKEN"];
     TENANT_ID = process.env["TEAMKB_TENANT_ID"]?.trim() || "intent-solutions";

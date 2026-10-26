@@ -104,7 +104,7 @@ npx governed-second-brain init "$HOME/my-notes" --index-only \
   --base "$TEAMKB_BASE_PATH" --tenant "$TEAMKB_TENANT_ID"
 ```
 
-This uses no API key or network. The qmd index is derived at
+This skips generative-model compilation. Initial npx/native provisioning uses network access; optional dense retrieval uses a separate loopback service. Subsequent lexical retrieval needs no generative-model API key. The qmd index is derived at
 `$TEAMKB_BASE_PATH/qmd-index/$TEAMKB_TENANT_ID`; `brain_govern` refreshes it
 from the governed Markdown export. `brain_status` shows the resolved tenant
 and qmd path, which is the quickest way to catch a wrong-root or wrong-tenant

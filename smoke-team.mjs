@@ -4,6 +4,7 @@
 // proxies to the brain API with the per-user bearer token and the correct body; and
 // that an admin-gated 403 on transition surfaces a clear member-facing message. Uses
 // a tiny stub API on loopback — no real brain, no native module, no ~/.teamkb.
+import { readFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
@@ -80,6 +81,11 @@ const transport = new StdioClientTransport({
 });
 const client = new Client({ name: 'smoke-team', version: '0.0.0' }, { capabilities: {} });
 await client.connect(transport);
+const packageVersion = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')).version;
+const serverVersion = client.getServerVersion()?.version;
+if (serverVersion !== packageVersion) {
+  fail(`MCP initialize version ${serverVersion} does not match package version ${packageVersion}`);
+}
 const text = (r) => r.content?.[0]?.text ?? JSON.stringify(r);
 
 // 3. Team surface (current product): search + status + capture + transition + inbox admin tools

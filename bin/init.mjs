@@ -6,12 +6,13 @@
  * Usage:
  *   governed-second-brain init <folder> [--index-only] [--yes] [--clean]
  *                                       [--base <dir>] [--tenant <id>]
+ *                                       [--scope user|project|local] [--no-register]
  *
  *   --index-only   Build with ZERO LLM egress: capture your files → govern
- *                  (deterministic dedupe/policy/promote) → qmd index. No
- *                  Anthropic calls. Best for regulated / client data.
- *                  (Full ICO-compile mode — which derives richer knowledge and
- *                  DOES egress to Anthropic — is on the way; see the notice.)
+ *                  (deterministic dedupe/policy/promote) → qmd index. No generative-model calls; provisioning and optional local
+ *                  retrieval services have separate requirements. Full mode
+ *                  already drives ICO with ICO_PROVIDER=deepseek and requires
+ *                  DEEPSEEK_API_KEY; file content is sent to that provider.
  *   --yes          Skip the consent prompt (non-interactive).
  *   --clean        Retain the old brain in a sibling backup, then rebuild fresh.
  *   --base <dir>   Brain location (default ~/.teamkb). Must be under $HOME.
@@ -297,7 +298,7 @@ function printNextSteps(args, qmdOk, registered) {
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   if (args._[0] !== 'init' || !args._[1]) {
-    log('Usage: governed-second-brain init <folder> [--index-only] [--yes] [--clean] [--base <dir>] [--tenant <id>]');
+    log('Usage: governed-second-brain init <folder> [--index-only] [--yes] [--clean] [--base <dir>] [--tenant <id>] [--scope user|project|local] [--no-register]');
     process.exit(args._[0] === 'init' ? 1 : 0);
   }
   const target = validateBrainTarget({

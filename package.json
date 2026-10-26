@@ -1,7 +1,7 @@
 {
   "name": "governed-second-brain",
   "version": "1.2.0",
-  "description": "Governed second brain \u2014 a Claude Code + Cowork plugin + installer. ONE plugin, two modes: local (default) turns your files into cited memory with deterministic governance and a tamper-evident audit trail after one-time native dependency provisioning; team proxies to your shared brain.",
+  "description": "Bob\u2019s Big Brain \u2014 a Claude Code + Cowork plugin + installer. ONE plugin, two modes: local (default) turns your files into cited memory with deterministic governance and a tamper-evident audit trail after one-time native dependency provisioning; team proxies to your shared brain.",
   "keywords": [
     "mcp",
     "claude-code",
@@ -40,7 +40,9 @@
     ".mcp.json",
     "README.md",
     "LICENSE",
-    "CLAUDE.md"
+    "CLAUDE.md",
+    "AGENTS.md",
+    "scripts/verify-anchors.mjs"
   ],
   "bin": {
     "governed-second-brain": "bin/init.mjs",

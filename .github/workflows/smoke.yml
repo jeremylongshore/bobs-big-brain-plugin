@@ -5,8 +5,8 @@ name: Smoke (full chain)
 # egress, against the pinned stack in gsb.lock.json.
 #
 # This tests the SHIPPED artifact (plugin-runtime/governed-brain.cjs, which
-# inlines the private INTKB packages), so the build is intentionally NOT run here
-# — it needs the sibling bobs-big-brain-registrar monorepo that only exists locally.
+# inlines the public Registrar packages), so the build is intentionally NOT run here
+# — it needs the sibling bobs-big-brain-registrar monorepo, deliberately not provisioned by this committed-bundle job.
 
 on:
   push:

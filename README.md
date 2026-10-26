@@ -4,7 +4,7 @@
   The governed team brain — cited recall, hash-chained receipts. A local-first Claude Code + Cowork
   plugin: turn <em>your own</em> files into a governed, <code>qmd://</code>-cited brain with a
   tamper-evident, SHA-256 hash-chained audit trail.<br>
-  <strong>Compile, then govern.</strong> One plugin, two modes: <strong>local</strong> (default — in-process, no daemon, no runtime network after first-start provisioning, no API key for retrieval) or <strong>team</strong> (proxy to a shared governed brain over your network).
+  <strong>Compile, then govern.</strong> One plugin, two modes: <strong>local</strong> (default — in-process lexical retrieval after provisioning, with an optional separate local embedding service) or <strong>team</strong> (proxy to a shared governed brain over your network).
 </p>
 
 <p align="center">
@@ -28,7 +28,7 @@ It stacks on three engines:
 
 | Engine | Repo | Layer |
 |---|---|---|
-| **Bob's Big Brain Compiler** | [jeremylongshore/bobs-big-brain-compiler](https://github.com/jeremylongshore/bobs-big-brain-compiler) | **Compile** — derive knowledge from a corpus (optional; the only part that egresses) |
+| **Bob's Big Brain Compiler** | [jeremylongshore/bobs-big-brain-compiler](https://github.com/jeremylongshore/bobs-big-brain-compiler) | **Compile** — derive knowledge from a corpus (optional; compilation sends content to its configured provider) |
 | **Bob's Big Brain Registrar** | [jeremylongshore/bobs-big-brain-registrar](https://github.com/jeremylongshore/bobs-big-brain-registrar) | **Govern** — deterministic dedupe → policy → promote + the hash-chained audit |
 | **qmd** | [tobi/qmd](https://github.com/tobi/qmd) (`@tobilu/qmd`) | **Retrieve** — on-device search; every hit is a `qmd://` citation |
 
@@ -40,18 +40,17 @@ in-process — the engines stay independent repos; nothing here forks or privati
 ## What it does
 
 Most "AI memory" gives an agent better *recall*. This does two things the category skips: it
-**governs** what's allowed to become durable memory (deterministic dedupe / policy / promotion — by
-code, not a model), and it ships a **receipt** — a `qmd://` citation plus a SHA-256 hash-chained audit
-event — for every write. Runs on your machine; your files never leave it (retrieval is local; the
-optional *compile* step (Bob's Big Brain Compiler) is the only thing that egresses, and it's opt-in).
+**governs** admission to durable memory with deterministic dedupe, policy and promotion, and records SHA-256 hash-chained governance receipts. Retrieval returns `qmd://` source citations; a citation is not a new governance receipt, and a proposal waiting in the spool is not yet an admitted memory.
+
+Local lexical retrieval runs on your machine. Optional full compilation sends file text to the selected provider with installer consent; team mode sends queries/proposals to its configured API. Initial provisioning can fetch packages, optional dense retrieval uses a loopback service, and the separately enabled autocapture hook calls a distiller. Choose the mode and capture workflow for the data you intend to share.
 
 ### Tool surface
 
 | Tool | Kind | What it does |
 |---|---|---|
-| `brain_search` | read | Cited search over your governed memory (`qmd://` receipts), in-process — native-FTS5 + `qmd` reciprocal-rank fusion, then a freshness/category rerank |
+| `brain_search` | read | Cited search over your governed memory (`qmd://` source citations), in-process — native FTS5 + qmd lexical fusion, plus configured local dense candidates when the separate embedder/index is available; freshness/category ranking |
 | `brain_status` | read | Counts by lifecycle state + category |
-| `brain_audit_verify` | read | Verify the audit trail — the SHA-256 hash chain **and** the external anchor log; flags any tamper |
+| `brain_audit_verify` | read | Verify the audit trail — the SHA-256 hash chain **and** the external anchor log; reports detected chain/anchor breaks within the disclosed local trust boundary |
 | `brain_capture` | write | Capture a fact as a governance **proposal** (to the local spool) |
 | `brain_govern` | write | Drain the spool → dedupe → policy → **promote**, with a hash-chained audit receipt — daemon-free |
 | `brain_transition` | write | Retire / re-lifecycle a memory (audited) |
@@ -157,6 +156,12 @@ repository to a separate remote for an external witness; a coordinated rewrite o
 anchors, and local git history still exceeds a single machine's trust boundary.
 It is **not** a blockchain and **not** immutable storage.
 
+<!-- intent-select-partner:start -->
+<p><a href="https://intentsolutions.io/"><img src="https://raw.githubusercontent.com/intent-solutions-io/.github/b82af5d3e7951d85e39ea9e65cc24ee8278722a7/assets/brand/claude-select-partner.svg" alt="Intent Solutions: Claude Partner Network Select Services Partner" width="300" height="95" /></a></p>
+
+Intent Solutions is a Claude Partner Network Select Services Partner.
+<!-- intent-select-partner:end -->
+
 ## Independently verify the anchor log
 
 `brain_audit_verify` is the *in-box* check — it runs inside the same codebase that wrote the chain
@@ -168,11 +173,7 @@ engines. It's the `cat log.md` of receipts — one file, node built-ins only (`c
 ```bash
 # defaults to $HOME/.teamkb/audit/anchors.jsonl
 
-<!-- intent-select-partner:start -->
-<p><a href="https://intentsolutions.io/"><img src="https://raw.githubusercontent.com/intent-solutions-io/.github/b82af5d3e7951d85e39ea9e65cc24ee8278722a7/assets/brand/claude-select-partner.svg" alt="Intent Solutions: Claude Partner Network Select Services Partner" width="300" height="95" /></a></p>
 
-Intent Solutions is a Claude Partner Network Select Services Partner.
-<!-- intent-select-partner:end -->
 
 node scripts/verify-anchors.mjs
 
@@ -199,7 +200,7 @@ It checks four things against the external anchor log (`anchors.jsonl`, a hash c
    count, catching a silent rewrite of history the in-box chain-walk alone would miss.
 
 Exit `0` on pass (witness-only warnings still exit `0`); non-zero on any integrity, linkage, or
-history-rewrite failure. Run the verifier's own tests with `npm run verify-anchors:test`.
+history-rewrite failure. The standalone verifier ships in the npm package as well as this checkout. Run its tests from a source checkout with `npm run verify-anchors:test` (test files are not shipped).
 
 ## Rebuilding an existing local brain
 
@@ -237,17 +238,18 @@ Team mode does not load or install those local-store modules.
 One command, two modes:
 
 ```bash
-# A) zero-egress (default for regulated/client data) — nothing leaves the machine
-npx governed-second-brain init <your-folder> --index-only
+# A) skip model compilation (npm/native setup may use the network)
+npx governed-second-brain init "$HOME/my-notes" --index-only
 
 # B) full compile — the Compiler derives knowledge (6 passes) before governing; opt-in egress to DeepSeek
-DEEPSEEK_API_KEY=… npx governed-second-brain init <your-folder>
+# Set DEEPSEEK_API_KEY privately in the environment before this command.
+npx governed-second-brain init "$HOME/my-notes"
 ```
 
 It builds a governed, `qmd://`-cited, hash-chained-audited brain under `~/.teamkb`, installs the native
 dep per-platform, and **auto-registers the MCP server with Claude Code** (`claude mcp add`; `--no-register`
 to skip). Full mode runs a loud pre-flight consent (your file text goes to DeepSeek; `--yes` to skip the
-prompt). Requires Node 20+, a C/C++ toolchain (for `better-sqlite3`), and `qmd` 2.x on PATH for retrieval.
+prompt). Use Node22 for the maintained local setup/owned-runtime path, plus npm and build tools if native binaries need compilation. Native provisioning includes `better-sqlite3`, `fs-ext` and `sqlite-vec`. qmd2.x must be selected or available for its retrieval arm; unavailable qmd can leave partial native-FTS retrieval.
 
 After it finishes, start a new Claude Code session — the `governed-brain` tools are live. For the
 `/brain` and `/brain-save` skills too, `claude plugin install governed-second-brain`.
@@ -294,10 +296,11 @@ switches to team mode, so do not set it for BYO/local grounding.
 
 The **same** plugin runs in **team mode** when `TEAMKB_API_URL` is set: instead of an in-process local
 brain, it proxies to a shared governed-brain HTTP API (the Registrar's `apps/api`) over your network — so a
-whole team queries and contributes to **one** governed brain. Set two environment variables:
+whole team queries and contributes to **one** governed brain. Set the API URL, personal bearer token, and the exact tenant supplied by the operator:
 
 - **`TEAMKB_API_URL`** — your team brain's API base (e.g. `http://localhost:3847`)
 - **`TEAMKB_API_TOKEN`** — your personal bearer token (issued by the brain's operator)
+- **`TEAMKB_TENANT_ID`** — the operator-provided tenant (the code defaults to `intent-solutions`; an explicit value prevents accidental routing)
 
 You need network reachability to that API — typically a private network / VPN such as **Tailscale**
 (the brain is meant to stay off the public internet). The dispatcher auto-detects mode from
@@ -317,8 +320,7 @@ network); **Claude Desktop** can, via a manual `mcpServers` config (see below). 
    /plugin install governed-second-brain@governed-second-brain
    ```
 3. **Save your connection** to `~/.teamkb/team.json` (Windows: `%USERPROFILE%\.teamkb\team.json`) at
-   mode `600`. This file is read **before** shell env vars, so a Dock/GUI-launched Claude still reaches
-   team mode:
+   mode `600`. It supplies keys absent from the real environment; explicit environment values win. A Dock/GUI-launched Claude can therefore reach team mode without shell startup files:
    ```json
    {
     "apiUrl": "http://localhost:3847",
@@ -326,8 +328,7 @@ network); **Claude Desktop** can, via a manual `mcpServers` config (see below). 
      "tenantId": "<your tenant, e.g. intent-solutions>"
    }
    ```
-4. **Restart the app**, then ask with **keywords** (retrieval is keyword-based, so strong words beat a
-   full sentence): `/brain shipped this week`. A cited `qmd://` answer means you're connected.
+4. **Restart the app**, then ask with distinctive **keywords** (the lexical fallback benefits from exact terms; a configured dense arm can also contribute): `/brain shipped this week`. A cited `qmd://` answer means you're connected.
 
 macOS + Claude Code has a one-click installer that does steps 2–3 for you, and there's a full
 per-platform walkthrough (incl. the **Claude Desktop** `mcpServers` config) in
@@ -341,15 +342,16 @@ resolving a hold is a person's decision and is not a tool). Govern runs server-s
 `brain_govern`: **the model proposes, the server disposes**, and each promotion gets a hash-chained
 receipt. A member token can read + propose; admin actions return a clear 403 otherwise.
 
-> Team mode is **dependency-free** — it uses only `fetch` + the MCP SDK, never the native store — so it
+> Team mode has **no native-store dependency** — its built-ins, SDK and schemas are bundled, so it
 > runs straight from a marketplace clone with zero build.
 
 <details><summary><strong>Build from source</strong> (to hack on the runtime)</summary>
 
 ```bash
-pnpm -C ../bobs-big-brain-registrar build   # the bundle inlines the Registrar's compiled packages (sibling checkout, built)
-pnpm install && pnpm build            # esbuild → plugin-runtime/governed-brain.cjs
-node bin/init.mjs init <your-folder> --index-only
+pnpm -C ../bobs-big-brain-registrar install --frozen-lockfile
+pnpm install --frozen-lockfile
+pnpm build                            # clean Registrar build + all four committed helpers
+node bin/init.mjs init "$HOME/my-notes" --index-only
 ```
 </details>
 
@@ -374,3 +376,13 @@ Apache-2.0. The umbrella and both engine repos are Apache-2.0; qmd (upstream) is
   <a href="https://intentsolutions.io/">Intent Solutions</a> ·
   thesis at <a href="https://github.com/intent-solutions-io/bobs-big-brain-umbrella">intent-solutions-io/bobs-big-brain-umbrella</a>
 </p>
+
+## Source and distribution boundaries
+
+The manifest version is 1.2.0; `main` includes source changes after the original tag. A source fix is not evidence that an npm release, marketplace cache, or running client has updated. Check the actual installed commit/artifact and restart the client when appropriate. This reconciliation publishes no release and activates no brain.
+
+The shipped npm files include `AGENTS.md` (used by `CLAUDE.md`) and the standalone anchor verifier. Build/test commands need a source checkout and its dependencies. CI runs npm-based trimmed-source checks and committed-bundle smoke; it does not rebuild from the sibling Registrar. See [the source reconciliation](https://github.com/jeremylongshore/bobs-big-brain-plugin/blob/main/000-docs/001-AA-AUDR-source-contract-reconciliation-2026-10-26.md) for the evidence boundaries.
+
+Dense retrieval is enabled by source configuration but needs a separate loopback service and built index; without them it falls open to lexical retrieval. The optional cross-encoder is separate from freshness/category ranking. Optional model weights have their own permissions; the repository code license does not license them. Registrar decision044’s model-selection conflict is tracked separately in `compile-then-govern-eqw.11`.
+
+Team proposals can be retained in a local outbox when the API is unavailable. The opt-in session autocapture hook is a separate source-checkout workflow in [the hook guide](https://github.com/jeremylongshore/bobs-big-brain-plugin/blob/main/hooks/README.md); plugin installation does not enable it. It calls a distiller and sends selected proposals to the team API. Its filtering reduces disclosure risk and cannot guarantee that arbitrary sensitive content is removed.
