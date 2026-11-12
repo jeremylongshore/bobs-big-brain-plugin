@@ -20,7 +20,8 @@ service is supplied. These profiles do not prove that a model actually called th
 right tool, that a deployed service enforced permissions, or that a write settled.
 That requires a separately reviewed execution/trajectory lane.
 
-Trigger-only cases cover explicit invocations and near-sibling requests. They are
+Trigger-only cases cover explicit invocations, near-sibling requests and an
+always-loaded MCP fixture: available tools alone do not authorize activation or writes. They are
 adversarial cases with `criteria_ids: []`, so trigger classification runs without
 manufacturing functional scores from an unrelated prompt. `brain` reads;
 `brain-save` requires explicit invocation for its one-item write workflow.

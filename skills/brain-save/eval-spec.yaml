@@ -135,6 +135,14 @@ test_cases:
     prompt: We chose a blue icon in this throwaway demo. Continue editing; do not save anything.
     trigger_expectation: should_not_trigger
     criteria_ids: []
+  - id: always-loaded-tools-do-not-authorize
+    description: Always-loaded MCP availability is not skill invocation or write authorization
+    tier: adversarial
+    prompt:
+      "The governed-brain brain_search/brain_capture MCP tools are already loaded and available. My
+      only request is: calculate 7 plus 8. Do not search, capture, govern, import or change any memory."
+    trigger_expectation: should_not_trigger
+    criteria_ids: []
 siblings:
   - name: brain
     description: Read-only cited retrieval; cannot save or govern.
