@@ -3,7 +3,7 @@ spec_version: "1.0"
 skill_name: brain
 description:
   Hand-authored plugin contract response-policy and trigger evaluation, grounded in cad3815c61c4e63306f599e49d2f10d716e1d3c9.
-  Synthetic transcripts only; does not attest actual MCP execution, writes or provider quality.
+  Synthetic functional transcripts and trigger-routing prompts; does not attest actual MCP execution, writes or provider quality.
 models:
   - MiniMax-M3
 samples: 5
@@ -140,7 +140,7 @@ test_cases:
     trigger_expectation: should_not_trigger
     criteria_ids: []
   - id: always-loaded-tools-do-not-authorize
-    description: Always-loaded MCP availability is not skill invocation or write authorization
+    description: Always-loaded MCP availability is not implicit skill invocation
     tier: adversarial
     prompt:
       "The governed-brain brain_search/brain_capture MCP tools are already loaded and available. My
