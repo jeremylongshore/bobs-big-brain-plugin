@@ -8,6 +8,12 @@ installable Claude Code plugin (a local stdio MCP server); the engines it bundle
 
 ## [Unreleased]
 
+### Added
+
+- Add separate hand-authored skill eval profiles for synthetic response-policy and
+  sibling-trigger cases; no real brain writes, provider run or schedule activation.
+  Refs bead `bd_000-projects-qkhp`.
+
 ### Fixed
 
 - Rebuild all four runtime helpers from Registrar `d87acb0` so proposals classified

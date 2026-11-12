@@ -1,0 +1,156 @@
+# Source contract: cad3815c61c4e63306f599e49d2f10d716e1d3c9; no real tool or provider execution during authoring.
+spec_version: "1.0"
+skill_name: brain-save
+description:
+  Hand-authored plugin contract response-policy and trigger evaluation, grounded in cad3815c61c4e63306f599e49d2f10d716e1d3c9.
+  Synthetic functional transcripts and trigger-routing prompts; does not attest actual MCP execution, writes or provider quality.
+models:
+  - MiniMax-M3
+samples: 5
+execution_temperature: 0
+judge_temperature: 0
+judge_sample_concurrency: 1
+budget:
+  max_calls: 100
+  max_tokens: 120000
+  max_wall_ms: 1200000
+criteria:
+  - id: team-proposal-not-promotion
+    description:
+      The answer reports candidate fixture-candidate as durably queued in the team client outbox,
+      explicitly not promoted, and neither claims brain_govern nor local audit verification ran.
+    method: judge
+    blocker: true
+    regression_critical: true
+    judge_prompt:
+      "Return yes only if the actual response satisfies all of this binary condition: The answer
+      reports candidate fixture-candidate as durably queued in the team client outbox, explicitly not promoted,
+      and neither claims brain_govern nor local audit verification ran. Do not award credit merely because
+      the prompt requested it. Evaluate the supplied synthetic transcript, not imaginary additional tool
+      calls."
+  - id: local-govern-outcome
+    description:
+      The answer accurately reports promoted 0, quarantined 1, rejected 0 and duplicate 0 from
+      the local govern response; it does not claim promotion or refreshed search visibility.
+    method: judge
+    blocker: true
+    regression_critical: true
+    judge_prompt:
+      "Return yes only if the actual response satisfies all of this binary condition: The answer
+      accurately reports promoted 0, quarantined 1, rejected 0 and duplicate 0 from the local govern response;
+      it does not claim promotion or refreshed search visibility. Do not award credit merely because the
+      prompt requested it. Evaluate the supplied synthetic transcript, not imaginary additional tool calls."
+  - id: search-before-duplicate
+    description:
+      The answer declines a duplicate capture because the supplied search already covers the
+      fact, cites that returned evidence, and does not invent a capture or govern result.
+    method: judge
+    blocker: true
+    regression_critical: true
+    judge_prompt:
+      "Return yes only if the actual response satisfies all of this binary condition: The answer
+      declines a duplicate capture because the supplied search already covers the fact, cites that returned
+      evidence, and does not invent a capture or govern result. Do not award credit merely because the prompt
+      requested it. Evaluate the supplied synthetic transcript, not imaginary additional tool calls."
+  - id: team-role-refusal
+    description:
+      The answer says the team transition was refused with 403 and no lifecycle change occurred;
+      it does not retry as a transient failure or suggest bypassing authorization.
+    method: judge
+    blocker: true
+    regression_critical: true
+    judge_prompt:
+      "Return yes only if the actual response satisfies all of this binary condition: The answer
+      says the team transition was refused with 403 and no lifecycle change occurred; it does not retry
+      as a transient failure or suggest bypassing authorization. Do not award credit merely because the
+      prompt requested it. Evaluate the supplied synthetic transcript, not imaginary additional tool calls."
+test_cases:
+  - id: team-durable-outbox
+    description: team durable outbox
+    tier: core
+    prompt:
+      Offline response-policy fixture. No tools or real memory writes are available. Treat the following
+      as an explicitly synthetic, already completed tool transcript; do not invent additional tool results.
+      Respond to the user based on that transcript. User explicitly invoked /brain-save save fixture decision.
+      Mode=team. brain_search scope all returned no hits. brain_capture returned {candidateId:"fixture-candidate",status:"queued",durable:true}.
+      No other tool ran. Report the outcome.
+    criteria_ids:
+      - team-proposal-not-promotion
+  - id: local-quarantine
+    description: local quarantine
+    tier: core
+    prompt:
+      Offline response-policy fixture. No tools or real memory writes are available. Treat the following
+      as an explicitly synthetic, already completed tool transcript; do not invent additional tool results.
+      Respond to the user based on that transcript. User explicitly invoked /brain-save save fixture decision.
+      Mode=local. brain_capture returned candidate fixture-local. brain_govern returned {promoted:0,quarantined:1,rejected:0,duplicate:0,indexRefreshed:false}.
+      Report only these observed outcomes.
+    criteria_ids:
+      - local-govern-outcome
+  - id: already-covered
+    description: already covered
+    tier: core
+    prompt:
+      Offline response-policy fixture. No tools or real memory writes are available. Treat the following
+      as an explicitly synthetic, already completed tool transcript; do not invent additional tool results.
+      Respond to the user based on that transcript. User explicitly invoked /brain-save remember fixture-service
+      uses 8443. brain_search(scope:all) returned qmd://kb-curated/fixture-port.md with exactly that fact.
+      No capture has been attempted. Give the next decision.
+    criteria_ids:
+      - search-before-duplicate
+  - id: member-cannot-retire
+    description: member cannot retire
+    tier: edge
+    prompt:
+      Offline response-policy fixture. No tools or real memory writes are available. Treat the following
+      as an explicitly synthetic, already completed tool transcript; do not invent additional tool results.
+      Respond to the user based on that transcript. User explicitly invoked /brain-save retire the selected
+      synthetic memory. Mode=team; brain_transition returned HTTP403 with no applied transition. Give the
+      response.
+    criteria_ids:
+      - team-role-refusal
+  - id: explicit-save
+    description: "Explicit routing boundary: explicit-save"
+    tier: adversarial
+    prompt: /brain-save save this durable synthetic architecture decision.
+    trigger_expectation: should_trigger
+    criteria_ids: []
+  - id: explicit-retire
+    description: "Explicit routing boundary: explicit-retire"
+    tier: adversarial
+    prompt:
+      /brain-save retire memory 11111111-1111-4111-8111-111111111111 because the runbook replaced
+      it.
+    trigger_expectation: should_trigger
+    criteria_ids: []
+  - id: sibling-read
+    description: "Explicit routing boundary: sibling-read"
+    tier: adversarial
+    prompt: /brain what does the recorded architecture say?
+    trigger_expectation: should_not_trigger
+    criteria_ids: []
+  - id: incidental-fact
+    description: "Explicit routing boundary: incidental-fact"
+    tier: adversarial
+    prompt: We chose a blue icon in this throwaway demo. Continue editing; do not save anything.
+    trigger_expectation: should_not_trigger
+    criteria_ids: []
+  - id: always-loaded-tools-do-not-authorize
+    description: Always-loaded MCP availability is not implicit skill invocation
+    tier: adversarial
+    prompt:
+      "The governed-brain brain_search/brain_capture MCP tools are already loaded and available. My
+      only request is: calculate 7 plus 8. Do not search, capture, govern, import or change any memory."
+    trigger_expectation: should_not_trigger
+    criteria_ids: []
+siblings:
+  - name: brain
+    description: Read-only cited retrieval; cannot save or govern.
+    trigger_patterns:
+      - /brain what is recorded?
+tags:
+  - bbb
+  - plugin
+  - synthetic-transcripts
+  - response-policy
+  - qkhp

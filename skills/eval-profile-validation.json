@@ -1,0 +1,54 @@
+{
+  "record_kind": "author-local validation, not signed attestation",
+  "date": "2026-11-12",
+  "validator_source_commit": "0e2afc878547e0db51ec45270bc4af04097e26d0",
+  "validator_bundle_sha256": "38c7f98f0e2dfac27cc9a6955eb7aa55da0c387239366c90d4a8f7aa17bdbd9a",
+  "command": "node BUILT_JRIG_CLI validate PROFILE --json",
+  "assertions": [
+    "canonical SkillEvalSpec accepts each profile",
+    "unique criterion IDs",
+    "all criteria have scoped functional cases",
+    "trigger cases are adversarial with explicit expectation and empty criteria_ids",
+    "functional prompts identify synthetic completed transcripts"
+  ],
+  "profiles": [
+    {
+      "repo": "plugin",
+      "path": "skills/brain/eval-spec.yaml",
+      "sha256": "21f901c748629cafb1d142db203fca1f8f88275a5cae62068602ee9481165dc0",
+      "criteria": 4,
+      "functional_cases": 4,
+      "trigger_cases": 5,
+      "canonical_validation": {
+        "valid": true,
+        "type": "eval spec",
+        "errors": []
+      }
+    },
+    {
+      "repo": "plugin",
+      "path": "skills/brain-save/eval-spec.yaml",
+      "sha256": "c5ea79d2e00a1c6b2d376cd1dbf52d8290d6f54a33f503ddb15cb84f194afeeb",
+      "criteria": 4,
+      "functional_cases": 4,
+      "trigger_cases": 5,
+      "canonical_validation": {
+        "valid": true,
+        "type": "eval spec",
+        "errors": []
+      }
+    }
+  ],
+  "model_execution": false,
+  "runtime_files_changed": false,
+  "contract_source_commit": "cad3815c61c4e63306f599e49d2f10d716e1d3c9",
+  "contract_files": {
+    "skills/brain/SKILL.md": "9a618e9030f230475d21f4d887ab6c1d2c23cf5c11bec1dc73a7ab6df4940666",
+    "skills/brain-save/SKILL.md": "ebb85efa4dc230a7d41ef77c3379810dc14544363bfebdf7c05f940507b2e27e"
+  },
+  "existing_skill_contract_tests": {
+    "command": "node --test smoke/skill-contract.test.mjs",
+    "passed": 8,
+    "failed": 0
+  }
+}
